@@ -1,0 +1,19 @@
+{
+  "name": "overtone",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "test": "pnpm -r --parallel test",
+    "test:unit": "pnpm -r test:unit",
+    "typecheck": "pnpm -r typecheck",
+    "verify": "pnpm typecheck && pnpm test:unit"
+  },
+  "devDependencies": {
+    "@vitest/coverage-v8": "^5.0.3",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.3"
+  }
+}
