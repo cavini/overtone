@@ -44,9 +44,11 @@ Counts are targets of proportion, not quotas. The shape matters: the analysis en
 | Layer | Tool | Runs against | Target |
 |---|---|---|---|
 | Unit | Vitest | nothing — pure functions | < 2 s whole layer |
-| Integration | Vitest + Docker Postgres | real DB, faked HTTP | < 30 s |
-| Contract | Vitest + Zod | fixture payloads from each provider | < 1 s |
-| E2E | Playwright | full stack, `FakeTranscriptionProvider` | < 2 min |
+| Integration | Vitest + a Supabase branch (or local `supabase start`) | real Postgres, faked HTTP | < 30 s |
+| Contract | Vitest + Zod | committed Groq response fixtures | < 1 s |
+| E2E | Playwright | full app, `FakeTranscriptionProvider` | < 2 min |
+
+No test ever calls Groq. The free tier is 8 audio-hours a day shared across every user of the app — a test suite that burned it would take the product down, which makes `FakeTranscriptionProvider` a availability requirement rather than just good practice.
 
 ---
 
@@ -96,10 +98,10 @@ We do **not** install Cucumber. The Gherkin lives in the backlog where the PO ow
 
 | Thing | Approach |
 |---|---|
-| Audio | Four committed clips in `fixtures/audio/`: 5 s clean single speaker, 30 s two speakers overlapping, 10 s heavy background noise, 2 s silence. Small enough for git, real enough to be honest. |
-| Transcription responses | Canned Deepgram JSON in `fixtures/transcripts/`, captured once from the real API and checked in. Every fixture is validated against the provider's Zod schema by a contract test — so an upstream shape change breaks a fast test instead of production. |
+| Audio | Five committed clips in `fixtures/audio/`: 5 s clean single speaker, 30 s two hosts on separate tracks, 10 s heavy background noise, 2 s silence, and one just over 25 MB to exercise the compress-and-chunk path. Small enough for git, real enough to be honest. |
+| Transcription responses | Canned Groq `verbose_json` in `fixtures/transcripts/`, captured once from the real API and checked in. Every fixture is validated against the provider's Zod schema by a contract test — so an upstream shape change breaks a fast test instead of production. |
 | `FakeTranscriptionProvider` | Returns a fixture keyed by blob name. Instant, offline, deterministic. Used by every test including E2E. |
-| Database | Real Postgres via Docker Compose. Each integration test runs in a transaction that is rolled back. No mocking the DB — the DB is where half the logic is. |
+| Database | Real Postgres — `supabase start` locally, or a Supabase branch in CI. Each integration test runs in a transaction that is rolled back. No mocking the DB — the DB is where half the logic is. |
 | Time | `FakeClock` with an injected fixed instant. No `new Date()` in product code. |
 | IDs | `FakeIdGenerator` returning `rec_001`, `rec_002`… so snapshots are stable. |
 | External HTTP | MSW. Also used to simulate the failures that matter: 429, 500, timeout, and a truncated response body. |
@@ -115,7 +117,8 @@ Ordinary coverage is not enough for a measurement product. Four specific guards:
 1. **Determinism (property test).** Same transcript + same `pipeline_version` → byte-identical counts, across 100 generated transcripts. If this breaks, every number we have ever shown a user becomes untrustworthy.
 2. **Golden transcripts.** Three hand-counted transcripts with human-verified expected counts, asserted exactly. These are the regression net for every future change to tokenisation or lemmatisation — the changes most likely to silently shift numbers.
 3. **Conservation.** For any transcript: `sum(term_counts.count) + stopword_count == word_count`. A single invariant that catches a whole family of double-counting and dropped-token bugs.
-4. **Privacy.** `DELETE /api/recordings/:id` removes the row **and** the blob. Asserted on the `BlobStore` fake. This one is a promise to the user, so it gets an explicit test rather than being assumed.
+4. **Privacy.** `DELETE /api/episodes/:id` removes the row **and** the audio. Asserted on the `BlobStore` fake. A promise to the user, so it gets an explicit test rather than being assumed.
+5. **Timestamp stitching.** For audio split across chunks, the reassembled word timestamps must match a single-pass transcript of the same audio. An off-by-one in a chunk offset silently misplaces every count after the join — the kind of bug that produces plausible numbers pointing at the wrong moment.
 
 ---
 
@@ -135,7 +138,7 @@ Coverage gate: **90% on `packages/core`**, 70% overall. The asymmetry is deliber
 ```bash
 pnpm test              # unit + integration, watch mode — the inner loop
 pnpm test:unit         # pure, instant
-pnpm test:integration  # needs: docker compose up -d postgres
+pnpm test:integration  # needs: supabase start
 pnpm test:e2e          # Playwright
 pnpm test:trace        # stories with no covering test
 pnpm typecheck         # tsc --noEmit across the workspace
@@ -151,7 +154,7 @@ pnpm verify            # everything CI runs, locally
 Every push, in order, fail fast:
 
 ```
-typecheck → lint → test:unit → test:integration (pg service) → build → test:e2e
+typecheck → lint → test:unit → test:integration (supabase) → build → test:e2e
 ```
 
 Merge to `main` is blocked on all six. No exceptions, no "just this once" — the moment `main` can be red, it is red.
