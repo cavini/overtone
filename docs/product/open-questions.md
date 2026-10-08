@@ -11,12 +11,12 @@ Roles: **Stakeholder** = product owner of the business outcome and the budget. *
 | ID | Question | Recommendation | Status | Decides | Settle by |
 |---|---|---|---|---|---|
 | Q1 | Single-user or multi-user/auth from day one? | Real accounts + `user_id` scoping from **M1**; shared secret at M0; no teams/sharing until M6 | open — data-model half settled | Stakeholder + Eng | **pre-M0** (data model), fully M1 |
-| Q2 | Cloud transcription API or local model? | **Cloud API** behind a swappable interface; revisit local only if cost >$0.40/audio-hr at >200 hr/mo, or a privacy deal demands it | **resolved — ADR 0004** (buy, Deepgram first, behind a port) | Stakeholder (cost/privacy) + Eng | **pre-M0** |
+| Q2 | Cloud transcription API or local model? | **Local** (`whisper.cpp` + `large-v3-turbo`, Metal) as the default; cloud adapters stay available behind the same port | **resolved — ADR 0009** (local default; audio never leaves the machine) | Stakeholder (cost/privacy) + Eng | **pre-M0** |
 | Q3 | File size and duration ceilings? | M0: 25 MB / 10 min · MVP: **200 MB / 120 min**; widen later only on evidence, with client-side transcode to 64 kbps mono | settled for MVP — `backlog.md` constants | PM + Eng | **pre-M0** (M0 value), M1 for the rest |
 | Q4 | User-defined topic watchlists or automatic topic discovery? | **Watchlists first** (deterministic, testable, explainable); auto-*suggestion* as a seeding aid in M3+; never auto-discovery as the primary surface | **resolved — ADR 0006** | PM + Stakeholder | M2 |
 | Q5 | Which languages? | **English only**, stated in-product, with language detection + warning from M4; second language only in M6 behind its own accuracy bar | settled for MVP — English only | Stakeholder | M2 (position), M4 (ship) |
 | Q6 | Data retention policy? | Audio deleted **30 days** after successful processing (opt-in to keep); transcripts until user deletes; erasure fulfilled ≤7 days; no vendor training on our data, ever | open | Stakeholder (+ lawyer before public signup) | M1 (default), M4 (controls) |
-| Q7 | Hosting and budget expectations? | ≤$75/mo fixed + ≤$100/mo variable for the first 3 months (est.), alerting at 70%; a named number is required before M0 | **open — blocks M0** | Stakeholder | **pre-M0** |
+| Q7 | Hosting and budget expectations? | **$0 marginal** — everything runs locally; the only fixed cost is a model download. Deployment (and therefore hosting spend) deferred until there is a second user | **resolved — ADR 0009; no longer blocks M0** | Stakeholder | **pre-M0** |
 | Q8 | Speaker diarisation in v1? | **Yes, labelled beta**, ≤4 speakers, talk-time share only; hard-gated on ±10 pp accuracy — fails the gate ⇒ ships off | open — gated at M3 | PM + Eng (on evidence) | M3 |
 | Q9 | Who is the first real user / design partner? | One named person with ≥5 real recordings and willingness to be interviewed; the engineer alone is not sufficient | **open — blocks M0** | Stakeholder | **pre-M0** |
 | Q10 | What is the acceptance bar for "nice UI"? | Two named reference products + a 10-item checklist, agreed before M4 so the timebox is enforceable | open | Stakeholder | M2 |
@@ -97,7 +97,9 @@ Roles: **Stakeholder** = product owner of the business outcome and the budget. *
 **Recommendation:** 30-day default with an explicit per-recording "keep audio" opt-in; transcripts retained until the user deletes; account deletion purges both; erasure requests fulfilled within 7 days; no provider permitted to train on our data. Needs a qualified legal review before public signup, alongside Q1's consent attestation (R9). **Stack constraint:** every blob addressable from a DB row; a scheduled purge job from M1.
 
 ### Q7 — Hosting and budget expectations
-*Why it matters:* M0 cannot start without a paid ASR key, and no cost risk (R3, R4) is manageable against an unstated number.
+**Resolved by ADR 0009 — $0 marginal cost.** Transcription, database, storage, queue and hosting all run locally; the only fixed cost is a one-off model download. There is no key to buy, so M0 is no longer blocked on a budget, and the spend alert / ceiling / kill-switch work leaves M0 scope entirely. What follows is retained for the day deployment is on the table.
+
+*Why it mattered:* M0 could not start without a paid ASR key, and no cost risk (R3, R4) is manageable against an unstated number.
 
 | Option | Trade-off |
 |---|---|

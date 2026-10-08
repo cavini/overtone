@@ -66,7 +66,7 @@ Each increment has **one input metric** (did we create the chance for value?) an
 | Processing success rate | See M1 | ≥98% at M1, ≥99.5% at v1 | <95% on any day |
 | Stuck-job rate | jobs in non-terminal state >3× expected duration | 0 | ≥1 |
 | Cost per audio hour (all-in) | (ASR + storage + compute + LLM) ÷ audio hours processed, monthly | ≤$0.50/hr at v1 | >$1.00/hr |
-| — ASR component | provider spend ÷ audio hours | $0.10–$0.40/hr (est.; hosted Whisper-class ≈$0.36/hr list, fast/batch tiers ≈$0.04–0.26/hr — verify at purchase) | >$0.45/hr |
+| — ASR component | $0 while local (ADR 0009); track **wall-clock minutes per audio hour** instead | ≤10 min per audio hour (est. 4–6 on an M1 Pro with `large-v3-turbo`) | >20 min per audio hour |
 | — LLM component | assistant spend ÷ audio hours in library | ≤$0.05/hr | >$0.15/hr |
 | — Storage | audio+transcript GB-month ÷ audio hours (64 kbps mono ≈28 MB/hr ⇒ ≈$0.001/hr-month) | negligible | >$0.01/hr |
 | Monthly infra burn | fixed hosting + DB + storage | ≤$75/mo pre-v1 (est.) | >$120/mo |
