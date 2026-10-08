@@ -35,7 +35,7 @@ So Python buys us nothing until we want *local* transcription, and costs us a se
 | ORM | **Drizzle** | SQL-first, so analytics queries stay real SQL (`GROUP BY`, window functions, CTEs) instead of a query-builder cosplay. Migrations are plain checked-in SQL. Fast to run against a real DB in tests. |
 | Jobs | **pg-boss** | Transcription takes minutes. pg-boss puts the queue *in Postgres* — no Redis, no second stateful service, transactional enqueue, and trivially inspectable in tests. |
 | Blob storage | **Cloudflare R2** (S3 API), local filesystem adapter for dev | Audio never touches the app server: the browser uploads straight to R2 via a presigned URL. Kills the large-upload problem at the architecture level. R2 has no egress fees, which matters when users replay audio. |
-| Transcription | **Deepgram Nova-3** behind a port — *pending the M0 bake-off* | Word-level timestamps **and** speaker diarisation in one call, ~\$0.26/audio-hour (est.). Word timestamps are not a nice-to-have — they are what lets a count link back to a moment in the audio. The PM gates this on a two-provider bake-off over 5 real recordings scored on keyword recall (`../product/open-questions.md` Q2), which is the right way to choose; Deepgram is the favourite going in, not a fait accompli. |
+| Transcription | **whisper.cpp + `large-v3-turbo`**, local and Metal-accelerated (ADR 0009); Deepgram available behind the same port | Word-level timestamps **and** speaker diarisation in one call, ~\$0.26/audio-hour (est.). Word timestamps are not a nice-to-have — they are what lets a count link back to a moment in the audio. The PM gates this on a two-provider bake-off over 5 real recordings scored on keyword recall (`../product/open-questions.md` Q2), which is the right way to choose; Deepgram is the favourite going in, not a fait accompli. |
 | NLP | **wink-nlp** + `wink-eng-lite-web-model` | Tokeniser, sentence splitter, lemmatiser, POS, stop words, NER. Pure JS, no native build, and **deterministic** — the same input always yields the same count, which is the only way counting is testable or defensible to a user. |
 | LLM (later) | **Anthropic SDK**, `claude-opus-5` | See §4. |
 | Vectors (later) | **pgvector** + local `bge-small-en-v1.5` via transformers.js | Same database, no new service, no per-embedding cost. |
@@ -149,17 +149,20 @@ overtone/
 
 ## 8. Cost model (estimates — verify before committing)
 
-Per **audio hour** processed:
+**Marginal cost per audio hour: \$0.** Everything in the default configuration runs locally (ADR 0009).
 
-| Item | Estimate |
-|---|---|
-| Deepgram Nova-3, pre-recorded, diarised | ~\$0.26 |
-| R2 storage (60 MB, one month) | <\$0.01 |
-| Postgres + compute | negligible at our volume |
-| **MVP total** | **≈ \$0.26 / audio hour** |
-| Later: one assistant question (cached prefix, ~2k out) | ~\$0.05–0.10 |
+| Concern | Default | Cost | If you ever want to pay for speed |
+|---|---|---|---|
+| Transcription | whisper.cpp, `large-v3-turbo`, Metal | \$0 | Deepgram ~\$0.26/audio-hr (est.) |
+| Database | Postgres in Docker | \$0 | Neon free tier, then paid |
+| Blob storage | filesystem adapter | \$0 | R2, <\$0.01/recording/month |
+| Queue | pg-boss, in that Postgres | \$0 | — |
+| Hosting | `localhost` | \$0 | Vercel + Fly.io |
+| Assistant (M5) | Ollama, small local model | \$0 | `claude-opus-5`, ~\$0.02–0.04/question |
 
-A 20-recording personal library of one-hour meetings costs about **\$5** to process end to end. Local Whisper takes the marginal cost to zero when volume makes that worth the complexity. ⚠️ Vendor pricing moves — re-check Deepgram's current rate card at implementation time.
+Fixed cost is one `brew install whisper.cpp ffmpeg` plus a model download (~0.5–1.6 GB, gitignored).
+
+What we pay instead of money is **time**: an estimated 10–15× realtime on an M1 Pro, so a 60-minute recording takes roughly 4–6 minutes. ⚠️ Estimate — M0 benchmarks it. For a personal archive that is the right trade, and it makes M1's async queue more valuable rather than less.
 
 ---
 
@@ -170,7 +173,8 @@ The full register with options, trade-offs and owners is `../product/open-questi
 | # | Question | Default if you don't care |
 |---|---|---|
 | 1 | Single-user (no login) for the MVP, or multi-user auth from day one? | Single-user. Auth is a whole increment; adding it later costs one migration if `user_id` is in the schema from the start — which it will be. |
-| 2 | Is sending audio to a third-party ASR vendor acceptable, or must audio never leave the machine? | Cloud ASR. **This is the one answer that can invert §1** — if audio must stay local, we start with Whisper + a Python sidecar and ADR 0002 is superseded. Everything else on this page survives either way. |
+| 1b | ~~What monthly budget?~~ | **Resolved — ADR 0009.** \$0 marginal. No spend alert, budget ceiling or kill switch in M0 scope. |
+| 2 | ~~Is sending audio to a third-party ASR vendor acceptable?~~ | **Resolved — ADR 0009.** Audio never leaves the machine by default. It turned out not to cost us Python, so ADR 0002 survives too. |
 | 3 | English-only for the MVP? | Yes. Lemmatisation and stop words are per-language; each additional language is real work. |
 | 4 | Ceilings on file size and duration? | **Settled by the PO/PM:** 200 MB / 120 min, widening per increment (M0 holds 25 MB / 10 min to keep the first ASR bill under \$1). Defined once in `../product/backlog.md`; code reads it from one constant. |
 | 5 | Deploy to the cloud, or run locally for now? | Build cloud-ready, run locally until there is a second user. Note the PM makes a deployed URL a **non-negotiable M0 exit criterion** — so this needs a hosting budget (Q7) before the first increment, not after. |
