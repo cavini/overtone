@@ -28,7 +28,7 @@ The thinnest slice that is genuinely end-to-end and genuinely deployed:
 | Unstyled table, no charts, no empty/error states | "Nice UI" is M4 and is timeboxed |
 | No retries, no cancel, failures show a raw error string | Honest failure beats a fake progress bar |
 
-**Non-negotiable even at M0:** deployed to a real URL, real paid ASR provider behind an interface with a fixture-backed test double, CI green, TDD from the first commit, ASR spend alert wired before the first upload.
+**Non-negotiable even at M0:** real transcription (local `whisper.cpp`) behind an interface with a fixture-backed test double, CI green, TDD from the first commit, and a recorded throughput benchmark. *Amended by ADR 0009:* the original "deployed to a real URL" and "ASR spend alert" criteria are dropped — there is no spend to alert on, and free hosting tiers cannot run local inference. M0 exits on `localhost`; deployment moves to whenever there is a second user. This is the one place the roadmap regresses, consciously.
 
 ---
 
@@ -40,7 +40,7 @@ The thinnest slice that is genuinely end-to-end and genuinely deployed:
 |---|---|
 | **Goal** | Prove upload → real transcript → one real statistic → rendered, in production. |
 | **User-visible** | A page that takes one audio file and returns a top-25-term table plus the transcript. |
-| **Exit criteria** | (1) A 3-min file uploaded from a phone browser returns a term table in <90 s p95. (2) Term counts for a committed fixture match a hand-counted expectation exactly, asserted in CI (`US-004`). (3) One e2e smoke test drives the real upload path against `FakeTranscriptionProvider`. (4) Deployed URL reachable; ASR spend alert live *before* the first paid call. (5) ≥1 recording from the named design partner (Q9) processed successfully. |
+| **Exit criteria** | (1) A 3-min file uploaded from a phone browser returns a term table in <90 s p95. (2) Term counts for a committed fixture match a hand-counted expectation exactly, asserted in CI (`US-004`). (3) One e2e smoke test drives the real upload path against `FakeTranscriptionProvider`. (4) A recorded benchmark: minutes of wall-clock per audio hour on this machine, for the model chosen — the number that decides whether M1's queue is urgent. (5) ≥1 recording from the named design partner (Q9) processed successfully. |
 | **Deferred** | Accounts, persistence, async jobs, topics, speakers, charts, retries, any file >10 min. |
 | **Stop-here value?** | Thin but real — a user can get a word-frequency readout of a short recording they could not get before. Not retainable. |
 
