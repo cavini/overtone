@@ -58,6 +58,14 @@ Risky or half-built capabilities go behind a flag in `packages/contracts/flags.t
 - **Bump `pipeline_version` whenever analysis output changes**, or stale counts persist silently.
 - **Never store one row per token.** Word timings go in `utterances.words` as compact JSONB; counts live in `term_counts`.
 - **Encode to 16 kHz mono Opus in the browser** before upload. Whisper downsamples to 16 kHz mono anyway, so anything more is wasted bytes against a 1 GB storage tier.
+- **The architecture is layered and CI enforces it.** `dependency-cruiser` fails the build if `packages/core` imports `next`, `react`, `drizzle-orm`, `@supabase/*`, `groq-sdk`, or any adapter. Port interfaces are declared in `core/ports` and **owned by the inner layer** — the adapter implements an interface it does not own. See `docs/adr/0016`.
+- **A use case never takes an HTTP type and never returns a domain entity or a Drizzle row.** Request model in, response model out; mapping happens in the adapter. Without this rule the database schema ends up as React props.
+- **Every port has one contract test suite that runs against every implementation, fake included.** The whole suite trusts the fakes, so a fake that can do something the real adapter cannot makes every test pass for the wrong reason.
+- **Accents are never stripped.** `e`/`é`, `por`/`pôr`, `esta`/`está` are different words. Normalisation is NFC + lowercase + trim punctuation, and that is all. Stripping diacritics is the standard English reflex and it silently corrupts counts here.
+- **Lemmatise from the dictionary first, stem only as fallback**, and record which in `lemma_source`. Portuguese stemmers over-merge — `comer` stems to `com`, folding a common verb into a preposition. A stemmed grouping is heuristic and the UI says so.
+- **Split enclitic pronouns** (`diga-me`, `fazê-lo`), keep genuine compounds (`guarda-chuva`, `segunda-feira`).
+- **Always send `language: "pt"` to the transcriber.** Never auto-detect — a misdetection produces confident nonsense.
+- **The lemma dictionary is fetched by the use case in one bulk query and passed into the pure functions.** Never query from `core`.
 - Validate at every boundary with the Zod schemas in `packages/contracts`.
 
 ## Commands
