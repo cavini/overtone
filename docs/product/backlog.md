@@ -8,6 +8,8 @@
 
 Domain nouns are in `glossary-and-domain.md`. Statuses are exactly `uploaded`, `transcribing`, `analyzing`, `ready`, `failed`, `deleting`.
 
+**Two facts shape every scenario below.** The show is recorded **in Brazilian Portuguese**, so the counting rules are pt-BR rules (D2–D6, D14) and **all example data is pt-BR** — English fixtures would let an accent-stripping bug ship green. And an episode arrives as **one already-edited file** (D15), so there is no track-set concept anywhere and no speaker dimension at all.
+
 ### Fixed constants referenced by acceptance criteria
 
 | Constant | Value | Why it is this number |
@@ -23,12 +25,15 @@ Domain nouns are in `glossary-and-domain.md`. Statuses are exactly `uploaded`, `
 | Total file storage | **1 GB** ≈ 37 two-hour episodes | Binds sooner than the allowance on a backfill |
 | Total database | 500 MB | Free tier |
 | Accepted extensions | `.mp3`, `.m4a`, `.wav`, `.aac`, `.ogg`, `.flac`, `.webm` | What the browser can decode |
-| Language | English only | The one language the pipeline is built and tested for |
+| **Language** | **`pt` — Brazilian Portuguese**, set explicitly on every transcription request, never auto-detected | The language the show is recorded in. Auto-detect misfires on accented and code-switched speech, and per-chunk detection could return different languages for one episode (D14) |
+| Normalization | **Unicode NFC + lowercase + strip leading/trailing punctuation.** Diacritics preserved; no `unaccent`/NFD-strip anywhere | `e`/`é`, `por`/`pôr`, `esta`/`está`, `as`/`às` are different words (D2) |
+| Stop-word list | **pt-BR, ~200 items, versioned** alongside the normalization version | Larger than the English list it replaces: mandatory contractions and auxiliary inflections multiply the entries (D5) |
+| Clitic-pronoun list (closed) | `me, te, se, lhe, lho, nos, vos, lo, la, los, las, no, na` | A trailing hyphen plus one of these splits; everything else keeps its hyphen. `o, a, os, as` are deliberately excluded so compounds stay safe (D3) |
 | Default top-N words | 25 | |
 | Quality warning threshold | mean confidence < 70 / 100 | |
 | Topic limits | ≤ 50 Topics/Library · ≤ 20 Terms/Topic · ≤ 5 words/Term | |
-| Host tracks per Episode | ≤ 6, used for **attribution only, never transcribed** | A group of friends, not a conference panel |
-| Share links | one per Episode, unguessable, revocable | |
+| **Audio files per Episode** | **exactly 1** — the final edited episode | They upload only the published file, so there is no per-host signal and no speaker dimension (D15) |
+| Share links | one per Episode, unguessable, revocable, **counts and quotes only — never the full transcript** | Settled by the stakeholder |
 
 ### Walking-skeleton sequence (build in exactly this order)
 
@@ -68,9 +73,9 @@ Priority: **Must** · Size: **M**
 ```gherkin
 Scenario: Accept a supported file
   Given I am signed in with an empty Library
-  And I have a 2-minute file named "ep12.m4a"
+  And I have a 2-minute pt-BR file named "ep12-final.m4a"
   When I confirm the upload
-  Then an Episode is created with status "uploaded" and the title "ep12"
+  Then an Episode is created with status "uploaded" and the title "ep12-final"
   And its duration reads 120 seconds within 1 second
   And it appears in my Library without a page reload
 
@@ -115,8 +120,14 @@ Scenario: Transcript is persisted with timestamped Segments
   And no Segment end_ms exceeds the Episode duration in milliseconds
   And the raw provider payload for every chunk is stored verbatim
 
+Scenario: Every request declares the language
+  Given an Episode of 6 chunks
+  When transcription runs
+  Then every one of the 6 requests carried language "pt"
+  And no request relied on language auto-detection
+
 Scenario: The transcript is good enough to count, and survives re-analysis
-  Given the fixture "fixture-hotdog-60s.m4a" whose script says "hotdog" 5 times
+  Given the fixture "fixture-hotdog-60s-ptbr.m4a" whose pt-BR script says "hotdog" 5 times
   Then the Transcript contains the token "hotdog" at least 4 times
   When analysis is re-run for that Episode
   Then no transcription request is made and the Transcript id is unchanged
@@ -130,21 +141,44 @@ Priority: **Must** · Size: **M**
 Scenario: Tokens are indexed with full provenance
   Given an Episode with a stored Transcript
   When analysis completes
-  Then every Token stores episode_id, chunk_id, segment_id, speaker_id, position, start_ms, surface, normalized and lemma
+  Then every Token stores episode_id, chunk_id, segment_id, position, start_ms, surface, normalized, lemma and lemma_source
   And start_ms is relative to the start of the Episode, not of its chunk
   And punctuation characters produce no Tokens
 
 Scenario: Counts are case- and punctuation-insensitive
-  Given a Transcript containing "Hotdog, hotdog. HOTDOG!"
-  Then the count for the term "hotdog" is 3
+  Given a Transcript containing "Churrasco, churrasco. CHURRASCO!"
+  Then the count for the term "churrasco" is 3
 
-Scenario: Intra-word apostrophes and hyphens are preserved
-  Given a Transcript containing "don't end-to-end don't"
-  Then the count for "don't" is 2 and the count for "end-to-end" is 1
+Scenario: Diacritics are never stripped
+  Given a Transcript containing "e é e é por pôr esta está as às"
+  Then the count for "e" is 2 and the count for "é" is 2
+  And the counts for "por", "pôr", "esta", "está", "as" and "às" are each 1
+  And the normalized form of the Token "é" is "é", not "e"
+  And no stored normalized form contains a Unicode combining mark
+
+Scenario: Enclitic pronouns split off the verb; compounds stay whole
+  Given a Transcript containing "diga-me fazê-lo dá-se vamo-nos guarda-chuva fim-de-semana segunda-feira"
+  Then the Tokens "diga", "me", "fazê", "lo", "dá", "se", "vamo" and "nos" each exist
+  And "guarda-chuva", "fim-de-semana" and "segunda-feira" are each exactly one Token
+  And the lemma of the Token "fazê" is "fazer" and the lemma of "dá" is "dar"
+  Given instead a Transcript containing "dá-o vê-a"
+  Then "dá-o" and "vê-a" are each one Token, because "o" and "a" are not on the clitic list
+
+Scenario: Mandatory contractions are one Token and are never expanded
+  Given a Transcript containing "do na pelo nele àquela"
+  Then 5 Tokens are indexed and none is expanded into two words
+
+Scenario: A count does not move because the transcriber chose the written spelling
+  Given the Topic "tá ligado" with the Terms "tá ligado" and "está ligado"
+  And the fixture "fixture-ta-ligado-spoken.json", in which the provider wrote "tá ligado" 5 times
+  And the fixture "fixture-ta-ligado-written.json" — the same speech — in which it wrote "está ligado" 5 times
+  Then the Topic reports 5 mentions against both fixtures
+  And the Term "tá ligado" alone reports 5 against the first and 0 against the second
+  And each occurrence names the surface form that produced it
 
 Scenario: Analysis records its configuration for reproducibility
   Given an Episode with status "ready"
-  Then its Analysis records the normalization, stop-word list and pipeline versions
+  Then its Analysis records the language, the normalization, stop-word list, lemma dictionary and pipeline versions
   And re-running analysis with the same configuration yields identical counts
 ```
 
@@ -154,11 +188,23 @@ Priority: **Must** · Size: **S**
 
 ```gherkin
 Scenario: Top words are ranked, with stop words excluded
-  Given an Episode whose top three terms are "hotdog" 61, "anyway" 44 and "basically" 31
+  Given an Episode whose top three terms are "hotdog" 61, "churrasco" 44 and "basicamente" 31
   Then at most 25 terms are listed by count descending
-  And no listed term appears on the active stop-word list
+  And no listed term appears on the active pt-BR stop-word list
   And the page headline names those three terms with those three counts
   And I see the total word count, the duration and words per minute
+
+Scenario: Inflections are grouped by default, and the merge is visible
+  Given a Transcript containing "falou" 5 times, "falei" 4 times, "falar" 3 times and "falando" 2 times
+  Then the list shows the term "falar" with the count 14
+  And expanding it lists "falou 5 / falei 4 / falar 3 / falando 2"
+  And any form grouped by the stemmer rather than the dictionary is marked as heuristic
+
+Scenario: Over-merges that a stemmer would make are not made, and would be visible if they were
+  Given a Transcript containing "casa" 20 times, "casar" 4 times, "com" 300 times and "comer" 9 times
+  Then "casa" and "casar" are reported as two separate terms
+  And "comer" is not grouped with "com"
+  And every grouped count in the list can be expanded to the surface forms behind it
 
 Scenario: An episode with no speech is reported honestly
   Given a 30-second Episode containing only silence
@@ -170,7 +216,7 @@ Scenario: An episode with no speech is reported honestly
 
 ## E2 — Real episodes: two hours, chunked
 
-**This epic is the main flow, not a fallback.** The show records 100–120 minutes. Everything here runs on every upload.
+**This epic is the main flow, not a fallback.** The show records 100–120 minutes. Everything here runs on every upload. One file arrives — the published edit — and chunking is unchanged by that (D15).
 
 ### US-040 — Upload a two-hour episode as silence-cut chunks
 *As Rafa, I want a two-hour episode to just work, so that I never have to open an audio editor to use a fun app.*
@@ -179,21 +225,24 @@ Priority: **Must** · Size: **L** → split: decode and compress · silence-boun
 ```gherkin
 Scenario: A two-hour episode is chunked, compressed and uploaded
   Given a 120-minute 160 MB wav file
+  When I select it
+  Then I see "This episode is 2h00m. That is 2h00m of today's 8-hour transcription budget — about a quarter of it."
   When I confirm the upload
   Then the browser splits it into 5 or 6 chunks of 20 to 25 minutes
   And each chunk is encoded as 16 kHz mono Opus and is at most 25 MB
   And the original file is never uploaded
   And progress is reported per chunk
+  And exactly one audio file was asked for, with no track-set or per-host step
 
 Scenario: Splitting never cuts a word in half
-  Given a file whose 25-minute mark falls in the middle of the word "hotdog"
+  Given a file whose 25-minute mark falls in the middle of the word "cachorro-quente"
   When the file is split
   Then the cut is moved to the nearest silence of at least 300 milliseconds
   And the cut is within 90 seconds of the nominal chunk length
   And the fixture's full word sequence is recoverable from the chunks with no word lost and none duplicated
 
 Scenario: A two-hour episode produces one set of counts matching its script
-  Given the fixture "fixture-2h-script.wav" whose script says "hotdog" 184 times across 6 chunks
+  Given the fixture "fixture-2h-script-ptbr.wav" whose pt-BR script says "hotdog" 184 times across 6 chunks
   When all chunks are transcribed and stitched
   Then one Episode exists with one Transcript
   And its duration reads 120 minutes within 2 seconds
@@ -264,7 +313,7 @@ Priority: **Must** · Size: **M**
 
 ```gherkin
 Scenario: Every occurrence of a term is enumerated
-  Given an Episode whose count for "hotdog" is 17
+  Given an Episode whose count for the Term "hotdog" is 17
   When I select the term
   Then exactly 17 occurrences are listed
   And each shows an episode-relative timestamp and the surrounding Segment text
@@ -286,15 +335,20 @@ Priority: **Must** · Size: **S**
 
 ```gherkin
 Scenario: Stop words are excluded from display but never from storage
-  Given a Transcript where "the" occurs 2 100 times and "hotdog" 61 times
-  Then "the" does not appear in the top-words list and "hotdog" does
+  Given a Transcript where "que" occurs 2 100 times and "hotdog" 61 times
+  Then "que" does not appear in the top-words list and "hotdog" does
   When I turn off stop-word filtering
-  Then "the" appears with the count 2 100
+  Then "que" appears with the count 2 100
+
+Scenario: Clitic pronouns split off by tokenisation land on the stop-word list
+  Given a Transcript containing "diga-me" 12 times
+  Then the top-words list does not contain "me"
+  And the Term "dizer" includes those 12 occurrences
 
 Scenario: An explicitly tracked stop word is always counted
-  Given a Topic "can of worms" containing the Term "can"
-  And a Transcript where "can" occurs 14 times
-  Then the Topic reports 14 mentions with stop-word filtering on
+  Given a Topic "né" containing the Term "né"
+  And a Transcript where "né" occurs 340 times
+  Then the Topic reports 340 mentions with stop-word filtering on
 ```
 
 ### US-017 — Count phrases, so a running joke can be more than one word
@@ -307,14 +361,22 @@ Scenario: Spelling, separator and plural variants collapse to one Term
   When the Term "hotdog" is counted
   Then the count is 7
 
-Scenario: Phrases are reported in their own right
-  Given a Transcript containing "conspiracy corner" 9 times
-  Then "conspiracy corner" appears in the phrase statistics with the count 9
+Scenario: Gender and number agreement does not need a separate Term
+  Given the Term "linguiça bonita"
+  And a Transcript containing "a linguiça bonita" once, "as linguiças bonitas" twice and "a linguiça feia" once
+  Then the count is 3
+  And a leading article in a Term is ignored, so "o hotdog", "os hotdogs" and "hotdog" are one Term
 
-Scenario: A phrase never matches across two hosts
-  Given the word "hot" is attributed to Rafa and the next word "dog" to Mel
+Scenario: Phrases are reported in their own right
+  Given a Transcript containing "conspiração do Davi" 9 times
+  Then "conspiração do Davi" appears in the phrase statistics with the count 9
+
+Scenario: A phrase matches across a chunk join but never across a gap
+  Given the words "hot" and "dog" fall either side of a chunk boundary
   When the Term "hot dog" is counted
-  Then the count is 0
+  Then the count is 1
+  Given instead a Transcript containing "hot e dog"
+  Then the count for "hot dog" is 0
 ```
 
 ---
@@ -327,14 +389,21 @@ Priority: **Must** · Size: **M**
 
 ```gherkin
 Scenario: A Topic is created with alias Terms
-  When I create the Topic "the hotdog thing" with Terms "hotdog", "hot dog" and "sausage"
-  Then it exists in my Library with 3 Terms
+  When I create the Topic "a parada do hotdog" with Terms "hotdog", "hot dog", "cachorro-quente" and "dogão"
+  Then it exists in my Library with 4 Terms
   And it applies to every current and future Episode
 
+Scenario: A spoken form is offered its written-standard variant as an alias
+  When I add the Term "tá ligado"
+  Then "está ligado" is offered as an alias, already selected, with the reason "the transcriber may write it this way"
+  When I add the Term "né"
+  Then "não é" is offered the same way
+  And I can decline either without losing the Term
+
 Scenario: Bad input and limits are rejected with specific messages
-  Given a Topic named "the hotdog thing" exists
-  When I create another named "The Hotdog Thing"
-  Then it is rejected with "A topic named 'the hotdog thing' already exists."
+  Given a Topic named "a parada do hotdog" exists
+  When I create another named "A Parada do Hotdog"
+  Then it is rejected with "A topic named 'a parada do hotdog' already exists."
   When I create a Topic with no Terms
   Then it is rejected with "Add at least one term to this topic."
   When I add a Term of 6 words
@@ -349,8 +418,8 @@ Priority: **Must** · Size: **S**
 
 ```gherkin
 Scenario: Topic counts appear on the Episode and sum their Terms
-  Given the Topic "the hotdog thing" with Terms "hotdog", "hot dog" and "sausage"
-  And a Transcript containing "hotdog" 12 times, "hot dog" 3 times and "sausage" 2 times
+  Given the Topic "a parada do hotdog" with Terms "hotdog", "hot dog" and "cachorro-quente"
+  And a Transcript containing "hotdog" 12 times, "hot dog" 3 times and "cachorro-quente" 2 times
   Then the Topic reports 17 mentions
 
 Scenario: Overlapping Terms are not double-counted
@@ -359,7 +428,7 @@ Scenario: Overlapping Terms are not double-counted
   Then the Topic reports 1 mention
 
 Scenario: An unmentioned Topic shows zero, not nothing
-  Given the Topic "conspiracy corner" and a Transcript with none of its Terms
+  Given the Topic "a conspiração do Davi" and a Transcript with none of its Terms
   Then the Topic reports 0 mentions
 
 Scenario: Topic counts drill down to quotes
@@ -378,13 +447,13 @@ Priority: **Must** · Size: **M**
 
 ```gherkin
 Scenario: An Episode belongs to a Series, carries a number, and can be retitled
-  Given a Series named "Three Bean Podcast" and an Episode titled "riverside_0042"
+  Given a Series named "Papo de Três" and an Episode titled "ep42_final_v3"
   Then the Episode has an episode number and a recorded-on date
   And the next Episode added defaults to the next number
   When I set another Episode's number to an existing one
   Then it is rejected with "Episode 12 already exists in this series."
-  When I rename the Episode to "Hotdog Summit"
-  Then the listing reads "12 · Hotdog Summit" and the source filename is still recorded
+  When I rename the Episode to "Cúpula do Hotdog"
+  Then the listing reads "12 · Cúpula do Hotdog" and the source filename is still recorded
   And an empty title is rejected with "Give this episode a title."
 
 Scenario: Episodes list newest first with Topic chips
@@ -404,7 +473,7 @@ Priority: **Must** · Size: **M**
 ```gherkin
 Scenario: Per-episode counts in episode order
   Given 6 ready Episodes numbered 1 to 6
-  And the Topic "the hotdog thing" with counts 3, 0, 9, 14, 22, 18
+  And the Topic "a parada do hotdog" with counts 3, 0, 9, 14, 22, 18
   When I open the Topic
   Then the 6 counts are listed in ascending episode order
   And a total of 66 mentions across 6 episodes is reported
@@ -429,11 +498,11 @@ Priority: **Must** · Size: **M**
 ```gherkin
 Scenario: Topics are ranked by total mentions across the Series
   Given a Series of 12 ready Episodes
-  And Topics with Series totals "anyway" 312, "the hotdog thing" 212 and "conspiracy corner" 46
+  And Topics with Series totals "né" 312, "a parada do hotdog" 212 and "a conspiração do Davi" 46
   When I open the Series leaderboard
   Then the three Topics are listed in that order with those totals
   And each row shows how many of the 12 episodes it appeared in
-  And the sum of "the hotdog thing" per-episode counts equals 212
+  And the sum of "a parada do hotdog" per-episode counts equals 212
 
 Scenario: A Series with one episode says so instead of showing a season
   Given a Series with 1 ready Episode
@@ -448,7 +517,7 @@ Priority: **Must** · Size: **M**
 ```gherkin
 Scenario: A new Topic is applied to existing Episodes on request
   Given 12 ready Episodes
-  When I create the Topic "conspiracy corner" and apply it to existing Episodes
+  When I create the Topic "a conspiração do Davi" and apply it to existing Episodes
   Then all 12 Episodes report a mention count for it
   And no transcription request is made and no allowance is consumed
   And a new Analysis records the new pipeline version while the Transcript id is unchanged
@@ -474,7 +543,7 @@ Scenario: A Query counts across a Series with provenance
   Then the total is 0, the matching-episode count is 0, and no error is raised
 
 Scenario: Every surface agrees with the engine
-  Given an Episode page reporting the Topic "the hotdog thing" as 17
+  Given an Episode page reporting the Topic "a parada do hotdog" as 17
   Then a Query for that Topic scoped to that Episode returns 17
   And the Series leaderboard's contribution from that Episode is 17
   And the Episode's public share page shows 17
@@ -482,72 +551,7 @@ Scenario: Every surface agrees with the engine
 
 ---
 
-## E6 — Who talked most, without diarisation and without double-counting
-
-**The design, stated once:** the mixed master file is transcribed **once** and is the only source of words. Each host's track is used **only as an energy signal** — for every word in the master transcript, whichever host's track is loudest at that word's timestamp is credited with it. No host track is ever transcribed.
-
-Transcribing host tracks separately would **double-count every sentence**, because each mic picks up the other hosts faintly and the same words land in two transcripts. It would also cost 3 × 2 = 6 audio-hours for one episode against an allowance of 2 per hour.
-
-> **Recommendation to architecture:** compute each track's energy envelope in the browser and upload only the envelope (a few KB per track), not the host audio. Host tracks then cost nothing in storage and nothing in transcription. The criteria below are satisfied by either implementation.
-
-### US-037 — Upload per-host tracks for attribution
-*As Rafa, I want to hand over my three Riverside tracks alongside the master, so that speaker stats are exact instead of guessed.*
-Priority: **Must** · Size: **M**
-
-```gherkin
-Scenario: A master plus per-host tracks becomes one Episode
-  When I upload a master file and 3 host tracks in one action and name each host
-  Then one Episode is created with 1 master and 3 host tracks
-  And only the master is chunked and sent for transcription
-  And the allowance consumed equals the master's duration, not four times it
-  And I see "This episode uses 2h00m of today's 8-hour transcription budget — about a quarter of it."
-
-Scenario: Tracks that do not line up are flagged, and the track limit holds
-  Given host tracks whose durations differ from the master by more than 2 percent
-  Then I see "These tracks are a different length from the master. Overtone aligns them from the start of each file; attribution may drift."
-  When I upload 7 host tracks
-  Then it is rejected with "An episode can have at most 6 host tracks."
-
-Scenario: A master alone is accepted and says what it cannot do
-  When I upload only a mixed file
-  Then the Episode is created and analysed normally
-  And no speaker breakdown is rendered
-  And I see "Upload one track per host to see who talked most."
-```
-
-### US-014 — Attribute every word to a host, and report who talked most
-*As Rafa, I want to see who talked most and who says what, so that an argument the group has every week gets settled.*
-Priority: **Must** · Size: **M**
-
-```gherkin
-Scenario: Attribution partitions the words and never duplicates them
-  Given an Episode whose master transcript contains 18 400 words and 3 host tracks
-  When attribution completes
-  Then every word is attributed to exactly one Speaker or to "unknown"
-  And the sum of per-Speaker word counts plus unknown equals 18 400
-  And the Episode's total word count is unchanged by attribution
-  And each Speaker's talk time is reported in seconds and as a percentage summing to 100 within 1 point
-
-Scenario: Mic bleed does not create duplicate words
-  Given a sentence spoken once by Rafa and audible faintly on Mel's track
-  Then that sentence appears exactly once in the Transcript
-  And its words are attributed to Rafa
-
-Scenario: Per-host term counts partition the total
-  Given an Episode whose total count for "hotdog" is 10
-  Then the sum of per-Speaker counts for "hotdog" equals 10
-
-Scenario: Ambiguous moments are "unknown", not guessed
-  Given a word where no host track is more than 3 dB above the others
-  Then it is attributed to "unknown"
-  And if more than 20 percent of words are unknown I see "Speaker attribution is unreliable for this episode — the host tracks may be out of sync."
-
-Scenario: Renaming a host updates every surface
-  Given a Speaker named "Track 2"
-  When I rename it to "Mel"
-  Then the transcript, the talk-time split and the per-host counts all read "Mel"
-  And Speakers on other Episodes are unchanged
-```
+> **E6 is gone and its number is retired.** It was "who talked most": per-host upload (US-037) and energy attribution (US-014). Only the final edited file is uploaded, so the signal does not exist — the epic is **deleted, not deferred**. See *Deleted from earlier drafts*.
 
 ---
 
@@ -562,18 +566,20 @@ Scenario: Creating a link states exactly what becomes public
   Given a ready Episode
   When I create a share link
   Then an unguessable URL is produced
-  And the dialog states "Anyone with this link can see this episode's stats and quotes. They cannot hear the audio, see your other episodes, or see your other series."
+  And the dialog states "Anyone with this link can see this episode's counts and the quotes behind them. They cannot read the full transcript, hear the audio, see your other episodes, or see your other series."
 
-Scenario: An anonymous visitor sees the stats and can check them
+Scenario: An anonymous visitor sees the counts and can check them
   When someone opens the link while not signed in
-  Then the headline sentence, Topic counts, who-talked-most and top words are rendered
+  Then the headline sentence, Topic counts and top words are rendered
   And selecting a count lists its timestamped quotes
   And no audio playback is offered
   And no horizontal scrolling is required at a viewport 390 pixels wide
 
-Scenario: The link exposes nothing else, and revoking is total
+Scenario: The link exposes counts and quotes, and nothing else
   Given a share link for Episode 12 and another Episode 11 in the same Series
-  Then Episode 11 is not reachable
+  Then the full Transcript is not reachable from the page or from any API it calls
+  And the quotes returned are only the Segments that produced a rendered count
+  And Episode 11 is not reachable
   And the owner's Library, other Series and email address are not disclosed
   And no audio file is reachable from any URL on the page
   When I revoke the link
@@ -648,7 +654,8 @@ Priority: **Must** · Size: **M**
 ```gherkin
 Scenario: The page renders a fixed, ordered hierarchy
   Given a ready Episode
-  Then it renders in this order: any warning banner, headline sentence, running-joke counts, who talked most, top words, link to the transcript
+  Then it renders in this order: any warning banner, headline sentence, running-joke counts, top words, link to the transcript
+  And one line states that the counts describe the published episode, as transcribed
   And the headline and top three terms are visible without scrolling at 1280 by 800
   And every rendered count is actionable and opens its occurrence list
   Given instead an Episode with status "transcribing"
@@ -657,7 +664,7 @@ Scenario: The page renders a fixed, ordered hierarchy
 Scenario: Empty states offer exactly one thing to do
   Given a signed-in user with 0 Episodes
   Then exactly one primary action is offered, to add an episode
-  And it states the accepted formats, that episodes up to 150 minutes are fine, and that one track per host enables speaker stats
+  And it states the accepted formats, that episodes up to 150 minutes are fine, and that Overtone analyses Brazilian Portuguese
   And no empty charts or placeholder widgets are rendered
   Given instead a ready Episode and 0 Topics
   Then the running-jokes area invites me to track a suggested term rather than rendering an empty chart
@@ -669,17 +676,17 @@ Priority: **Must** · Size: **M**
 
 ```gherkin
 Scenario: Deletion names what it destroys, then destroys it
-  Given a ready Episode titled "Hotdog Summit"
+  Given a ready Episode titled "Cúpula do Hotdog"
   When I choose Delete
-  Then the confirmation names "Hotdog Summit" and states "This permanently deletes the audio, transcript and all statistics."
+  Then the confirmation names "Cúpula do Hotdog" and states "This permanently deletes the audio, transcript and all statistics."
   When I confirm
   Then the Episode disappears from the Series immediately
   And its Transcript, Segments, Tokens and Analyses are not retrievable by any request
   And any share link for it returns not-found
-  And all its chunks and host tracks are purged from storage within 24 hours
+  And all its chunks are purged from storage within 24 hours
 
 Scenario: Deletion updates Series-wide counts
-  Given the Topic "the hotdog thing" reported 212 mentions across 12 Episodes
+  Given the Topic "a parada do hotdog" reported 212 mentions across 12 Episodes
   And one Episode contributed 22
   When I delete that Episode
   Then the Topic reports 190 mentions across 11 Episodes
@@ -692,14 +699,14 @@ Scenario: Deletion updates Series-wide counts
 | ID | Story | Priority | Size | Why it waits |
 |---|---|---|---|---|
 | US-021 | Suggest running jokes from the episode's own top terms | Should | S | Solves the blank-page problem, which only exists once US-019 ships |
-| US-018 | Filler-word and pace stats ("Mel says 'like' 4.2 times a minute") | Should | S | Pure fun, on-brand, no dependencies. First thing to pull after the Musts |
-| US-016 | Group inflections (`run`/`running`/`ran`) with an exact-words toggle | Should | M | D4 is settled; the toggle is display logic over data US-004 already stores |
+| US-018 | Filler-word and pace stats ("this episode says 'né' 4.2 times a minute") | Should | S | Pure fun, on-brand, no dependencies. First thing to pull after the Musts. **Must be labelled as measuring the published edit, not anyone's speech habits** (D15), and is per-episode only — there is no speaker to attribute it to |
+| US-016 | An "exact words" toggle over the lemma-grouped default | Should | M | The grouping itself is **not** deferred — pt-BR needs it to say anything at all, so it ships in US-004/US-005 (D4). US-016 is only the toggle, which is display logic over data already stored |
 | US-034 | Purge an episode's audio, keep its stats | Should | S | The pressure valve for the 1 GB ceiling, and a dependency of US-044 |
 | US-012 | Quality warning when mean confidence is below 70 | Should | S | Podcast audio is usually good; matters the first time someone records in a car |
 | US-010 | Read the transcript with timestamps, searchable in-page | Should | M | Useful for show notes. US-011's quotes already cover the trust case |
 | US-041 | Compare two episodes side by side | Should | S | Trivial once US-035 exists; US-022 answers most of the same question |
 | US-009 | Skip a duplicate upload by content hash | Should | S | Protects a shared allowance from being spent twice on the same audio |
-| US-013 | Refuse non-English audio with the detected language named | Should | S | A silently-wrong Portuguese word count is worse than a refusal |
+| US-013 | Warn when an episode does not look like Brazilian Portuguese | Should | S | **Inverted: pt-BR is the supported language and English audio is the odd case.** It cannot be a pre-upload refusal, because the language is declared rather than detected (D14) and detecting it costs the allowance. So it is an after-the-fact banner off the quality score plus a language-ID check on one chunk — a pt-BR pipeline run over English audio produces confident nonsense, and saying so beats a silently-wrong word count |
 | US-029 | Keyboard reachability and WCAG AA contrast baseline | Should | S | Phone readability is already AC on US-039, where it matters most |
 | US-033 | Delete my account and everything in it | Should | S | Right and cheap; nobody has joined yet |
 | US-031 | Export the transcript as TXT or SRT | Could | S | Show notes. Share links cover "show someone" first |
@@ -715,8 +722,10 @@ Scenario: Deletion updates Series-wide counts
 | US-028 First-run and empty states | Folded into **US-027**; an empty state is a state of that page, not a story |
 | US-030 Export statistics as CSV | **Deleted.** Share links are how a podcast shows someone a number. A CSV is for a product with a spreadsheet user |
 | US-036 Save and re-run a Query | **Deleted.** US-022 and US-042 *are* the saved queries, named in the user's own words |
-| US-014 *as* automatic diarisation | **Rewritten, id kept.** The free service does no diarisation and buying one costs money. US-014 now means energy attribution over a once-transcribed master (E6): exact, free, and unable to be confidently wrong about what was said |
-| "Transcribe each host's track" | **Replaced before it was built.** Mic bleed double-counts every sentence and it costs 3× the allowance. Host tracks are an attribution signal, never a transcription input |
+| **Epic E6, US-014 and US-037** — who talked most, per-host upload, energy attribution | **Deleted, ids retired.** They needed per-host tracks and only the final edited file is uploaded (D15). Nothing in the free stack can attribute a word to a person from one mixed file, so this is **removed from the product, not deferred** — no flag, no *Later* lane, no estimate |
+| `speaker_id` on a Token · the Query's speaker filter · the `Host Track`, `Speaker` and `Utterance` nouns · domain decision D13 | **Deleted with E6.** `Segment` is the span a quote and a drill-down point at |
+| "Transcribe each host's track" | **Replaced before it was built**, and now moot. Mic bleed double-counts every sentence and it costs 3× the allowance — the reasoning stays on the record in case per-host tracks ever appear |
+| English-only normalization: NFKC, intra-word apostrophes, `don't` → `do not` expansion, a ~180-item English stop-word list | **Replaced by the pt-BR rules** (D2–D6). NFC not NFKC, diacritics preserved, enclitic pronouns split off their verbs, mandatory contractions never expanded, and a ~200-item pt-BR stop-word list. Several of these are the *opposite* of the English decision, which is why none of it was a locale setting |
 | 200 MB / 120-minute caps, "convert to mp3 to fit" | **Replaced** by chunked Opus uploads (US-040). A two-hour episode is normal and needs no advice from us |
 | "You can close this page, processing continues" | **Reversed.** No worker, no queue (ADR 0010). US-002 owns resume-after-close instead of a promise the architecture cannot keep |
 | Old privacy epic (DPA, consent flows, retention policy, legal review) | Reduced to US-032, US-025 and US-033. There is no business to defend |
@@ -729,10 +738,12 @@ Scenario: Deletion updates Series-wide counts
 |---|---|
 | **Natural-language assistant** ("how many times did we ever mention hotdogs") | The north star, and cheap *later* precisely because US-035 exists. Not now: it needs an eval harness and a prompt-injection story on top of a pipeline nobody has used |
 | Machine-discovered topic clustering | A podcast group already knows its bits by name (ADR 0006). Clusters are unstable across episodes, which would make the Series view — the whole product — meaningless |
-| Automatic diarisation of a mixed file | Not available free, and a confidently wrong speaker label is worse than none |
+| **Who talks most, in any form** | There is one edited file, so no per-host signal exists, and the free stack has no diarisation. **Removed from the product, not deferred.** A confidently wrong speaker label would be worse than none, and an estimate is the only thing we could build |
+| Reconstructing the unedited conversation | We are given the published edit. Counts describe what listeners heard (D15) — the more meaningful number for a podcast, and the only one we have |
 | Fuzzy or phonetic matching of mishearings | Trades invisible false negatives for invisible false positives with no eval set (D9) |
 | Sentiment, emotion, summarisation, "best clip" detection | Unfalsifiable. Every claim in this app must be a count a test can assert |
-| Non-English analysis | One epic per language: stop-word list, lemmatiser, tokenisation. US-013 refuses honestly instead |
+| Analysis in any language other than pt-BR | One pipeline per language, not one setting: stop-word list, lemma dictionary, clitic rules, compound handling, normalization. US-013 warns honestly instead |
+| Translating or language-tagging code-switched English words | `deploy`, `bug`, `hype` are counted as spelled, as ordinary Tokens (D14). Inflections and alternate spellings are handled by a Term's alias set, which the user controls and can see |
 | Video files, live transcription, bots joining calls | A different product |
 | Teams, shared libraries, roles, per-episode permissions | Each friend has their own Library; sharing is a link. An authorisation model would slow every story for a group of four |
 | A background worker, a job queue, or a cron scheduler | ADR 0010 deleted all three. Even backfill is a saved intent plus a button |
@@ -744,7 +755,9 @@ Scenario: Deletion updates Series-wide counts
 ## What must stay true in the data model
 
 1. **Episode-relative timestamps everywhere.** Chunk offsets are applied once, at stitching, never again. US-040, asserted in US-004 and US-011. Getting this wrong points every drill-down quote at the wrong moment, silently.
-2. **One transcription per episode, one word list.** The master is the only transcription input; host tracks are an attribution signal. Asserted by US-014's "sum of per-Speaker counts equals the total" — the test that keeps mic bleed from inflating every number.
-3. **Token-level provenance** — `episode_id`, `chunk_id`, `segment_id`, `speaker_id`, `start_ms`, `surface`, `normalized`, `lemma`. US-004. Drill-down and per-host group-by cannot be retrofitted cheaply.
+2. **One file in, one transcription, one word list.** An Episode is one audio file and is transcribed exactly once (D15). Asserted by US-040's "no Token appears twice" and by US-003's "no transcription request is made" on re-analysis.
+3. **Token-level provenance** — `episode_id`, `chunk_id`, `segment_id`, `start_ms`, `surface`, `normalized`, `lemma`, `lemma_source`. US-004. Drill-down cannot be retrofitted cheaply, and `surface` + `lemma_source` are what make a lemma over-merge visible instead of silent (D4).
 4. **One count engine, every surface.** Episode page, Series leaderboard, share page, and later the assistant, all execute the same Query. US-035's agreement scenario is the regression test that keeps every future surface honest.
 5. **Transcripts and raw chunk payloads retained.** Retroactive Topic application (US-026) is the most valuable thing the app does, and it is free only because nothing is ever re-transcribed.
+6. **Diacritics survive the whole pipeline.** NFC in, NFC stored, NFC compared, NFC rendered (D2). US-004. A single accent-stripping call anywhere — a `deburr`, an `unaccent`, a collation that ignores accents — merges `e` into `é` and makes every count in the app quietly wrong, with nothing in the UI to show it happened.
+7. **Every transcription request declares `language: "pt"`.** US-003 asserts it per chunk. Auto-detection could return a different language for different chunks of one episode and stitch half a transcript of confident nonsense (D14).
