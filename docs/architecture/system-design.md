@@ -1,53 +1,43 @@
 # System Design
 
-**Status:** proposed · **Companion to:** `tech-stack.md`, `../product/glossary-and-domain.md`
+**Status:** settled · **Companion to:** `tech-stack.md`, `../product/glossary-and-domain.md` · **Decided in:** ADR 0010
 
 ---
 
 ## 1. System context
 
+There are no long-running processes. Three boxes, and we only own one of them.
+
 ```
-   ┌──────────┐   presigned PUT    ┌──────────────┐
-   │ Browser  │ ─────────────────► │ Cloudflare   │
-   │ (Next.js)│                    │ R2  (audio)  │
-   └────┬─────┘                    └──────┬───────┘
-        │ REST (/api/*)                   │ GET (stream for playback)
-        ▼                                 │
-   ┌──────────────────┐                   │
-   │ Next.js server   │                   │
-   │ Route Handlers   │                   │
-   └────┬────────┬────┘                   │
-        │        │ enqueue                │
-        │        ▼                        │
-        │   ┌──────────────────┐          │
-        │   │ Postgres         │          │
-        │   │ · domain tables  │          │
-        │   │ · pg-boss queue  │          │
-        │   │ · tsvector / FTS │          │
-        │   │ · pgvector (v2)  │          │
-        │   └────────┬─────────┘          │
-        │            │ claim job          │
-        │            ▼                    │
-        │   ┌──────────────────┐          │
-        └──►│ Worker (Node)    │◄─────────┘
-            │ transcribe →     │
-            │ analyse → store  │
-            └────────┬─────────┘
-                     │ HTTPS
-                     ▼
-            ┌──────────────────┐
-            │ whisper.cpp      │   local subprocess, $0
-            │ (Metal, on-device)│   cloud adapter optional
-            └──────────────────┘
+  ┌───────────┐  1. signed PUT, 1 file per host  ┌──────────────────┐
+  │  Browser  │ ───────────────────────────────► │ Supabase Storage │
+  │ Next.js   │     (compressed in-browser)      │   audio, 1 GB    │
+  └─────┬─────┘                                  └────────┬─────────┘
+        │ 2. POST /api/episodes/:id/process               │
+        ▼                                                 │ 4. signed read
+  ┌─────────────────────────┐                             │    (playback)
+  │ Vercel function         │  3. transcribe              │
+  │ · fetch audio           │ ──────────────────► ┌────────────────────┐
+  │ · call Groq per track   │ ◄────────────────── │ Groq               │
+  │ · merge + analyse       │    words + times    │ whisper-large-v3-  │
+  │ · write results         │                     │ turbo (~160x RT)   │
+  └──────────┬──────────────┘                     └────────────────────┘
+             │ 5. insert
+             ▼
+  ┌─────────────────────────┐
+  │ Supabase Postgres       │
+  │ · domain tables         │
+  │ · tsvector full-text    │
+  │ · pgvector (later)      │
+  │ · Auth (magic link)     │
+  └─────────────────────────┘
 ```
 
-Only two long-lived processes (`web`, `worker`) and one stateful service (Postgres). Everything else is a bucket or someone else's API.
+Steps 2–5 are **one HTTP request**, about 10–20 seconds for a typical episode. No queue, no worker, nothing to keep running.
 
 ---
 
-## 2. The pipeline
-
-A `Recording` moves through an explicit state machine. The state is a column, not an inference — the UI reads it directly, and every transition is a tested function.
+## 2. Processing an episode
 
 ```
 uploaded ──► transcribing ──► analyzing ──► ready ──► deleting
@@ -55,139 +45,136 @@ uploaded ──► transcribing ──► analyzing ──► ready ──► de
    └──────────────┴───────────────┴──► failed ──► (retry) ──► uploaded
 ```
 
-These six strings — `uploaded`, `transcribing`, `analyzing`, `ready`, `failed`, `deleting` — are the canonical set from `../product/glossary-and-domain.md`. Tests assert on them literally, so they are spelled American-style (`analyzing`) and never paraphrased in code, API responses or UI copy.
+Those six strings are canonical, from `../product/glossary-and-domain.md`. Tests assert on them literally.
 
-| Stage | Who | Does |
-|---|---|---|
-| *(pre-row)* | browser | PUTs bytes straight to R2 against a presigned URL. The server never sees the audio. The row exists but is not yet `uploaded`. |
-| `uploaded` | web | Client confirms the upload; server probes real duration/format from the blob, validates against the ceiling, enqueues `transcribe`. |
-| `transcribing` | worker | Calls `TranscriptionProvider` — by default `ffmpeg` to 16 kHz mono WAV, then `whisper-cli` as a subprocess (ADR 0009). Stores the raw provider response verbatim in `transcripts.raw_provider_payload`, then normalises it into `utterances` + `tokens`. Enqueues `analyze`. |
-| `analyzing` | worker | Runs the pure analysis engine: normalize → lemmatise → classify stop words and fillers → term frequency → n-gram watchlist matches → speaker stats. |
-| `ready` | worker | Writes `insights` + `term_counts` + `mentions`. The UI has everything it needs. |
-| `failed` | any | Records a typed `failure_reason` and a user-facing message. Retryable without re-uploading. |
-| `deleting` | web | Deletion in progress: row and blob are being removed. A terminal, user-visible state because blob deletion can lag. |
+| Stage | Does |
+|---|---|
+| `uploaded` | Browser has compressed each track to ~64 kbps mono and PUT it to a signed Storage URL. Server validates size, probes real duration. |
+| `transcribing` | For each track: fetch from Storage, POST to Groq, store the raw response verbatim in `transcripts.raw_provider_payload`, normalise into `utterances` + `tokens`. Tracks run concurrently. |
+| `analyzing` | The pure engine: normalize → lemmatise → classify stop words and fillers → term frequency → n-gram watchlist matches → per-host speaking share. |
+| `ready` | `insights`, `term_counts` and `mentions` written. The episode page and the series rollups have everything. |
+| `failed` | A typed `failure_reason` and a human-readable message. Retryable without re-uploading, because the audio is already in Storage. |
+| `deleting` | Row and audio being removed. |
 
-**At M0 there is no queue.** The `JobQueue` port's synchronous implementation runs both stages inline in the request, which is why the walking skeleton can ship in a week (see `../product/roadmap.md`). pg-boss arrives at M1 when 120-minute files make background execution unavoidable. The state machine above is identical either way — only who advances it changes. This is the whole return on defining the port on day one.
+**Still two stages, still independently re-runnable.** ADR 0005 survives the loss of the queue: transcription is paid-for-in-rate-limit and non-deterministic, analysis is free and deterministic. `POST /api/episodes/:id/reanalyze` re-runs analysis alone against the stored transcript. During development, when every tokeniser tweak needs re-deriving every count, this is the difference between a two-second loop and burning the daily Groq allowance.
 
-**Three properties this shape buys us, each worth a test:**
+### Chunk and stitch
 
-1. **Re-analysis without re-transcription.** The expensive, paid, non-deterministic step (transcription) is stored raw and separately from the cheap, free, deterministic step (analysis). When we improve the analyser — a better lemmatiser, a new stop-word policy, a fixed n-gram bug — we re-run `analyse` over the existing transcripts at zero cost. During MVP development this will happen constantly, so we design for it on day one.
-2. **Idempotency.** Every job carries the recording id and a `pipeline_version`. Re-running a completed stage is a no-op unless the version changed. Retries and at-least-once delivery therefore cannot corrupt counts.
-3. **Honest progress.** The user watching a spinner can be told which stage they are in and roughly how long it takes — the single biggest UX risk in the whole product (see the PM's risk register).
+An episode over 25 MB after compression is split on silence, each chunk transcribed separately, and the word timestamps offset by the chunk's start before concatenation. The offsetting is the whole risk: an off-by-one silently corrupts every timestamp after the join, and a wrong timestamp means a count that drills to the wrong moment. It gets property tests against a known-good single-pass transcript of the same audio.
 
 ---
 
 ## 3. Data model
 
-Shape, not final DDL. Drizzle schema in `packages/db/schema.ts` is the source of truth.
-
 ```
-users(id, email, created_at)
-   └─ recordings(id, user_id, title, original_filename, mime_type,
-                 byte_size, duration_ms, blob_key, language,
-                 status, failure_reason, pipeline_version,
-                 created_at, processed_at)
-        ├─ transcripts(id, recording_id, provider, provider_model,
-        │              raw_provider_payload jsonb, full_text,
-        │              quality_score, normalization_version, created_at)
-        │    ├─ utterances(id, transcript_id, speaker_id, start_ms, end_ms,
-        │    │             text, tsv tsvector)   -- one continuous speaker turn
-        │    └─ tokens(id, transcript_id, utterance_id, position,
-        │              surface, normalized, lemma,
-        │              token_class,              -- word | stopword | filler
-        │              start_ms, end_ms, confidence)
-        ├─ speakers(id, recording_id, provider_label, display_name,
-        │           total_speaking_ms, word_count)
-        ├─ insights(id, recording_id, pipeline_version,
-        │           word_count, unique_word_count, duration_ms,
-        │           words_per_minute, computed_at)
-        ├─ term_counts(id, recording_id, lemma, surface_forms text[],
-        │              count, speaker_breakdown jsonb)
-        └─ mentions(id, recording_id, topic_id, segment_id, word_position,
-                    matched_text, start_ms, end_ms)
+users(id, email, created_at)                           -- Supabase Auth
+   └─ series(id, user_id, title, created_at)           -- the show
+        ├─ hosts(id, series_id, display_name, color)   -- recurring people
+        ├─ topics(id, series_id, name, color)          -- the running jokes
+        │    └─ topic_terms(id, topic_id, pattern, match_key)
+        └─ episodes(id, series_id, number, title, recorded_on,
+                    status, failure_reason, pipeline_version,
+                    duration_ms, share_token, created_at)
+             ├─ tracks(id, episode_id, host_id, blob_key,
+             │         byte_size, duration_ms)         -- 1 per host, or 1 mixed
+             │    └─ transcripts(id, track_id, provider, provider_model,
+             │         raw_provider_payload jsonb, full_text,
+             │         quality_score, normalization_version)
+             │         ├─ utterances(id, transcript_id, start_ms, end_ms,
+             │         │             text, tsv tsvector)
+             │         └─ tokens(id, transcript_id, utterance_id, position,
+             │                   surface, normalized, lemma,
+             │                   token_class,          -- word | stopword | filler
+             │                   start_ms, end_ms, confidence)
+             ├─ insights(id, episode_id, pipeline_version, word_count,
+             │           unique_word_count, words_per_minute, computed_at)
+             ├─ term_counts(id, episode_id, lemma, surface_forms text[],
+             │              count, host_breakdown jsonb)
+             └─ mentions(id, episode_id, topic_id, utterance_id,
+                         token_position, matched_text, start_ms, end_ms)
 
-topics(id, user_id, name, color, created_at)          -- the watchlist
-   └─ topic_terms(id, topic_id, pattern, match_key)   -- 'hotdog' | 'hot dog' | 'hot-dog'
-
-queries(id, user_id, name, spec jsonb, created_at)   -- a saved question
+queries(id, user_id, series_id, name, spec jsonb)      -- a saved question
 ```
 
-`queries.spec` holds the `Query` object from the domain model: `{ terms | topics, recordingFilter, dateRange, speakerFilter, groupBy, metric }`. The dashboard builds one per view; the future assistant compiles natural language into one. **Both execute through the same engine** — which is the structural guarantee that chat and dashboard can never report different numbers (domain decision D11).
+Decisions that are expensive to change, so they are made now:
 
-Decisions worth stating, because they are the ones that are expensive to change:
-
-- **`tokens` is a real table, not a JSON blob.** It is the biggest table by far (~10k rows/audio hour) and the temptation is to keep it as JSON on the transcript. We don't, because every interesting query — per-term counts, per-speaker counts, mention timelines, "jump to 14:32" — is an aggregate over tokens with timestamps. In SQL that is trivial; in application code over JSON it is a loop we would write five times. Partition or roll up later if size ever hurts.
-- **All three forms are stored: `surface`, `normalized`, `lemma`.** Per domain decision D4 the default view is lemma-grouped (`run` 14, expandable to `run 6 / running 5 / ran 3`) with an "exact words" toggle. Storing all three makes that toggle a pure display concern rather than a re-analysis, and costs nothing.
-- **`token_class` separates stop words from fillers.** Both are excluded from the default top-terms view, but `um`/`uh` are a *filler* class because filler rate is itself an insight for the podcaster persona, while `the` is simply noise. Nothing is dropped at index time — a stop word named explicitly in a topic is always counted (D5).
-- **`term_counts` is a materialised result, not a view.** Precomputed at `analyse` time, invalidated by `pipeline_version`. The library-wide "ever" query the AI assistant will ask is then one indexed `SUM` over this table rather than a scan over hundreds of millions of words.
-- **`user_id` exists from the first migration** even while the MVP is single-user. This is the difference between "add auth" being a feature and being a migration.
-- **`raw_provider_payload` is never thrown away.** It is our ability to re-derive everything, to switch providers and compare, and to debug a wrong count without paying for transcription twice.
-- **`topics` are user-defined term watchlists** (see the PO's domain doc). A "topic" is a named group of surface patterns the user cares about. Deterministic, explainable, instantly correctable by the user when it gets something wrong — and it makes "how many times did we discuss X" answerable exactly. Machine topic *discovery* arrives later as a suggestion engine that proposes watchlists, never as the counting mechanism.
+- **`tracks` sits between episode and transcript.** This is what makes multi-track work without a special case: a mixed single file is simply an episode with one track whose `host_id` is null. Every downstream query treats both identically, and "who talks most" is a `GROUP BY host_id` rather than a diarisation model. One table absorbs the feature.
+- **`topics` and `hosts` are scoped to the `series`, not the episode.** A running joke belongs to the show. This is the schema fact that makes "how many times have we *ever* mentioned the hotdog thing" one indexed aggregate instead of a scan.
+- **`term_counts` is materialised per episode**, invalidated by `pipeline_version`. The series rollup — the feature the stakeholder actually asked for — is then a `SUM ... GROUP BY lemma` over a few dozen small rows, not an aggregate over millions of tokens.
+- **`tokens` is a real table, not JSON on the transcript.** Every interesting query is an aggregate over tokens with timestamps. ~10 k rows per episode; at 500 MB of free Postgres that is roughly 200 episodes before it needs attention, and the roll-up tables are what we'd keep.
+- **All three forms stored: `surface`, `normalized`, `lemma`** (domain decision D4). Lemma-grouped is the default view with an "exact words" toggle; storing all three makes that a display concern, not a re-analysis.
+- **`share_token`** is an unguessable per-episode token. Present means the stats page is publicly readable; revoking is deleting the column value. No separate ACL system for a feature this small.
+- **`raw_provider_payload` is never discarded.** It is how we re-derive everything, compare providers, and debug a wrong count without spending the daily transcription budget twice.
 
 ---
 
-## 4. API surface (MVP)
+## 4. API surface
 
-Next.js Route Handlers. Every request and response body is a Zod schema in `packages/contracts`.
+Next.js Route Handlers. Every body is a Zod schema in `packages/contracts`.
 
 | Method | Path | Purpose |
 |---|---|---|
-| `POST` | `/api/recordings` | Create a recording row, return `{ id, uploadUrl }` presigned for R2 |
-| `POST` | `/api/recordings/:id/complete` | Client signals upload done → validate, probe, enqueue |
-| `GET` | `/api/recordings` | Library list with status and headline stats |
-| `GET` | `/api/recordings/:id` | Detail: insights, top terms, speakers, mentions |
-| `GET` | `/api/recordings/:id/transcript` | Paged segments for the transcript reader |
-| `GET` | `/api/recordings/:id/status` | Poll target while processing |
-| `DELETE` | `/api/recordings/:id` | Hard-delete row **and** blob (a privacy guarantee, so it gets its own test) |
-| `POST` | `/api/recordings/:id/reprocess` | Re-run analysis at the current `pipeline_version` |
-| `GET` | `/api/topics` · `POST` `/api/topics` · `PATCH`/`DELETE` `/api/topics/:id` | Manage watchlists |
-| `GET` | `/api/analytics/mentions?topicId=&from=&to=` | Cross-library counts — **the endpoint the AI assistant will later call as a tool** |
+| `POST` | `/api/episodes` | Create the episode and its tracks; return a signed upload URL per track |
+| `POST` | `/api/episodes/:id/process` | Transcribe + analyse, synchronously. The whole pipeline. |
+| `POST` | `/api/episodes/:id/reanalyze` | Re-run analysis only, against the stored transcript |
+| `GET` | `/api/episodes/:id` | Insights, top terms, topic mentions, host breakdown |
+| `GET` | `/api/episodes/:id/transcript` | Paged utterances for the reader |
+| `DELETE` | `/api/episodes/:id` | Delete row **and** audio — a promise, so it gets its own test |
+| `GET` | `/api/series/:id/overview` | **The headline view.** Every episode, side by side. |
+| `GET` | `/api/series/:id/trends?topicId=&from=&to=` | A topic across the whole series over time |
+| `GET` | `/api/series/:id/leaderboard` | Top terms and top topics across every episode |
+| `GET/POST/PATCH/DELETE` | `/api/series/:id/topics[/:topicId]` | Manage the running jokes |
+| `POST/DELETE` | `/api/episodes/:id/share` | Mint or revoke the public share token |
+| `GET` | `/s/:shareToken` | The public stats page. No auth. |
+| `GET` | `/api/cron/keepalive` | Daily Vercel Cron ping so Supabase doesn't pause |
 
-That last row is the hinge. Build the analytics endpoints as clean, parameterised, well-tested functions and the chatbot is wiring. Build them as bespoke queries scattered through React Server Components and the chatbot becomes a rewrite.
+The three `/api/series/*` rows are the hinge. They are the cross-episode analytics the stakeholder asked for, **and** the exact functions the assistant will later call as tools (ADR 0007). Build them as clean parameterised queries and the chatbot is wiring; scatter them through page components and it is a rewrite.
 
 ---
 
 ## 5. The analysis engine
 
-`packages/core/analysis` — pure functions, no I/O, no clock, no network. The densest tests in the repo live here.
+`packages/core/analysis` — pure functions, no I/O, no clock, no network. The densest tests in the repo.
 
 ```ts
-tokenise(text)                          → Token[]            // surface, offset, sentence index
-annotate(tokens)                        → AnnotatedToken[]   // + lemma, POS, isStopword
-countTerms(tokens, opts)                → TermCount[]        // frequency, stop words excluded
-findMentions(tokens, topic)             → Mention[]          // n-gram aware, alias aware
-speakerStats(segments, words)           → SpeakerStat[]      // share of talk, WPM
-summarise(words, segments, duration)    → Insight
+tokenise(text)                        → Token[]
+annotate(tokens)                      → AnnotatedToken[]    // + lemma, POS, class
+countTerms(tokens, opts)              → TermCount[]
+findMentions(tokens, topic)           → Mention[]           // n-gram and alias aware
+hostStats(tracks, tokens)             → HostStat[]          // share of talk, WPM
+mergeTracks(tracks)                   → Utterance[]         // interleave by timestamp
+summarise(tokens, duration)           → Insight
 ```
 
-The hard cases are specified as acceptance criteria and therefore as tests, not left to the implementation:
+The hard cases are acceptance criteria, therefore tests, not implementation detail:
 
 | Case | Rule |
 |---|---|
-| `"hotdog"` / `"hot dog"` / `"hot-dog"` | One topic, three patterns. Matching runs on normalised n-grams, so all three count. |
-| `"run"` / `"running"` / `"ran"` | Same lemma → one term. Surface forms kept in `term_counts.surface_forms` and shown in the UI, so the count is explicable. |
-| `"don't"` | One token, lemma `do not`. Never split into a mysterious `"t"`. |
-| `"the"`, `"um"`, `"uh"` | Stop words and fillers excluded from "top words", but still counted in `word_count` and available behind a toggle. Filler frequency is itself an insight for the podcaster persona. |
-| Phrase spanning a sentence boundary | Does **not** count. A mention must be contiguous within one utterance. |
-| Low-confidence word (< 0.5) | Counted, but the mention is flagged `uncertain` in the UI. We never silently drop data, and we never silently assert a shaky count. |
-| Same phrase twice in one utterance | Two mentions. Counts are of occurrences, not of utterances-containing. |
+| `hotdog` / `hot dog` / `hot-dog` | One topic, three patterns. Matched on normalised n-grams with separators stripped, so all three count (D6). |
+| `run` / `running` / `ran` | Same lemma, one term. Surface forms kept and shown, so the count is explicable (D4). |
+| `don't` | One token, lemma `do not`. Never split into a stray `t` (D3). |
+| `um`, `uh` | A separate filler class — excluded from top terms, but filler rate is a genuinely funny podcast stat in its own right (D2). |
+| Phrase across a sentence boundary | Counts. ASR punctuation is too unreliable to respect; a rare false positive beats systematic false negatives (D8). |
+| Phrase across two hosts' tracks | Never counts. A speaker turn is semantically real (D8). |
+| Same phrase twice in one utterance | Two mentions. We count occurrences, not utterances-containing (D1). |
+| Low-confidence word | Counted, and the episode carries a quality score with a warning under 70 (D9). We never silently drop data, and never silently assert a shaky count. |
 
-Determinism is a contract: the same transcript and the same `pipeline_version` must always produce byte-identical counts. That is one property test, and it protects the product's credibility.
-
----
-
-## 6. Trust features (not polish — core)
-
-Counting is only valuable if the user believes the count. Three things make it believable, and they are cheap only if designed in early:
-
-1. **Every number is clickable.** A count drills into the list of mentions; a mention seeks the audio to that millisecond. This is why we store word-level timestamps.
-2. **Every count is explicable.** "42 mentions of *hotdog*" expands to the surface forms that matched and the rule that grouped them.
-3. **Low confidence is visible, never hidden.** A transcript region the provider was unsure about is marked as such in the reader.
+Determinism is a contract: the same transcript at the same `pipeline_version` must produce byte-identical counts. That is one property test, and it is what makes the numbers defensible.
 
 ---
 
-## 7. What is deliberately absent from the MVP
+## 6. Trust features, which are core and not polish
 
-Real-time/streaming transcription · live recording in the browser · multi-tenant orgs and sharing · the AI assistant · automatic topic discovery · sentiment · non-English · video containers · exports beyond CSV/JSON · mobile apps.
+A count is worthless if the group doesn't believe it — and with friends, a wrong number gets *argued about*, which is actually the best possible QA.
 
-Each is absent because the walking skeleton does not need it to prove the idea, not because it is unimportant.
+1. **Every number is clickable** down to the list of mentions, and every mention seeks the audio to that millisecond. This is why word-level timestamps were a hard requirement on the transcription provider.
+2. **Every count is explicable**: "312 mentions of *anyway*" expands to the surface forms that matched and the rule that grouped them.
+3. **Low confidence is visible**, never hidden.
+
+---
+
+## 7. Deliberately absent
+
+Live recording in the browser · realtime transcription · automatic topic discovery · speaker diarisation (multi-track instead) · sentiment · non-English · video · teams and shared libraries · the AI assistant · exports beyond CSV.
+
+Each is absent because the first increment does not need it to prove the idea — not because it is unimportant.
