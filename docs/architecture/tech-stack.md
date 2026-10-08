@@ -51,7 +51,18 @@ The app is one deployable thing. You push to git; Vercel deploys it.
 | Vercel Hobby | 1 M invocations · 300 s/function · 100 GB transfer | Nothing, at friends-scale |
 | Supabase | 500 MB DB · **1 GB files** · 50 k users | Storage, at roughly 40 compressed episodes |
 
-The real limits are **storage** and **file size**, not money or compute. Plan against those.
+**Episodes are 1h40–2h, so here is what that actually means:**
+
+| | A 2-hour episode |
+|---|---|
+| As 16 kHz mono Opus | ~21 MB — fits the 25 MB cap, but we chunk anyway (ADR 0011) |
+| Audio-seconds consumed | 7 200 — **the entire hourly allowance** |
+| So, throughput | **one episode per hour, four per day** |
+| Transcription wall-clock | tens of seconds, with chunks running in parallel |
+| Storage per episode | ~21 MB → **1 GB ≈ 45 episodes** |
+| Back catalogue of 50 episodes | 100 audio-hours ≈ **two weeks** of backfilling |
+
+A weekly show is comfortable. **Storage is the ceiling that arrives first**, not money, not compute, not rate limits.
 
 Two gotchas worth knowing up front: a free Supabase project **pauses after 7 idle days** (a once-daily Vercel Cron ping prevents it), and Vercel Hobby is **non-commercial** (if this ever makes money, it needs a paid plan).
 
@@ -59,19 +70,25 @@ Two gotchas worth knowing up front: a free Supabase project **pauses after 7 idl
 
 ## 4. The two podcast-specific problems
 
-### Episodes are longer than 25 MB
+### Two-hour episodes
 
-Groq caps uploads at 25 MB. Podcast episodes are routinely 60–90 minutes, which is far over at normal bitrates. Three steps, in order:
+Whisper downsamples everything to 16 kHz mono anyway, so anything above that is wasted bytes. At 16 kHz mono **Opus** (Groq accepts `ogg`/`webm`), a 2-hour episode is ~21 MB — under the cap. But we chunk regardless:
 
-1. **Compress in the browser** to ~64 kbps mono before upload. Speech needs nothing more, and it fits roughly 50 minutes in 25 MB. This alone covers most episodes.
-2. **Chunk and stitch** beyond that: split on silence, transcribe each piece, offset the timestamps, concatenate. Mechanical but genuinely fiddly — it gets real tests, because an off-by-one in a timestamp offset silently corrupts every count after the join.
-3. **Refuse clearly** if it still does not fit, naming the actual numbers and what to do about it.
+**The browser decodes the episode, splits it into ~20–25 minute pieces on silence boundaries, encodes each to Opus, and uploads them separately. The server transcribes the chunks in parallel and stitches the word timestamps with offsets.**
+
+Chunking is not a workaround for the size cap — it is what keeps the **no-worker** architecture viable. Four chunks in parallel finish in roughly the time of the slowest, so the whole pipeline stays inside Vercel's 300 s. A single serial 2-hour request might not, and we would be forced to build a queue. It also means one failed chunk costs one chunk, not two hours against a daily cap of four episodes.
+
+Splitting **on silence** is the correctness-critical part: a cut through the middle of a word produces two garbage fragments and corrupts the counts at the join. And the timestamp offsetting is the highest-risk code in the repo — an off-by-one doesn't crash, it silently points every subsequent count at the wrong moment. Property tests compare a chunked transcript against a single-pass transcript of the same audio.
 
 ### "Who talks most" with no diarisation
 
-Groq's Whisper does not separate speakers, and that is a signature podcast stat. The answer is **multi-track upload**: one audio file per host — exactly how anyone recording in Riverside, Zencastr or on separate mics already has their files. Each track is transcribed independently and tagged with its host, giving **perfect speaker attribution with zero diarisation** and better accuracy per track as a bonus.
+Groq's Whisper does not separate speakers, and that is a signature podcast stat.
 
-A single mixed file simply gets no speaker breakdown, and the UI says so rather than guessing. This is a case where the free constraint pushed us toward a *better* design than the paid one: multi-track beats statistical diarisation on accuracy, and cannot be confidently wrong.
+**The obvious answer — transcribe one file per host — is wrong, and ADR 0011 explains why.** Every host's mic picks up the others faintly, Whisper transcribes that bleed, and the same sentence lands in two or three transcripts. Counts inflate. It also costs 3 × 2 = 6 audio-hours for one episode against a 2-hour hourly allowance.
+
+What we do instead: **transcribe the mixed file once** for the authoritative word list, then use each host's individual track for **audio energy only** — an RMS envelope computed in the browser with no model and no API call. Each word in the master transcript is attributed to whichever host's track is loudest across its time span.
+
+Cheaper (one request, not N), exact rather than statistical, and immune to bleed — bleed is precisely *why* it works, since the host actually talking is always loudest on their own mic. No per-host tracks? No speaker breakdown, and the UI says so rather than guessing.
 
 ---
 
