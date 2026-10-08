@@ -31,7 +31,7 @@ Rules we hold ourselves to:
      ╱──────╲
     ╱        ╲      Integration — Vitest
    ╱   ~60    ╲     Route Handlers, repositories, the worker pipeline.
-  ╱            ╲    Real Postgres in Docker. External HTTP faked with MSW.
+  ╱            ╲    Real Postgres via Supabase. Groq faked with MSW, always.
  ╱──────────────╲
 ╱                ╲  Unit — Vitest
 │      ~400+      │ packages/core. Pure functions. No I/O, no DB, no clock.
@@ -126,7 +126,7 @@ Ordinary coverage is not enough for a measurement product. Four specific guards:
 
 - **Third-party transcription accuracy.** Not ours to assert. We test that we handle whatever shape comes back, including bad shapes.
 - **Visual appearance.** No pixel snapshots in the MVP — they break on every legitimate design change and train people to approve diffs blindly. We assert structure, labels, and a11y roles. Revisit once the design settles.
-- **Next.js, Drizzle, or pg-boss internals.** We test our usage, not their implementation.
+- **Next.js, Drizzle, or Supabase internals.** We test our usage, not their implementation.
 - **Getters, DTO passthroughs, config objects.** Coverage theatre.
 
 Coverage gate: **90% on `packages/core`**, 70% overall. The asymmetry is deliberate — the engine is where a bug means a wrong number, and a wrong number is worse than a crash because nobody notices it.
