@@ -14,7 +14,7 @@ Personas, use cases, journeys, domain language and Gherkin acceptance criteria a
 
 The thinnest slice that is genuinely end-to-end and genuinely deployed:
 
-> Open the production URL → drag in one 3-minute MP3 → wait → see a real transcript excerpt and one real statistic (top 20 terms by count, stopwords stripped) rendered in the browser.
+> Open the production URL → drag in one 3-minute MP3 → wait → see a real transcript excerpt and one real statistic (top 25 terms by count, stopwords stripped) rendered in the browser.
 
 **Intentionally crude, and we say so out loud:**
 
@@ -60,7 +60,7 @@ The thinnest slice that is genuinely end-to-end and genuinely deployed:
 |---|---|
 | **Goal** | Turn word counts into answers: watched topics, counted properly, with a quote behind every number. |
 | **User-visible** | Define a topic ("Pricing" = pricing, price, discount, rate card) once; every recording reports mention counts per topic; click a count → the list of timestamped quotes that produced it → click a quote → transcript at that point. Mention-density strip showing *when* in the recording a topic clustered. |
-| **Exit criteria** | (1) Golden set of 10 real recordings × 20 terms with hand-labelled counts; median per-term count error ≤5%, p90 ≤15%. (2) Case, plural, hyphen and spacing variants ("hotdog/hot dog/hot-dogs") collapse to one topic, by test. (3) Every count drills to quotes; 100% of sampled quotes actually contain the term. (4) Re-running analysis on an existing transcript costs $0 in ASR (transcript is the durable artifact, counting is cheap and re-runnable). (5) Design partner confirms ≥1 topic count changed a decision or a follow-up. |
+| **Exit criteria** | (1) Golden set of 10 real recordings × 20 terms with hand-labelled counts; median per-term count error ≤5%, p90 ≤15%. (2) Case, plural, hyphen and spacing variants ("hotdog/hot dog/hot-dogs") collapse to one topic, by test. (3) Every count drills to quotes; 100% of sampled quotes actually contain the term. (4) Re-running analysis on an existing transcript costs $0 in ASR and is a no-op at the same `pipeline_version` (ADR 0005) — the transcript is the durable artifact, counting is cheap and re-runnable. (5) Design partner confirms ≥1 topic count changed a decision or a follow-up. |
 | **Deferred** | Automatic topic discovery, semantic/paraphrase matching, speakers, cross-recording trends. |
 | **Stop-here value?** | Yes, and this is the first increment a user would miss if taken away — it answers the stakeholder's literal question for a single recording. |
 
@@ -108,18 +108,19 @@ The thinnest slice that is genuinely end-to-end and genuinely deployed:
 
 ## Product decisions that constrain the stack
 
-Architecture owns the choices; these are the constraints it must satisfy. (See [`open-questions.md`](./open-questions.md).)
+Architecture owns the choices; these are the constraints it must satisfy. Most are already honoured by an accepted ADR — the right-hand column says which, so a future reversal is traceable to the product reason that caused it. (See [`open-questions.md`](./open-questions.md).)
 
-| Product decision | Constraint it imposes |
-|---|---|
-| Real accounts from M1 | `user_id` on every row and query from M1; cross-tenant isolation testable. Retrofitting this later is a rewrite. |
-| 120-min files | Background execution beyond request timeouts; rules out doing ASR in a request handler. |
-| 500 MB uploads | Presigned direct-to-storage upload; bytes must not transit the app server. |
-| Deletion guarantee (GDPR-style) | Every audio blob addressable from a DB row; no orphan storage paths, ever. |
-| Transcript is the durable artifact | Counting re-runs for free; changing a topic definition must never re-bill ASR. |
-| Library-wide chat at M5 | Per-recording aggregates stored queryably from M2; transcript segments addressable by timestamp. |
-| TDD throughout | ASR/LLM behind interfaces with recorded-fixture doubles; no test may hit a paid API. |
-| Cost caps | Spend metering per user and per job from M1, not bolted on at M5. |
+| Product decision | Constraint it imposes | Satisfied by |
+|---|---|---|
+| Real accounts from M1 | `user_id` on every row and query from M1; cross-tenant isolation testable. Retrofitting this later is a rewrite. | open (Q1) |
+| 120-min files | Background execution beyond request timeouts; rules out doing ASR in a request handler. | ADR 0003 (durable queue in Postgres) |
+| 200 MB uploads | Presigned direct-to-storage upload; bytes must not transit the app server. | ADR 0008 |
+| Deletion guarantee (GDPR-style) | Every audio blob addressable from a DB row; no orphan storage paths, ever. | ADR 0008 (24 h orphan sweep) |
+| Transcript is the durable artifact | Counting re-runs for free; changing a topic definition must never re-bill ASR. | ADR 0005 (`pipeline_version`), ADR 0004 (raw payload kept) |
+| Library-wide chat at M5 | Per-recording aggregates stored queryably from M2; transcript segments addressable by timestamp; the model must never do the arithmetic. | ADR 0007 (tool use, not RAG) |
+| Counts must be explainable to the user | Deterministic matching over a user-defined watchlist; no non-reproducible clustering in the counting path. | ADR 0006 |
+| TDD throughout | ASR/LLM behind ports with fixture-backed fakes; no test may hit a paid API. | ADR 0004, `CLAUDE.md` |
+| Cost caps | Spend metering per user and per job from M1, not bolted on at M5. | open (Q7) |
 
 ---
 
