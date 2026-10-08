@@ -1,4 +1,4 @@
-import type { AnnotatedToken, LemmaLookup, LemmaSource, Token } from '../domain/token.js'
+import type { Annotated, LemmaLookup, LemmaSource, Token } from '../domain/token.js'
 import { classify } from './classify.js'
 import { stem } from './stem.js'
 
@@ -13,11 +13,14 @@ import { stem } from './stem.js'
  *
  * Which tier produced a lemma is recorded, because a grouping the user cannot
  * interrogate is a grouping they cannot correct.
+ *
+ * Generic over the token so that timings survive: a timed token in, a timed
+ * annotated token out.
  */
-export function annotate(
-  tokens: readonly Token[],
+export function annotate<T extends Token>(
+  tokens: readonly T[],
   lemmas: LemmaLookup,
-): AnnotatedToken[] {
+): Array<Annotated<T>> {
   return tokens.map((token) => {
     const fromDictionary = lemmas.get(token.surface)
 
@@ -34,8 +37,7 @@ export function annotate(
     }
 
     return {
-      surface: token.surface,
-      index: token.index,
+      ...token,
       lemma,
       lemmaSource,
       tokenClass: classify(token.surface),

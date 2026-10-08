@@ -12,6 +12,19 @@ export interface Token {
 }
 
 /**
+ * A token that knows where it was said.
+ *
+ * Several tokens can share one span: `diga-me` is one spoken word and two
+ * tokens, and both point at the same moment, because that is when it was
+ * said. Splitting the span between them would invent precision the
+ * transcript never offered.
+ */
+export interface TimedToken extends Token {
+  readonly startMs: number
+  readonly endMs: number
+}
+
+/**
  * What the default view does with a token.
  *
  * `stopword` and `filler` are both hidden from "most said", but they are
@@ -30,12 +43,25 @@ export type TokenClass = 'word' | 'stopword' | 'filler'
  */
 export type LemmaSource = 'dictionary' | 'stemmer' | 'surface'
 
-/** A token with everything counting needs attached. */
-export interface AnnotatedToken extends Token {
+/** What annotation adds to a token. */
+export interface Annotation {
   readonly lemma: string
   readonly lemmaSource: LemmaSource
   readonly tokenClass: TokenClass
 }
+
+/**
+ * Annotation is additive, so a timed token stays timed.
+ *
+ * Expressed as an intersection rather than a fixed interface because the
+ * alternative loses the audio timings halfway down the pipeline — and those
+ * timings are the only thing connecting a count to a moment someone can play
+ * back.
+ */
+export type Annotated<T extends Token> = T & Annotation
+
+/** A token with everything counting needs attached. */
+export type AnnotatedToken = Annotated<Token>
 
 /**
  * Surface form to lemma.

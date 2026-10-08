@@ -43,22 +43,31 @@ function splitEnclitics(word: string): string[] {
 }
 
 /**
- * Splits normalised text into the token stream everything else counts over.
+ * The surfaces one stretch of text yields, in order.
  *
- * Expects the output of `normalize`, but tolerates stray punctuation rather
- * than trusting its caller.
+ * Shared by both tokenisers so the timed variant can never drift from the
+ * plain one — a disagreement between them would mean counts and playback
+ * referring to different words.
+ *
+ * Expects normalised text, but tolerates stray punctuation rather than
+ * trusting its caller.
  */
-export function tokenise(text: string): Token[] {
-  const tokens: Token[] = []
+export function surfacesOf(text: string): string[] {
+  const surfaces: string[] = []
 
   for (const word of text.split(/\s+/)) {
     if (!HAS_WORD_CHARACTER.test(word)) continue
 
     for (const part of splitEnclitics(word)) {
       if (!HAS_WORD_CHARACTER.test(part)) continue
-      tokens.push({ surface: part, index: tokens.length })
+      surfaces.push(part)
     }
   }
 
-  return tokens
+  return surfaces
+}
+
+/** Splits normalised text into the token stream everything else counts over. */
+export function tokenise(text: string): Token[] {
+  return surfacesOf(text).map((surface, index) => ({ surface, index }))
 }
