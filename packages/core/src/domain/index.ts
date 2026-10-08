@@ -16,4 +16,12 @@ export type {
   TopicMentionCount,
 } from './episode-analysis.js'
 export type { Topic } from './topic.js'
+export {
+  MAX_EPISODE_MS,
+  planEncoding,
+  UPLOAD_BUDGET_BYTES,
+  type EncodingOutcome,
+  type EncodingPlan,
+  type EncodingRefusal,
+} from './encoding-plan.js'
 export type { Mention } from './mention.js'
