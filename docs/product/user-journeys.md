@@ -4,6 +4,8 @@ Five journeys. J1–J3 are the product; J4–J5 are the ways it has to fail well
 
 Actors: **Rafa** (host, uploads) and **Mel** (co-host, mostly opens links). See `personas.md`.
 
+**The sentences quoted below are illustrations, not assertions.** The interface is bilingual (D16), so every message is a **code plus parameters** rendered by a pt-BR or an English catalogue; the codes are listed in `backlog.md`. Journeys quote the pt-BR-equivalent English wording because it reads faster here — no test may assert these strings.
+
 ---
 
 ## J1 — "We just recorded episode 12. What do we do?" 🔥
@@ -31,6 +33,8 @@ Sunday night. Rafa has just finished the edit. The episode is **1 hour 54 minute
 ## J2 — The Series view: "is the hotdog thing getting worse?" 🔥
 
 Six weeks later. Twelve episodes in the Series, four running jokes tracked. **This is the retention journey and the reason the app exists.** It must pay off in under 60 seconds.
+
+**Twelve episodes took twelve weeks of recording, because nothing is imported.** There is no back catalogue — the Series starts at episode 1 and grows one episode a week. So **J2 does not exist yet for a new user, and the honest version of this page for episodes 1 and 2 is the one most people will see first:** full stats for the episode, `SERIES_FIRST_EPISODE` ("this is your first episode, there is nothing to compare yet"), no trend below three episodes, and no placeholder chart pretending a series is there. Getting that state right is what earns the right to this journey.
 
 | Step | User action | System response | What he needs | Risk |
 |---|---|---|---|---|
@@ -73,11 +77,11 @@ Chunking means length is no longer the problem. The real walls are the shared al
 | 1 | A 3-hour live special | Refused before upload with numbers: "This is 180 minutes. Overtone supports episodes up to 150 minutes, and today's allowance covers about 4 hours of audio. Split it into two episodes." | The real limit and a next step | "File too large" is wrong here and would send him looking for a compressor he doesn't need |
 | 2 🔥 | A second two-hour episode in the same hour | Chunks upload, audio is saved, Episode stays `uploaded`: "You've used this hour's 2 hours of transcription. Try again in 34 minutes. Your audio is saved. [Analyse]" | To know nothing was lost and when to come back | A generic failure here reads as "the app is broken". The limit is a fact of the free tier and must be stated as one, with a time |
 | 3 | A fifth episode in one day | "You've used today's 8 hours of transcription. It resets at 00:00 UTC, in 6 hours." | The same honesty at the daily scale | — |
-| 4 🔥 | Decides to backfill 50 old episodes | Up front, before anything starts: "That is about 92 hours of audio: 4 episodes a day, roughly 13 days. 50 episodes would need about 1.1 GB and you have 1 GB — Overtone will purge each episode's audio after analysing it and keep the stats." | The whole truth in days and gigabytes, on the first screen | Starting a 13-day job that silently dies at episode 37 when storage fills is the worst possible version of this |
-| 5 | Comes back the next evening | 4 more episodes analysed, 42 waiting, a Continue button. This week's new episode is analysed before any backfill episode | Progress he can see, and his actual show not stuck behind the archive | A backfill that starves the weekly episode inverts the user's priorities |
-| 6 | Storage hits 1 GB anyway | "Storage is full (1 GB of 1 GB). Delete an episode, or purge an old episode's audio and keep its stats." | The remedy named, with the stats-preserving option | A full disk that manifests as a failed transcription is undiagnosable from outside |
+| 4 | Storage reaches 1 GB, about nine months in | `STORAGE_FULL`: "Storage is full (1 GB of 1 GB). Delete an episode, or purge an old episode's audio and keep its stats." | The remedy named, with the stats-preserving option | A full disk that manifests as a failed transcription is undiagnosable from outside |
 
 **Success:** no limit is ever discovered by failure. Every ceiling is quoted in hours or gigabytes, before the user commits, with the remedy attached.
+
+**The wall that is gone.** Earlier drafts had a two-week, 50-episode backfill here — the only thing in the product that could actually exhaust the daily allowance or the storage tier. **The stakeholder chose only new episodes from now on, so there is nothing to import** and both ceilings recede: one weekly episode spends a quarter of one day's allowance, and 1 GB is about nine months of recording away.
 
 ---
 

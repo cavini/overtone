@@ -9,7 +9,7 @@ Tuned for TDD, small commits, and a trunk that is always shippable. Gates marked
 | # | Gate | Check |
 |---|---|---|
 | R1 | It states user value in the "As a … I want … so that …" form, and the *so that* names an outcome for a real persona — not a technical convenience. | Review |
-| R2 | Acceptance criteria exist as Gherkin scenarios with concrete numbers, states and message text. No scenario contains "appropriate", "informed", "correct", "nice", "handled" or "etc." | **[auto]** lint the `.md` for a banned-vagueness word list and for `Scenario:`/`Given`/`When`/`Then` presence |
+| R2 | Acceptance criteria exist as Gherkin scenarios with concrete numbers, states and **message codes with named parameters** — never a user-facing sentence, because the text exists in pt-BR and English and no layer below the presenter knows which (D16). No scenario contains "appropriate", "informed", "correct", "nice", "handled" or "etc." | **[auto]** lint the `.md` for a banned-vagueness word list, for `Scenario:`/`Given`/`When`/`Then` presence, and for any asserted sentence that is not an explicitly labelled `pt-BR catalogue renders` / `en catalogue renders` line |
 | R3 | At least one **negative or edge-case** scenario is present. | **[auto]** ≥ 2 scenarios per story, and story text must not be the only scenario |
 | R4 | Every AC is observable through the UI or a public API — never only through a database row or a log line. | Review |
 | R5 | Test data is named and available: a committed fixture file, a seeded Library, or a recorded ASR response replayed by the fake provider. Fixtures with expected counts are stated in the AC. **No test ever calls the real transcription service** — the allowance is shared with real users. | **[auto]** named fixture exists in the repo |
@@ -50,14 +50,15 @@ Tuned for TDD, small commits, and a trunk that is always shippable. Gates marked
 | D12 | **No non-terminal limbo.** If the story touches the pipeline, a test asserts every Episode reaches `ready` or `failed`, including on timeout, and that a failure in one chunk does not discard the chunks that succeeded. | **[auto]** |
 | D13 | **Engine agreement.** If the story adds a counting surface, a test asserts it returns the same number as the Query engine for the same question. | **[auto]** |
 | D14 | **Tenancy.** If the story adds a read path, a test asserts another user's id returns not-found. The Share Link (US-039) is the one deliberate exception, and its test asserts the opposite *plus* that no audio, no other Episode and no Library is reachable through it. | **[auto]** |
-| D15 | Error paths produce the exact message text stated in the AC — asserted on the string, not on the status code alone. | **[auto]** |
+| D15 | **Error paths produce the exact message code and parameters stated in the AC** — asserted on the code and its payload, never on a sentence (D16). Separately, the pt-BR and the `en` catalogue each render that code with every parameter substituted, and the `Message codes` table in `backlog.md` lists it. A new code without both renderings fails the build. | **[auto]** |
+| D15a | If the story renders a count, a rate or a date, a test asserts the locale formatting in **both** languages (pt-BR `1.234,56` / `08/10/2026`, en `1,234.56` / `10/8/2026`) **and** that the underlying number is identical in both. A count that moves with the interface language is a failing test, not a cosmetic bug. | **[auto]** |
 | D16 | The R9 budget is asserted or measured, and the measured value is recorded in the PR. If the story can spend the transcription allowance, a test asserts it is spent **once** — never twice for the same audio. | **[auto]** where assertable |
 | D17 | A log line exists for the story's success and failure paths, with the Episode status included. | Review |
 
 ### Communication
 | # | Gate | Check |
 |---|---|---|
-| D18 | If the story introduced, renamed or redefined a domain noun, `glossary-and-domain.md` is updated in the same commit. | **[auto]** domain-term diff check |
+| D18 | If the story introduced, renamed or redefined a domain noun, `glossary-and-domain.md` is updated in the same commit — including its **pt-BR label** (D16), so the two catalogues cannot drift. | **[auto]** domain-term diff check |
 | D19 | If a ⚠️ NEEDS CONFIRMATION was resolved, the decision and its rationale replace the flag in the relevant doc. | Review |
 | D20 | Demoed against the R10 script on the deployed environment, not on a developer machine. | Review |
 

@@ -4,7 +4,7 @@
 
 **Release:** `MVP` = first shippable release · `Next` = straight after · `Later` = only on evidence someone is blocked.
 
-**The show is recorded in Brazilian Portuguese, and an episode arrives as one already-edited file** (D14, D15). Both facts are properties of every row below, not use cases of their own.
+**The show is recorded in Brazilian Portuguese, and an episode arrives as one already-edited file** (D14, D15). Both facts are properties of every row below, not use cases of their own. **The interface is bilingual — pt-BR and English** (D16), which *is* a use case (UC-34) because the reader chooses it; the **analysis** is pt-BR either way.
 
 | ID | Use case | Actor | Trigger | Value delivered | Release |
 |---|---|---|---|---|---|
@@ -18,10 +18,11 @@
 | UC-09 | Group episodes into a Series with numbers | Rafa | Second episode uploaded | Episodes become a show instead of a pile of files | **MVP** |
 | UC-10 | See a running joke's count across every episode | Rafa | "A parada do hotdog está piorando?" | **The actual product.** No single episode can answer this | **MVP** |
 | UC-11 | See the season's running-joke leaderboard | Rafa | End of a season, or any idle Tuesday | *"a gente falou 'né' 312 vezes nessa temporada"* — the screenshot-worthy number | **MVP** |
-| UC-12 | Apply a new running joke to past episodes | Rafa | Invents a Topic in episode 12 he wishes he'd tracked from episode 1 | Back catalogue gains new answers with no re-transcription | **MVP** |
+| UC-12 | Apply a new running joke to the episodes already analysed | Rafa | Invents a Topic in episode 12 he wishes he'd tracked from episode 1 | Every episode Overtone has analysed — episode 1 onwards — gains new answers with no re-transcription | **MVP** |
 | UC-14 | Share one episode's counts and quotes by public link | Rafa → Mel / Viewer | Wants to post it in the group chat | Distribution. A pretty public stats page is something a podcast would actually post. **Settled: counts and quotes, never the full transcript** | **MVP** |
 | UC-15 | Open a shared stats page on a phone, not signed in | Viewer | Taps a link in a group chat | Zero-friction consumption; no account required to look | **MVP** |
 | UC-16 | Sign in with a magic link and see only my own Library | Any | Returns to the app | Each friend gets their own library without passwords or admin | **MVP** |
+| UC-34 | Read the interface in Portuguese or English | Any / Viewer | Shows the app to a friend who reads English | Both languages, switchable and persisted, with no effect on a single count (D16) | **MVP** |
 | UC-17 | Browse the Series and its episodes | Rafa | Returns after a week | Finds the episode; sees the show as an accumulating thing | **MVP** |
 | UC-18 | Recover from an unsupported file | Any | Drops a `.mov` or a `.pdf` | A specific fix, before any bytes or daily quota are spent | **MVP** |
 | UC-19 | Be refused a file past 150 minutes, with numbers | Any | A 3-hour live special | Knows the real limit and that it is the daily allowance, not the file | **MVP** |
@@ -36,7 +37,6 @@
 | UC-28 | Skip a duplicate upload | Any | Uploads the same track twice | Protects the shared daily audio budget from being burned twice | **Next** |
 | UC-29 | Purge an episode's audio, keep its stats | Any | 1 GB storage is nearly full | Keeps the Series analytically intact when storage runs out | **Next** |
 | UC-30 | Delete my account and all my data | Any | Leaves the group | Leaving is as easy as joining | **Next** |
-| UC-33 | Backfill the back catalogue in batches over days | Rafa | 50 old episodes, 92 audio-hours | The whole show in the Series, at four episodes a day, with storage purged as it goes | **Next** |
 | UC-31 | Compare this season to the last | Rafa | Season 2 finale | The long-horizon version of UC-10 | **Later** |
 | UC-32 | Ask a question in natural language across the Series | Rafa | *"Quantas vezes a gente já falou de hotdog?"* | The north star. Cheap only if UC-06/UC-10 are built on a token-level index | **Later** |
 
@@ -49,9 +49,13 @@
 - **One file per episode, and it is the published edit.** There is no track-set concept and no second upload path (D15). Counts therefore describe the episode listeners heard — the more meaningful number for a podcast, and one UC-05, UC-14 and UC-25 must each say out loud rather than imply.
 - **Every rule in the counting pipeline is a pt-BR rule, not a locale setting** (D2–D6, D14). Diacritics are never stripped, enclitic pronouns split off their verbs, lemma grouping is load-bearing rather than cosmetic, and a watchlist carries both spoken and written spellings (`pra`/`para`) as aliases of one Term. UC-07 is where the user pays for all of it, in one form, once.
 - **UC-06 is non-negotiable in MVP.** Without drill-down every count is an unfalsifiable claim, and a joke nobody can verify is not funny.
-- **UC-21 and UC-33 exist because the allowance is shared and small.** Two audio-hours per hour and eight per day across all users is about one two-hour episode an hour and four a day. Ample for a weekly show; a 50-episode backfill is a two-week project, and at ~22 MB an episode it hits the 1 GB storage ceiling before it hits the allowance. Both facts must be stated in hours and gigabytes, up front.
+- **UC-21 exists because the allowance is shared and small.** Two audio-hours per hour and eight per day across all users is about one two-hour episode an hour and four a day — ample for a weekly show, which is now the only case: **nothing is imported, so the Series starts at episode 1** (see *Dropped*). The ceilings must still be stated in hours and gigabytes, up front.
+- **The Series grows one episode at a time, so the empty and single-episode states are the first thing anyone sees.** UC-09, UC-10 and UC-11 are the product, and for the first week or two they have one episode to work with. They must say "this is your first episode, there is nothing to compare yet" honestly, and render no trend, no arc and no placeholder chart.
+- **UC-34 is presentation only.** The interface language changes every string and no number. The analysis language is `pt` whatever the reader chose (D16), and asserting a user-facing sentence in a test is no longer allowed — tests assert a message code and its parameters.
 
 ## Deliberately dropped from earlier drafts
+
+**Back-catalogue import (was UC-33).** The stakeholder chose **only new episodes from now on**, so there is nothing to import — the Series starts at episode 1 and grows weekly. Nothing in the app assumes a pre-existing library.
 
 Bulk archive import · CRM/dialer ingest · per-speaker coaching metrics · consent and notice flows · CSV export · retention policies · teams, roles and shared libraries · PII redaction · billing and quotas. Each belonged to a product with a business. This one has friends.
 
