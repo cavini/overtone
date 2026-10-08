@@ -40,10 +40,14 @@ Start with `docs/product/roadmap.md`, then `docs/product/backlog.md`, then `docs
 - **`packages/core` has no I/O.** No network, no filesystem, no database, no `new Date()`, no `Math.random()`. Pure functions over plain data. This is what keeps the suite fast and deterministic — protect it.
 - **Never call an external service directly.** Go through its port (`TranscriptionProvider`, `BlobStore`, `Clock`, `IdGenerator`, `AssistantModel`). Every port has a `Fake`. This pattern survived three vendor reversals in one day at a cost of one adapter each — it is the most valuable thing in the repo.
 - **Never let an LLM count anything.** Counts come from SQL aggregates. The model phrases answers; it does not do arithmetic. See `docs/adr/0007`.
-- **Speaker attribution comes from multi-track upload, never from diarisation.** One audio file per host. Exact, free, and impossible to be confidently wrong. A mixed single file gets no speaker breakdown, and the UI says so.
+- **Speaker attribution comes from per-host track ENERGY, never from transcribing each track.** Transcribe the mixed master once; attribute each word to whichever host's RMS envelope is loudest across its time span. Transcribing per-host tracks double-counts via mic bleed and blows the rate limit — see `docs/adr/0011`. No per-host tracks? No speaker breakdown, and the UI says so.
+- **Split episodes into ~20–25 min chunks in the browser, on silence boundaries**, and transcribe them in parallel. This is what keeps the no-worker design viable, not an optimisation. Never split on a fixed clock — a cut mid-word corrupts the counts at the join.
+- **Timestamp offsetting when stitching chunks is the highest-risk code in the repo.** It fails silently: counts stay plausible but point at the wrong moment. It keeps its property test against a single-pass transcript.
 - **Never discard `transcripts.raw_provider_payload`.** It is how we re-derive everything without spending the daily transcription allowance twice.
 - **Bump `pipeline_version` whenever analysis output changes.** Otherwise stale counts persist silently.
-- **Compress audio in the browser before upload** (~64 kbps mono). It is what keeps a 50-minute episode inside Groq's 25 MB cap and inside the 1 GB storage tier.
+- **Encode to 16 kHz mono Opus in the browser** before upload. Whisper downsamples to 16 kHz mono anyway, so anything more is wasted bytes against a 1 GB storage tier.
+- **Never store one row per token.** Word timings go in `utterances.words` as compact JSONB; counts live in `term_counts`. A 2-hour episode is ~20k words, and row-per-token would fill the free database at ~110 episodes.
+- **Episodes are 1h40–2h.** That is the normal case, not an edge case. Throughput at the free tier is one episode per hour and four per day; storage is ~45 episodes. Surface remaining allowance in the UI rather than failing opaquely.
 - Validate at every boundary with the Zod schemas in `packages/contracts`.
 
 ## Commands
