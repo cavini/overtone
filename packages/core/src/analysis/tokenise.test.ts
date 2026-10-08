@@ -73,4 +73,8 @@ describe('tokenise', () => {
   it('does not split a bare hyphen or a trailing one', () => {
     expect(surfaces('bem - mal')).toEqual(['bem', 'mal'])
   })
+
+  it('discards a fragment left with no letters after splitting', () => {
+    expect(surfaces('--me')).toEqual(['me'])
+  })
 })

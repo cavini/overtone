@@ -17,14 +17,13 @@ const INVARIANT: ReadonlySet<string> = new Set([
  * (`fuzis`→`fuzil` but `lápis`→`lápis`), and `-ses`, where the singular
  * usually carries an accent we cannot restore (`meses`→`mês`).
  */
-const PLURALS: ReadonlyArray<readonly [suffix: string, replacement: string]> = [
+const IRREGULAR_PLURALS: ReadonlyArray<readonly [suffix: string, replacement: string]> = [
   ['ões', 'ão'],
   ['ães', 'ão'],
   ['ãos', 'ão'],
   ['res', 'r'],
   ['zes', 'z'],
   ['ns', 'm'],
-  ['s', ''],
 ]
 
 const MIN_INPUT = 4
@@ -42,26 +41,35 @@ const MIN_RESULT = 3
  * frequency list. Mapping `falei` back to `falar` requires a dictionary;
  * guessing at it would trade visible gaps for invisible wrong numbers.
  *
- * Two guards make a bad reduction impossible rather than unlikely: the result
- * must still be a plausible word, and it must never be a stop word. When
- * either fails, the original survives untouched — being occasionally too
- * cautious costs a grouping, while being too eager costs the count's
+ * Irregular plurals are checked first; everything else falls through to the
+ * bare `-s` rule, which is the default rather than a list entry so there is
+ * no unreachable path out of the function.
+ */
+/**
+ * Applies one reduction, or declines to.
+ *
+ * Both guards exist to make a bad reduction impossible rather than unlikely:
+ * the result must still be a plausible word, and it must never be a stop
+ * word. Declining costs a grouping; a bad reduction costs the count's
  * credibility.
  */
+function reduce(surface: string, suffix: string, replacement: string): string {
+  const candidate = surface.slice(0, -suffix.length) + replacement
+
+  if (candidate.length < MIN_RESULT) return surface
+  if (STOP_WORDS.has(candidate)) return surface
+
+  return candidate
+}
+
 export function stem(surface: string): string {
   if (surface.length < MIN_INPUT) return surface
   if (INVARIANT.has(surface)) return surface
   if (!surface.endsWith('s')) return surface
 
-  for (const [suffix, replacement] of PLURALS) {
-    if (!surface.endsWith(suffix)) continue
-
-    const candidate = surface.slice(0, -suffix.length) + replacement
-    if (candidate.length < MIN_RESULT) return surface
-    if (STOP_WORDS.has(candidate)) return surface
-
-    return candidate
+  for (const [suffix, replacement] of IRREGULAR_PLURALS) {
+    if (surface.endsWith(suffix)) return reduce(surface, suffix, replacement)
   }
 
-  return surface
+  return reduce(surface, 's', '')
 }

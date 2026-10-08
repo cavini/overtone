@@ -45,6 +45,10 @@ describe('stem', () => {
     }
   })
 
+  it('refuses a reduction that would leave too little word behind', () => {
+    expect(stem('ares')).toBe('ares')
+  })
+
   it('leaves short words alone', () => {
     expect(stem('as')).toBe('as')
     expect(stem('nós')).toBe('nós')
