@@ -66,6 +66,9 @@ Risky or half-built capabilities go behind a flag in `packages/contracts/flags.t
 - **Split enclitic pronouns** (`diga-me`, `fazê-lo`), keep genuine compounds (`guarda-chuva`, `segunda-feira`).
 - **Always send `language: "pt"` to the transcriber.** Never auto-detect — a misdetection produces confident nonsense.
 - **The lemma dictionary is fetched by the use case in one bulk query and passed into the pure functions.** Never query from `core`.
+- **No user-facing text below the presenter.** The domain, use cases and analysis engine deal in typed message codes with parameters; text comes from `messages/{pt,en}.json` in the presenter only. `failure_code` + `failure_params`, never a sentence in a row or a return value (`docs/adr/0017`).
+- **Interface language and audio language are different things.** The audio is always pt-BR and the pipeline is always `language: "pt"`. A count must never change because someone switched the UI to English — that has a test.
+- **Format numbers and dates through `next-intl`.** pt-BR writes `1.234,56`, English `1,234.56`. The entire output is numbers, so a wrong separator is a defect. No `toLocaleString()`, no hand-rolled separators.
 - Validate at every boundary with the Zod schemas in `packages/contracts`.
 
 ## Commands
