@@ -2,7 +2,7 @@
 
 **Status:** settled · **Last updated:** 2026-10-07 · **Decided in:** ADR 0010
 
-The one-line version: **one Next.js app on Vercel's free tier, Supabase for database + files + logins, and Groq for transcription. No server to run, no credit card, $0 a month.**
+The one-line version: **one Next.js app on Vercel's free tier, Supabase for database + files + logins, and Groq for transcription of Brazilian Portuguese audio. No server to run, no credit card, $0 a month.** Layered per Clean Architecture, with the dependency rule enforced in CI (ADR 0016).
 
 ---
 
@@ -30,8 +30,9 @@ The app is one deployable thing. You push to git; Vercel deploys it.
 | ORM | **Drizzle** | SQL-first, so the cross-episode analytics stay real SQL. Migrations are checked-in SQL files. |
 | File storage | **Supabase Storage** (1 GB free) | Signed upload URLs, so audio goes browser → storage without passing through our functions. |
 | Auth | **Supabase Auth**, magic link | Friends get an email link, no passwords to manage. 50 000 monthly users free. |
-| Transcription | **Groq**, `whisper-large-v3-turbo` | Free, fast enough to remove the queue, and returns **word-level timestamps**. No diarisation — see §4. |
-| Analysis | **wink-nlp** + `wink-eng-lite-web-model` | Tokeniser, lemmatiser, POS, stop words. Pure JS, no native build, and **deterministic** — the same episode always yields the same counts. |
+| Transcription | **Groq**, `whisper-large-v3-turbo`, `language: "pt"` | Free, fast enough to remove the queue, and returns **word-level timestamps**. Language is set explicitly, never auto-detected. |
+| Analysis | **our own pt-BR pipeline** — NFC normaliser, clitic-aware tokeniser, a `lemmas` dictionary table, Snowball `pt` stemmer fallback, pt-BR stop-word list | `wink-nlp` was the plan and is **out**: its lemmatiser and stop words are English-only and have no Portuguese equivalent (ADR 0014). Still pure JS, no native build, and **deterministic** — the same episode always yields the same counts. |
+| Architecture | **Clean Architecture** layers + `dependency-cruiser` in CI | The dependency rule is a failed build, not a code-review conversation (ADR 0016). |
 | Validation | **Zod** at every boundary | One schema is the runtime guard, the TS type, and the test fixture. |
 | Assistant (later) | Groq's free LLMs, or Claude API | It only translates a question into a `Query` — it never counts. See ADR 0007. |
 | Tests | **Vitest** + **Playwright** + **MSW** | Whole suite offline and free, because every external service has a fake. |
@@ -80,15 +81,25 @@ Chunking is not a workaround for the size cap — it is what keeps the **no-work
 
 Splitting **on silence** is the correctness-critical part: a cut through the middle of a word produces two garbage fragments and corrupts the counts at the join. And the timestamp offsetting is the highest-risk code in the repo — an off-by-one doesn't crash, it silently points every subsequent count at the wrong moment. Property tests compare a chunked transcript against a single-pass transcript of the same audio.
 
-### "Who talks most" with no diarisation
+### Brazilian Portuguese
 
-Groq's Whisper does not separate speakers, and that is a signature podcast stat.
+The show is recorded in pt-BR, which is why `wink-nlp` is gone and we own the text pipeline. Portuguese makes the analysis harder exactly where this product is sensitive:
 
-**The obvious answer — transcribe one file per host — is wrong, and ADR 0011 explains why.** Every host's mic picks up the others faintly, Whisper transcribes that bleed, and the same sentence lands in two or three transcripts. Counts inflate. It also costs 3 × 2 = 6 audio-hours for one episode against a 2-hour hourly allowance.
+| | |
+|---|---|
+| **Diacritics are semantic** | `e`/`é` (and / is), `por`/`pôr`, `esta`/`está`. Stripping accents — the English reflex — silently merges unrelated words. **Hard rule with a test: accents are preserved.** |
+| **~50 verb forms per lemma** | `falar, falo, falei, falava, falando, falado…`. Lemma grouping is essential, not a nicety. |
+| **Enclitic pronouns use hyphens** | `diga-me`, `fazê-lo` must split; `guarda-chuva`, `segunda-feira` must not. A clitic-suffix list separates them. |
+| **Stemmers over-merge** | `casa` (house) and `casar` (to marry) both stem to `cas`; `comer` stems to `com`, colliding with the preposition. So we look up a **dictionary first** and stem only for out-of-vocabulary words — names, slang, in-jokes — marking those as heuristic. |
+| **Whisper writes standard orthography** | Spoken `pra`, `tá`, `né` may come back as `para`, `está`, `não é`. A count can depend on the transcriber's spelling choices. The answer is a product one: a running joke's watchlist carries both variants as aliases, which ADR 0006's design already supports. |
 
-What we do instead: **transcribe the mixed file once** for the authoritative word list, then use each host's individual track for **audio energy only** — an RMS envelope computed in the browser with no model and no API call. Each word in the master transcript is attributed to whichever host's track is loudest across its time span.
+The lemma dictionary lives in a Postgres table and is fetched with **one bulk query per episode** over that episode's ~3–5k distinct forms, then passed *into* the pure analysis functions — so `packages/core` keeps its no-I/O rule (ADR 0016).
 
-Cheaper (one request, not N), exact rather than statistical, and immune to bleed — bleed is precisely *why* it works, since the host actually talking is always loudest on their own mic. No per-host tracks? No speaker breakdown, and the UI says so rather than guessing.
+### No speaker breakdown
+
+Only the final edited file is uploaded, so there are no per-host tracks and no free service that diarises. **"Who talks most" is cut, not deferred** (ADR 0015).
+
+One honest consequence of the audio being post-edit: counts describe **the published episode — what listeners heard** — not the raw conversation. Arguably the more meaningful number for a podcast, but it means filler and pace metrics measure *the edit*, and we will not present them as anyone's speech habits.
 
 ---
 
@@ -104,6 +115,10 @@ Each is an interface in `packages/core` with a `Fake` used by every test. This i
 | `IdGenerator` | counter | uuid v7 |
 | `AssistantModel` (later) | scripted replies | Groq / Claude |
 
+Every port has **one shared contract test suite that runs against every implementation**, fake included (ADR 0016, Liskov). This matters more here than anywhere else: the whole suite trusts the fakes, so if a fake can do something the real adapter cannot, every test passes for the wrong reason.
+
+Note that `LemmaLookup` is **not** a port — it is a plain map passed as a parameter into pure functions, so the dictionary query happens in an adapter and `core` stays I/O-free.
+
 `JobQueue` was a planned port and has been **deleted**. With no background execution there will never be a second implementation, and a port with one implementation is just indirection.
 
 ---
@@ -112,16 +127,27 @@ Each is an interface in `packages/core` with a `Fake` used by every test. This i
 
 ```
 overtone/
-├─ app/                    Next.js App Router — pages + API routes
+├─ app/                        4. infrastructure — Next.js routes, React pages
 ├─ packages/
-│  ├─ core/                domain + analysis engine. Pure. No I/O. Densest tests.
-│  ├─ db/                  Drizzle schema + migrations
-│  └─ contracts/           Zod schemas, shared with the assistant's tools later
+│  ├─ core/
+│  │  ├─ domain/               1. entities: Episode, Series, Transcript,
+│  │  │                           Utterance, Term, Topic, Mention, Query
+│  │  │                           pure data + invariants, ZERO dependencies
+│  │  ├─ usecases/             2. ProcessEpisode, AnalyzeTranscript,
+│  │  │                           GetSeriesOverview, CreateTopic, ShareEpisode
+│  │  ├─ ports/                2. interfaces, OWNED BY THE INNER LAYER
+│  │  └─ analysis/             2. the pt-BR pipeline. Pure functions.
+│  ├─ adapters/                3. route handlers, repositories, gateways,
+│  │                              presenters. Vendor SDKs live only here.
+│  ├─ db/                      3. Drizzle schema + migrations + lemma seed
+│  └─ contracts/               Zod schemas at every boundary
 ├─ docs/
-└─ fixtures/               small audio clips + canned Groq responses
+└─ fixtures/                   audio clips + canned Groq responses
 ```
 
-One app, three packages. `packages/core` stays I/O-free: tokenising, lemmatising, watchlist matching and aggregation are pure functions over plain data — trivial to drive test-first, and where the product's actual value lives.
+Folders are named for the **domain**, not for patterns — `episodes/`, `series/`, `topics/`, `analysis/`, never `services/` or `utils/`. Opening the repo should show what the app does, not which framework renders it.
+
+`core` is I/O-free and framework-free: no `next`, no `react`, no `drizzle-orm`, no `@supabase/*`, no `groq-sdk`, and no `new Date()` or `Math.random()` — those arrive through the `Clock` and `IdGenerator` ports. **`dependency-cruiser` fails the build on violation**, because an architecture that only lives in a document decays within a week.
 
 ---
 
@@ -134,8 +160,13 @@ One app, three packages. `packages/core` stays I/O-free: tokenising, lemmatising
 | Groq | OpenAI `whisper-1` | Same 25 MB cap, but not free. |
 | Supabase | Neon + Cloudflare R2 + Clerk | Three services and three free tiers to track, versus one. Neon's no-pause behaviour is nicer, but not nicer enough. |
 | No queue | pg-boss / Inngest | Transcription takes ~10 s. A queue for a 10-second operation is infrastructure built for a problem we measured and don't have. |
-| Multi-track | pyannote diarisation | Needs Python, a GPU and a HuggingFace token, and is *still* confidently wrong on crosstalk. Multi-track is free and exact. |
-| wink-nlp | spaCy via Python | Reintroduces Python for work wink-nlp does in-process. |
+
+| our own pt-BR pipeline | **wink-nlp** | Was the plan. Its lemmatiser, POS tagger and stop words are English-only, and the show is in Brazilian Portuguese (ADR 0014). |
+| dictionary-first lemmas | stemming alone | Portuguese Snowball folds `comer` into `com`, turning a common verb into a preposition and a stop word into a top term. A silent false merge is the one failure this product cannot tolerate. |
+| preserving diacritics | stripping accents | Merges `e`/`é` and `por`/`pôr`. Standard in English pipelines, catastrophic here. |
+| no speaker breakdown | energy attribution over host tracks | Was ADR 0011 and was good — but only the final edited file is uploaded, so the per-host signal does not exist (ADR 0015). |
+| no speaker breakdown | paid diarisation | Costs money and is confidently wrong on crosstalk, which is most of a podcast. |
+| pt-BR lemmas | spaCy / Stanza via Python | Reintroduces Python for work a dictionary lookup plus a stemmer does in-process. |
 | wink-nlp | an LLM for counting | Non-deterministic arithmetic in a product whose promise is an accurate count. See ADR 0007. |
 | Drizzle | Prisma | Its generated client fights the raw analytical SQL this product is made of. |
 | Signed upload URLs | upload through the API route | 25 MB bodies through a serverless function is a memory and timeout problem we can simply not have. |
@@ -144,10 +175,12 @@ One app, three packages. `packages/core` stays I/O-free: tokenising, lemmatising
 
 ## 8. Still open
 
-Very little. Everything structural is settled in `docs/adr/`.
+Almost nothing. Everything structural is settled in `docs/adr/`, and the three questions that were here are now answered.
 
-| # | Question | Default if you don't care |
+| # | Question | Status |
 |---|---|---|
-| 1 | Do you record multi-track (a file per host), or one mixed file? | Build multi-track; it's the only way to get "who talks most" and the upload flow barely changes. Mixed files still work, just without speakers. |
-| 2 | Roughly how long are your episodes? | Assume 60–90 min, so browser-side compression ships in the first increment rather than later. |
-| 3 | Keep every episode's audio forever, or drop it after a while? | Keep it — playback is what makes a count believable. 1 GB is ~40 episodes, so revisit when it fills. |
+| 1 | ~~Multi-track, or one mixed file?~~ | **Answered: one final edited file.** Speaker breakdown cut — ADR 0015. |
+| 2 | ~~How long are your episodes?~~ | **Answered: 1h40–2h.** Chunking is first-class — ADR 0011. |
+| 3 | ~~Keep the audio forever?~~ | **Resolved:** keep recent, auto-purge oldest, counts live forever — ADR 0013. |
+| 4 | ~~English or another language?~~ | **Answered: Brazilian Portuguese.** Own pipeline, `wink-nlp` out — ADR 0014. |
+| 5 | Which pt-BR form→lemma list, under what licence? | **Open.** Pick at M1 and verify the licence before it ships — ⚠️ flagged in ADR 0014. The only genuinely open technical choice left. |
