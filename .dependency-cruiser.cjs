@@ -97,14 +97,34 @@ module.exports = {
     {
       name: 'fakes-stay-out-of-production',
       comment:
-        'Only tests may import the test doubles. A fake reaching production ' +
-        'code would be invisible until it shipped.',
+        'Only tests may import the test doubles, in any package. A fake ' +
+        'reaching production code would be invisible until it shipped.',
       severity: 'error',
       from: {
-        path: '^packages/core/src',
+        path: '^packages/',
         pathNot: '(\\.test\\.ts$|^packages/core/src/testing)',
       },
       to: { path: '^packages/core/src/testing' },
+    },
+    {
+      name: 'core-never-depends-on-an-adapter',
+      comment:
+        'The dependency rule across package boundaries. An adapter ' +
+        'implements a port it does not own; the inner layer must never know ' +
+        'which adapter exists.',
+      severity: 'error',
+      from: { path: '^packages/core/src' },
+      // Matches the resolved path, the workspace-linked path, and the bare
+      // specifier. The last form is the one that matters: core does not
+      // depend on adapters, so such an import never resolves — and an
+      // unresolved import keeps its specifier instead of a path, which a
+      // path-only rule would quietly miss.
+      to: {
+        path: [
+          '^packages/adapters/',
+          '(^|node_modules/)@overtone/adapters($|/)',
+        ],
+      },
     },
     {
       name: 'no-circular',
