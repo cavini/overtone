@@ -16,13 +16,18 @@ Audio files are big: an hour of MP3 is 30–60 MB, WAV far more. Routing those b
 - An orphaned-blob window exists if a client uploads and never confirms. Swept by a scheduled job that deletes unconfirmed blobs older than 24 hours.
 - Local development needs a `BlobStore` filesystem adapter so no cloud account is required to run the app. Already required by ADR 0004's testing posture.
 
-## Amendment (ADR 0009): what "presigned" means with no cloud
+## Amendment (ADR 0010): the destination is Supabase Storage
+
+Supabase Storage issues signed upload URLs, so `BlobStore.createUploadUrl()` is unchanged and this ADR holds as written — only the destination moved. The browser also now **compresses to ~64 kbps mono before uploading**, which matters more than the transport: it keeps a 50-minute episode inside Groq's 25 MB cap and cuts storage use roughly fivefold against the 1 GB free tier.
+
+## Prior amendment (ADR 0009, superseded): what "presigned" meant with no cloud
 
 ADR 0009 makes local-only the default, and there is no S3 to presign against. The decision survives by moving the guarantee up one level: **`BlobStore.createUploadUrl()` always returns a URL the browser PUTs to.** Only the destination differs.
 
 | Adapter | The returned URL points at | Bytes land in |
 |---|---|---|
-| `FilesystemBlobStore` (default) | our own `PUT /api/blobs/:key` route, which **streams** the request body to disk | `.storage/` |
+| `SupabaseBlobStore` (default) | a signed Supabase Storage URL | Supabase Storage |
+| `FilesystemBlobStore` (local dev, optional) | our own `PUT /api/blobs/:key` route, which **streams** the request body to disk | `.storage/` |
 | `R2BlobStore` (deployed) | a presigned R2 URL | Cloudflare R2 |
 | `FakeBlobStore` (tests) | an in-memory sink | a `Map` |
 
