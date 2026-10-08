@@ -26,7 +26,7 @@ There is no environments ladder, no staging, no release train, no rollout plan, 
 | Gate | Where | Budget | Blocks? |
 |---|---|---|---|
 | Format, lint, types | pre-commit + CI | <40 s | yes |
-| Unit tests — counting, variant folding, **chunk offsets** | pre-commit + CI | <60 s | yes |
+| Unit tests — counting, variant folding, **chunk offsets**, **pt-BR normalisation** | pre-commit + CI | <60 s | yes |
 | Integration tests — real DB, fake transcription | CI | <3 min | yes |
 | One e2e smoke: upload → transcript → count rendered | CI | <2 min | yes |
 | Coverage floors (90% `packages/core`, 70% overall) | CI | — | yes |
@@ -49,7 +49,15 @@ Never push on red. A red `main` is the only emergency, and reverting is the firs
 
 **TDD loop:** smallest failing test → watch it fail → simplest code that passes → refactor → commit. Repeat.
 
-Counting, variant folding and **chunk timestamp offsets** are test-first without exception — they are where a bug produces a *wrong number* instead of a crash, and nobody notices a wrong number. UI gets behaviour-level tests, not pixel snapshots. Every bug gets a failing test before the fix, permanently.
+Counting, variant folding, **chunk timestamp offsets** and the **pt-BR normalisation path** are test-first without exception — they are where a bug produces a *wrong number* instead of a crash, and nobody notices a wrong number. UI gets behaviour-level tests, not pixel snapshots. Every bug gets a failing test before the fix, permanently.
+
+Three pt-BR tests are permanent fixtures of the suite, not milestone chores (ADR 0014):
+
+| Test | Guards | From |
+|---|---|---|
+| `e`/`é`, `por`/`pôr` stay distinct terms | accent-stripping normalisation (R29) | M0, first commit |
+| colloquial-only and standard-only fixtures of the same speech give **identical counts** | Whisper's written-standard rewriting (R27) | M2 |
+| a committed table of pt-BR near-miss pairs (`casa`/`casar`, `com`/`comer`) never merges | stemmer over-merge (R28) | M2 |
 
 **Commits:**
 - Many small ones, one idea each, typically 10–60 lines. A subject that needs "and" is two commits. Commit at each green step, never in a batch at the end.
