@@ -1,8 +1,10 @@
 # Overtone — Glossary & Domain Model
 
-These nouns become tables, API resources, and test fixture names. One word, one meaning, everywhere. Where a term is ambiguous, a **Decision** is recorded with its rationale. All fourteen are settled.
+These nouns become tables, API resources, and test fixture names. One word, one meaning, everywhere. Where a term is ambiguous, a **Decision** is recorded with its rationale. All fifteen are settled.
 
-**The show is recorded in Brazilian Portuguese.** Every counting rule below is a pt-BR rule. They are not locale settings — D2, D3, D4, D5 and D6 would each be a different decision in English, and several would be the *opposite* decision. Example data in this doc, in fixtures and in acceptance criteria is pt-BR for that reason: English examples hide every rule that matters.
+**The show is recorded in Brazilian Portuguese.** Every counting rule below is a pt-BR rule. **They are not locale settings and are not reachable from any user preference** — D2, D3, D4, D5 and D6 would each be a different decision in English, and several would be the *opposite* decision. Example data in this doc, in fixtures and in acceptance criteria is pt-BR for that reason: English examples hide every rule that matters.
+
+**"Language" means two unrelated things in this product and the words for them are not interchangeable.** The **analysis language** is always `pt` (D14) — it is the pipeline. The **interface language** is pt-BR or English, chosen by the reader (D16) — it is the presentation. Never write "language" unqualified again in this repo.
 
 ---
 
@@ -88,7 +90,7 @@ A Portuguese verb has roughly **50 inflected forms** — `falar, falo, falas, fa
 **Settled:** lemma-grouped default ships with the first word list (US-005), including the per-surface breakdown. The separate "exact words" toggle stays US-016.
 
 **D5 — Stop words are filtered from *display*, never from *storage*.**
-Every Token is indexed. A versioned **pt-BR** stop-word list (**~200 items** — articles `o/a/os/as/um/uma`, prepositions and their mandatory contractions `de/do/da/em/no/na/por/pelo/para/pra/com/sem`, subject and clitic pronouns `eu/você/cê/me/te/se/lhe/nos`, inflections of `ser/estar/ter/haver/ir`, and discourse markers `né/tipo/assim/aí/então/cara`) is excluded from the default top-N view and from "suggested topics". It is larger than the English list it replaces, because mandatory contractions and auxiliary inflections multiply the entries. A user can switch the filter off, and **a stop word used as an explicit Term in a Topic is always counted.** *Rationale:* `que` must never be the headline insight, but `né` absolutely might be the running joke — and the clitic pronouns that D3 splits off land on this list, which is precisely what makes splitting safe: the pronoun is filtered from display, the verb is counted.
+Every Token is indexed. A versioned **pt-BR** stop-word list (**~200 items** — articles `o/a/os/as/um/uma`, prepositions and their mandatory contractions `de/do/da/em/no/na/por/pelo/para/pra/com/sem`, subject and clitic pronouns `eu/você/cê/me/te/se/lhe/nos`, inflections of `ser/estar/ter/haver/ir`, and discourse markers `né/tipo/assim/aí/então/cara`) is excluded from the default top-N view and from "suggested topics". It is larger than the English list it replaces, because mandatory contractions and auxiliary inflections multiply the entries. A user can switch the filter off — a **display** toggle, not a language setting: the list itself is always the pt-BR one, whatever the interface language is (D16) — and **a stop word used as an explicit Term in a Topic is always counted.** *Rationale:* `que` must never be the headline insight, but `né` absolutely might be the running joke — and the clitic pronouns that D3 splits off land on this list, which is precisely what makes splitting safe: the pronoun is filtered from display, the verb is counted.
 
 **D6 — Multi-word Terms are matched on the normalized Token stream, separator-insensitive, lemma-by-lemma.**
 `hot dog`, `hotdog` and `hot-dog` collapse to the same match key by removing internal separators from the candidate n-gram before comparison, so one Term matches all three spellings.
@@ -125,10 +127,10 @@ An Insight that cannot enumerate the Tokens behind it is not a valid Insight and
 All counting — the Episode page, the Series leaderboard, the public Share page and the future assistant — executes the same **Query** object through the same engine. The assistant's only job is natural language → Query, plus prose over retrieved Segments; it never computes a number itself. *Rationale:* the alternative guarantees that the chatbot and the dashboard eventually disagree, which is unrecoverable (J5 step 2).
 
 **D12 — An Episode's audio may be purged while the Episode and its Transcript survive.**
-Deleting *audio* and deleting *an Episode* are different operations with different UI. An Episode whose audio is purged keeps every count and quote but loses playback. *Rationale:* this is the pressure valve for the **1 GB storage ceiling** — roughly 37 two-hour episodes. A show that runs for two seasons will need it, and a back-catalogue backfill (US-044) depends on it. **Default: retain** (playback is load-bearing for trust), with an explicit per-episode purge.
+Deleting *audio* and deleting *an Episode* are different operations with different UI. An Episode whose audio is purged keeps every count and quote but loses playback. *Rationale:* this is the pressure valve for the **1 GB storage ceiling** — roughly 37 two-hour episodes, about nine months of a weekly show. A show that runs for two seasons will need it; nothing imports a back catalogue, so it is the only thing that fills the tier. **Default: retain** (playback is load-bearing for trust), with an explicit per-episode purge.
 
 **D14 — The language is declared as `pt` on every transcription request, never auto-detected. (Opinionated position.)**
-Every chunk is sent with `language: "pt"` set explicitly. Auto-detection is never used, not even as a default. *Rationale:* detection misfires on exactly this input — accented conversational speech reads as Spanish, Galician or Italian, and a chunk dense with English tech vocabulary reads as English. And because chunks are transcribed **independently and in parallel** (D8, US-040), per-chunk auto-detection can return **different languages for different chunks of one episode**, stitching a transcript that is half confident nonsense. A declared language cannot do that. Every Recording's `language` field is `pt`; English or other-language audio is the odd case, warned about after the fact rather than detected before it (US-013).
+Every chunk is sent with `language: "pt"` set explicitly. Auto-detection is never used, not even as a default. *Rationale:* detection misfires on exactly this input — accented conversational speech reads as Spanish, Galician or Italian, and a chunk dense with English tech vocabulary reads as English. And because chunks are transcribed **independently and in parallel** (D8, US-040), per-chunk auto-detection can return **different languages for different chunks of one episode**, stitching a transcript that is half confident nonsense. A declared language cannot do that. Every Recording's `language` field is `pt`; English or other-language audio is the odd case, warned about after the fact rather than detected before it (US-013). **This field is the analysis language and has nothing to do with what language the reader's interface is in** (D16) — it is never read from a user preference, a request header, a cookie or a locale.
 
 **Code-switching into English is normal and is counted as spelled.** Brazilian podcasts drop English tech and meme vocabulary constantly — `deploy`, `bug`, `hype`, `random`, `cringe`, `spoiler`. Those tokens are **ordinary Tokens**: same NFC/lowercase normalization, no translation, no per-token language tag, no English stop-word list and no English lemmatiser. An English word the pt-BR lemma dictionary does not know is its own lemma, so `deploy` and `deploys` are two Terms until the user aliases them — and Whisper may render the same word in English or in pt orthography, so **both spellings belong in the alias set**, the same mechanism as D3(c). *Rationale:* a second language means a second pipeline (D2–D6 are all pt-BR rules); pretending otherwise would hide a wrong number.
 
@@ -141,6 +143,40 @@ There is **one audio file per Episode and it is already edited** — the stakeho
 - **Speaker attribution is impossible and is removed from the product** — not deferred. One mixed file carries no per-host signal, and the free stack has no diarisation. "Who talks most" is gone, along with the `Host Track`, `Speaker` and `Utterance` nouns and decision D13 (see below).
 - **The upload flow gets simpler and chunking does not change at all.** One file, one drop zone, no track-set concept, no per-host naming step, no track-alignment check. The file is still 100–120 minutes and is still split on silence and transcribed in parallel (US-040).
 
+**D16 — The interface language and the audio language are different things and must never be conflated. (Opinionated position.)**
+**Settled (stakeholder): the interface is bilingual — Brazilian Portuguese and English, switchable, persisted per user, pt-BR by default.** The **audio is always Brazilian Portuguese** and the **analysis pipeline is always `pt`** (D14). A user reading the interface in English is still analysing pt-BR speech.
+
+Two axes, and only one of them moves a number:
+
+| | **Analysis language** | **Interface language** |
+|---|---|---|
+| Value | always `pt` | `pt-BR` (default) or `en`, per user |
+| Set by | us, explicitly, on every transcription request (D14) | the reader, at any time (US-046) |
+| Decides | normalization (D2), tokenising and clitic splitting (D3), lemmatisation (D4), the stop-word list (D5), phrase matching (D6) | which catalogue renders a message code, and how numbers and dates are formatted |
+| Changes a count? | yes — it *is* the counting pipeline | **never** |
+
+**The invariant: a count must never change because the interface language changed.** Switching to English changes every string on screen and not one number — same Transcript, same Segments, same Tokens, same lemmas, same Analysis, same totals. Only the presentation moves: `1.234,56` becomes `1,234.56`, `08/10/2026` becomes `10/8/2026`. US-046 asserts it as an invariant test; rule 8 of *What must stay true in the data model* in `backlog.md` keeps it true.
+
+**Consequences, each one acceptance-criteria-bearing:**
+- **No layer below the presenter knows a language.** A user-facing message is a `SCREAMING_SNAKE_CASE` **code plus named parameters**; the sentences live in two catalogues and nowhere else (US-045, and the **Message codes** table in `backlog.md`). **A test asserts the code, never the sentence** — asserting an English sentence would hard-code one reader's locale into the domain, which is exactly the bug this decision prevents.
+- **Numbers are this product's entire output,** so locale formatting is correctness, not polish. A count rendered `1,234` to a pt-BR reader is a real defect.
+- **A share-link visitor has no account.** The public page follows the visitor's browser, defaulting to pt-BR, and carries its own switch. The owner's setting never decides what a visitor reads (US-039).
+- **Rafa and Mel read pt-BR; the English interface is for the people they show it to.** It is not a step towards analysing English audio — that is a second pipeline and is out of scope.
+
+*Rationale:* this is the conflation that writes itself. One field called `language`, one URL parameter, one function argument shared between the presenter and the pipeline, and the stop-word list starts following the UI. Then the same episode reports different numbers to two readers, and no test catches it because every test was written in one language.
+
+**pt-BR labels for the user-facing nouns**, fixed here so the two catalogues cannot drift:
+
+| Noun | pt-BR label | Noun | pt-BR label |
+|---|---|---|---|
+| Series | **Série** | Transcript | **Transcrição** |
+| Episode | **Episódio** | Segment | **Trecho** |
+| Recording | **Gravação** | Chunk | **Parte** |
+| Library | **Biblioteca** | Term | **Termo** |
+| Topic | **Tema** — a running joke is copy-named *piada interna* | Share Link | **Link de compartilhamento** |
+
+**Chunk is `Parte` and Segment is `Trecho`, never the other way round** — both read naturally as "trecho" in Portuguese, which is how a catalogue drifts. Token, Master, Analysis, Insight and Query are internal nouns and appear in neither interface. The six statuses keep their English values in code and data and are *displayed* through the `STATUS_*` labels.
+
 ### Removed from this document
 
 | Was | Why it is gone |
@@ -148,7 +184,7 @@ There is **one audio file per Episode and it is already edited** — the stakeho
 | **D13** — speaker attribution by loudest Host Track | There are no per-host tracks; nothing can be attributed to a person (D15). **The id `D13` is retired, not reused** — other docs reference it and must not silently pick up a new meaning. |
 | Noun **Host Track** | Never uploaded. Deleted with D13. |
 | Noun **Speaker** | Unpopulatable. "Who talks most" is removed from the product, not deferred, so a noun for it would be a trap. `speaker_id` and the Query's speaker filter go with it. |
-| Noun **Utterance** | Defined as "a run of Segments attributed to a single Speaker". With no Speaker the concept has no referent; **Segment** is the span a quote and a drill-down link point at. ⚠️ **NEEDS CONFIRMATION (architecture):** `system-design.md` names its table `utterances` and ADR 0007 names a tool `search_utterances`, where this doc says `Segment`. One of the two names has to go; the definition above is the speaker-free one. |
+| Noun **Utterance** | Defined as "a run of Segments attributed to a single Speaker". With no Speaker the concept has no referent; **Segment** is the span a quote and a drill-down link point at. **Resolved (architecture): `Utterance` is renamed `Segment` repo-wide** — `system-design.md` stores `segments` and ADR 0007 names its tool `search_segments`. The word is gone from the codebase, not just from this doc. |
 
 ---
 
@@ -169,5 +205,11 @@ There is **one audio file per Episode and it is already edited** — the stakeho
 | Say **Episode**, never "meeting", "call" or "recording", in the UI | This is a show. Earlier drafts were a meeting tool; the vocabulary is the tell |
 | Example data in docs, fixtures and AC is **Brazilian Portuguese** | D2–D6, D14. English examples hide every rule that matters and let an accent-stripping bug ship green |
 | A timestamp shown or stored is always **episode-relative** | D8 and US-040. A chunk-relative timestamp is a silent bug |
+| Never say "language" unqualified. Say **analysis language** (always `pt`) or **interface language** (pt-BR or `en`) | D16. One shared word is how the UI locale ends up selecting a stop-word list |
+| Never let an interface locale reach normalising, tokenising, lemmatising, matching or counting | D16. The audio is always pt-BR. A count that moves with the UI language is the defect the whole decision exists to prevent |
+| Never assert a user-facing sentence in a test. Assert a **message code** and its parameters | D16, US-045. The text exists in two languages; the catalogues are the only place wording is asserted |
+| Never render a count or a date by interpolating it into a string | D16. It must pass through the locale formatter — pt-BR `1.234,56` and `08/10/2026`, en `1,234.56` and `10/8/2026` |
 
-⚠️ **NEEDS CONFIRMATION (stakeholder):** the **interface language** was never stated. The show, the audio and all analysed data are pt-BR; the UI copy in `backlog.md` is still written in English. This changes no count and blocks no counting story — the message strings are asserted by identity and would be translated as one pass — but the final copy pass needs an answer.
+**Resolved (stakeholder) → D16.** The **interface language** is **Brazilian Portuguese and English, switchable**, pt-BR by default. It was the last open question in this document, and the answer reached further than expected: because the text now exists in two languages, **no acceptance criterion may assert a user-facing sentence** — every message is a code plus parameters, rendered by a catalogue (US-045), and `backlog.md` carries the full code table. Nothing in the counting pipeline moved: the audio and the analysis are pt-BR whatever the interface reads, and US-046 asserts that a count never changes when the interface language does.
+
+**No ⚠️ NEEDS CONFIRMATION remains in this document.**
