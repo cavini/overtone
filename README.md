@@ -68,3 +68,7 @@ That design has a useful side effect. Once per-episode aggregates are stored que
 - **Counts come from SQL, never from a language model.** The model phrases; it does not do arithmetic.
 
 See [`CONTRIBUTING.md`](CONTRIBUTING.md).
+
+## Credits
+
+The Portuguese lemma dictionary is open data under ODbL, and the licence asks to be credited. [`ATTRIBUTION.md`](ATTRIBUTION.md) says who, what it does for us, and what we changed — and that notice has to be reachable from inside the app before anything is shared publicly.
