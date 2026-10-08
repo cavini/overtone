@@ -1,0 +1,14 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    // Adapters are the only layer that touches the platform. Node supplies
+    // the web-standard globals this one uses — `fetch`, `Response`,
+    // `FormData`, `Headers`.
+    //
+    // Worth noting that `packages/core` compiles with none of this. That is
+    // not an accident: a pure layer needs no platform types, so the build
+    // configuration ends up documenting the boundary the architecture claims.
+    "types": ["node"]
+  },
+  "include": ["src"]
+}
