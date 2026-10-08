@@ -33,6 +33,7 @@ Start with `docs/product/roadmap.md` for where we are, `docs/product/backlog.md`
 - **`packages/core` has no I/O.** No network, no filesystem, no database, no `new Date()`, no `Math.random()`. Pure functions over plain data. This is what makes the suite fast and deterministic — protect it.
 - **Never call an external service directly.** Go through its port (`TranscriptionProvider`, `BlobStore`, `Clock`, `IdGenerator`, `JobQueue`, `AssistantModel`). Every port has a `Fake` used by tests.
 - **Never let an LLM count anything.** Counts come from SQL aggregates. The model phrases answers; it does not do arithmetic. See `docs/adr/0007`.
+- **Transcription is local and free by default** (`whisper.cpp`, ADR 0009). Never add a paid API call to the default path — a cloud adapter is opt-in, behind the port.
 - **Never discard `transcripts.raw_provider_payload`.** It is how we re-derive everything without paying for transcription twice.
 - **Bump `pipeline_version` whenever analysis output changes.** Otherwise stale counts persist silently.
 - **Audio bytes never pass through the app server.** Presigned direct-to-storage uploads only. See `docs/adr/0008`.
@@ -41,6 +42,8 @@ Start with `docs/product/roadmap.md` for where we are, `docs/product/backlog.md`
 ## Commands
 
 ```bash
+brew install whisper.cpp ffmpeg   # one-off; no Python needed
+pnpm setup:models      # downloads large-v3-turbo into models/ (gitignored)
 pnpm dev               # web + worker
 pnpm test              # unit + integration, watch — the inner loop
 pnpm test:unit         # pure, instant

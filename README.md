@@ -55,7 +55,9 @@ That design has a useful side effect. Once per-recording aggregates are stored q
 
 ## Stack, in one line
 
-TypeScript monorepo — Next.js 15 + Tailwind + shadcn/ui on the front, Postgres (+ pg-boss, full-text search, and later pgvector) as the only stateful service, a Node worker for the pipeline, bought transcription and all other external services behind ports with fakes so the whole suite runs offline. Details and rejected alternatives in [`tech-stack.md`](docs/architecture/tech-stack.md).
+TypeScript monorepo — Next.js 15 + Tailwind + shadcn/ui on the front, Postgres (+ pg-boss, full-text search, and later pgvector) as the only stateful service, a Node worker for the pipeline, and **local Metal-accelerated `whisper.cpp` for transcription** so the whole thing runs at zero marginal cost with audio never leaving the machine. Every external service sits behind a port with a fake, so the suite runs offline and swapping to a cloud provider is a config value. Details and rejected alternatives in [`tech-stack.md`](docs/architecture/tech-stack.md).
+
+**Running it costs nothing.** `brew install whisper.cpp ffmpeg`, `pnpm setup:models`, `docker compose up -d postgres`, `pnpm dev`. No API key, no account, no card.
 
 ## How this gets built
 
