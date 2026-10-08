@@ -8,7 +8,7 @@ The PO and PM disagree, and both arguments are sound.
 
 The **PO** says keep the audio: domain decision D10 makes provenance part of the definition of a count, and being able to *hear* the moment is what makes a number believable. For a podcast this is stronger than for a work tool — "play the bit where he says it" is most of the fun.
 
-The **PM** says delete on success: the transcript is the durable artifact (ADR 0005), and deleting means the 1 GB free storage tier never becomes a ceiling. At ~21 MB per episode, keeping audio caps the library at about **45 episodes** — which a weekly show reaches inside a year.
+The **PM** says delete on success: the transcript is the durable artifact (ADR 0005), and deleting means the 1 GB free storage tier never becomes a ceiling. At ~22 MB per episode, keeping audio caps the library at about **37 episodes** — which a weekly show reaches inside a year.
 
 Both are right, and the two extremes are both bad: deleting immediately throws away the feature that makes counts trustworthy, and keeping everything turns a storage limit into a hard wall at an arbitrary moment.
 

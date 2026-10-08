@@ -51,7 +51,7 @@ The app is one deployable thing. You push to git; Vercel deploys it.
 | Vercel Hobby | 1 M invocations · 300 s/function · 100 GB transfer | Nothing, at friends-scale |
 | Supabase | 500 MB DB · **1 GB files** · 50 k users | Storage, at roughly 40 compressed episodes |
 
-**Episodes are 1h40–2h, so here is what that actually means:**
+**Episodes are 1h40–2h, so here is what that actually means.** Every number below is defined once in `../product/backlog.md`; code reads them from one constants module rather than restating them.
 
 | | A 2-hour episode |
 |---|---|
@@ -59,7 +59,7 @@ The app is one deployable thing. You push to git; Vercel deploys it.
 | Audio-seconds consumed | 7 200 — **the entire hourly allowance** |
 | So, throughput | **one episode per hour, four per day** |
 | Transcription wall-clock | tens of seconds, with chunks running in parallel |
-| Storage per episode | ~21 MB → **1 GB ≈ 45 episodes** |
+| Storage per episode | ~22 MB → **1 GB ≈ 37 episodes** |
 | Back catalogue of 50 episodes | 100 audio-hours ≈ **two weeks** of backfilling |
 
 A weekly show is comfortable. **Storage is the ceiling that arrives first**, not money, not compute, not rate limits.

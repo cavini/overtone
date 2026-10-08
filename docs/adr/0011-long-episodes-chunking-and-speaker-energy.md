@@ -65,7 +65,7 @@ The per-token table is deleted from the design. `term_counts` and `mentions` rem
 
 - **A weekly show is comfortable.** One 2-hour episode per hour, four per day, is far more than a weekly release needs.
 - **Back-catalogue backfill is slow and must be honest about it.** 50 old episodes at 2 hours each is 100 audio-hours — about **two weeks** at the free daily cap. The UI must show remaining allowance and let a backfill run across days rather than failing opaquely.
-- **Storage is the real ceiling.** At ~21 MB per episode, 1 GB of free Storage is about **45 episodes**. That arrives well before the database fills, so a retention story (drop the audio, keep the transcript and counts — already modelled as domain decision D12) is needed earlier than a paid product would need it.
+- **Storage is the real ceiling.** At ~22 MB per episode, 1 GB of free Storage is about **37 episodes**. That arrives well before the database fills, so a retention story (drop the audio, keep the transcript and counts — already modelled as domain decision D12) is needed earlier than a paid product would need it.
 - Chunking, silence detection and in-browser Opus encoding are real work — days, not hours — and they land in the first increment because there is no version of this product that works without them.
 - The no-worker architecture survives, but **only because of chunking.** That is the load-bearing reason, not an optimisation.
 - **Reversal trigger:** if parallel chunks still cannot finish inside 300 s, the answer is Vercel's background functions or a polled status row — not a full queue. Measure before building either.
