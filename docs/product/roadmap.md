@@ -1,151 +1,143 @@
 # Overtone — Product Roadmap
 
-**Thesis.** People accumulate recordings — standups, 1:1s, interviews, lectures, voice notes — and lose everything in them the moment they stop playing. Overtone turns an audio file into *countable, citable facts*: how often a term came up, who talked, how that changed across weeks. The wedge is not transcription (commodity) and not summarisation (crowded); it is **trustworthy counting with a quote behind every number**. Every statistic is clickable down to the timestamped sentence that produced it, because a count nobody can verify is a count nobody acts on. That same per-recording aggregate layer is what later lets an assistant answer *"how many times did we ever discuss hotdogs?"* across a whole library cheaply — so the MVP is deliberately built as the chatbot's data substrate, without building the chatbot.
+**What this is.** Analytics for a podcast a small group records together. Upload an episode, get a transcript and counts for the bits the group actually cares about — the running jokes, the recurring topics — and see how those move **episode to episode**. The series is the product. One analysed episode is a party trick; twelve of them is a show you can argue about.
 
-**North Star: Explored Audio Hours per week (EAH/wk)** — audio-hours whose finished analysis the uploader actually opened *and* interacted with (drill into a term, jump to a quote, add a watchlist term, export) within 7 days. One number that only moves when supply (uploads) and realised value (exploration) both happen. Rationale and rejected alternatives: [`metrics.md`](./metrics.md).
+**Who it's for, in the stakeholder's words:** *"a fun free app that my friends can use without me having to keep my computer running all the time and having to pay for anything."* That sentence is the scope. Everything below is free to run, nothing runs on anybody's laptop, and no plan here contains money.
 
-Personas, use cases, journeys, domain language and Gherkin acceptance criteria are owned by the Product Owner — [`personas.md`](./personas.md), [`use-cases.md`](./use-cases.md), [`user-journeys.md`](./user-journeys.md), [`glossary-and-domain.md`](./glossary-and-domain.md), [`backlog.md`](./backlog.md), [`definition-of-ready-and-done.md`](./definition-of-ready-and-done.md). This document sequences them; it does not restate them. The MVP persona is **P1 Maya**, a recurring-meeting owner whose stated bar is *≤3 minutes from file-on-disk to a readable answer, with every number clickable back to a timestamped quote* — that bar is the source of the TTFI and quote-drill targets below. Stack decisions live in [`docs/adr/`](../adr/); where a product decision constrains them it is flagged.
+**North Star: Compared Episodes per Month (CEM)** — episodes that finished processing *and* whose series view someone opened within 7 days. Both halves of the promise in one number: the group keeps uploading, and keeps looking across episodes. See [`metrics.md`](./metrics.md).
 
-**Increment ↔ epic mapping.** M0 is epic E1 (`US-001`…`US-005`); later increments draw from `backlog.md` in its stated order. Shared constants (200 MB / 120 min, top-25 words, English-only, the six processing statuses) are defined once in `backlog.md` and `glossary-and-domain.md` — this roadmap uses them, it does not redefine them.
+**Access model (decided):** each friend signs in with a magic link and has their own library; any single result can be shared read-only by link. No teams, no roles, no sharing beyond that link.
 
----
+## The stack is settled, and it dictates the sequence
 
-## Walking skeleton (M0)
+Groq (`whisper-large-v3-turbo`), Vercel Hobby, Supabase (Postgres + storage + magic-link auth), `wink-nlp` in process. All free, no card. Five facts drive everything:
 
-The thinnest slice that is genuinely end-to-end and genuinely deployed:
-
-> Open the production URL → drag in one 3-minute MP3 → wait → see a real transcript excerpt and one real statistic (top 25 terms by count, stopwords stripped) rendered in the browser.
-
-**Intentionally crude, and we say so out loud:**
-
-| Crude thing | Why it's acceptable at M0 |
+| Fact | Consequence |
 |---|---|
-| Synchronous request, browser spins for ~30–60 s | Proves the pipeline before we pay for a queue |
-| One file at a time, nothing persisted but the latest result | Storage model is M1's job, not M0's |
-| 25 MB / 10 min hard ceiling, MP3+WAV only | Keeps the first real ASR bill under $1 |
-| Single shared access secret, no accounts | But the data model gets `user_id` at M1 — see Q1 |
-| Naive whitespace tokenising + a stopword list; no stemming, no synonyms | Exposes the normalisation problem early (R2) instead of hiding it |
-| Unstyled table, no charts, no empty/error states | "Nice UI" is M4 and is timeboxed |
-| No retries, no cancel, failures show a raw error string | Honest failure beats a fake progress bar |
+| Episodes are routinely **1 h 40 m – 2 h** | Nothing in this plan may assume short audio. Every estimate, limit and test fixture uses a two-hour episode as the normal case. |
+| Groq runs ~160× realtime — a 2-hour episode is ~45 s of transcription, split into ~5 chunks and run in parallel it lands in well under a minute, inside Vercel's 300 s limit | Transcription happens **inside the web request** (ADR 0010). No queue, no worker, no Docker, no job-state machine. The old "reliable async pipeline" increment does not exist. |
+| **25 MB per request**, which is a *size* limit, not a duration one — 16 kHz mono Opus puts 2 hours in ~21 MB | The browser **chunks each episode into ~20–25 min pieces on silence boundaries**, compresses, and uploads them; the server transcribes chunks in parallel and **stitches the timestamps**. That stitching is the highest-risk code in the project: an off-by-one in a chunk offset silently points every later count at the wrong moment. |
+| Free tier is **7,200 audio-seconds/hour and 28,800/day** | A 2-hour episode *is* 7,200 seconds, so it spends the entire hourly allowance: **one 2-hour episode per hour, four per day.** Fine for a weekly show, a hard wall for a back catalogue (R26). Parallel chunks cost nothing extra — duration is what's billed — and 5 requests is nowhere near 20/min. |
+| Supabase pauses a project after 7 idle days | A daily keep-alive ping is a shipping requirement, not an optimisation. |
 
-**Non-negotiable even at M0:** real transcription (local `whisper.cpp`) behind an interface with a fixture-backed test double, CI green, TDD from the first commit, and a recorded throughput benchmark. *Amended by ADR 0009:* the original "deployed to a real URL" and "ASR spend alert" criteria are dropped — there is no spend to alert on, and free hosting tiers cannot run local inference. M0 exits on `localhost`; deployment moves to whenever there is a second user. This is the one place the roadmap regresses, consciously.
+**No speaker diarisation exists in the free stack.** "Who talks most" is only possible from per-host tracks, and only as an **audio-energy** comparison: transcribe the mixed file once, then attribute each word to whichever host's track is loudest at that timestamp. Not scheduled — see *Later*.
+
+Personas, use cases, journeys, domain language and Gherkin acceptance criteria are owned by the Product Owner — [`personas.md`](./personas.md), [`use-cases.md`](./use-cases.md), [`user-journeys.md`](./user-journeys.md), [`glossary-and-domain.md`](./glossary-and-domain.md), [`backlog.md`](./backlog.md), [`definition-of-ready-and-done.md`](./definition-of-ready-and-done.md). This document sequences them; it does not restate them.
 
 ---
 
 ## Increments
 
-### M0 — Walking Skeleton · ~1 week (est.)
+Estimates are in **weekends of spare time (~8 h each)** by one person building this for fun. They are estimates, not commitments; life will reorder them.
+
+### M0 — Walking skeleton · 1 weekend (est.)
+
+> Open the live Vercel URL → drop in a 3-minute clip → about ten seconds later, read a real transcript and a real count table.
 
 | | |
 |---|---|
-| **Goal** | Prove upload → real transcript → one real statistic → rendered, in production. |
-| **User-visible** | A page that takes one audio file and returns a top-25-term table plus the transcript. |
-| **Exit criteria** | (1) A 3-min file uploaded from a phone browser returns a term table in <90 s p95. (2) Term counts for a committed fixture match a hand-counted expectation exactly, asserted in CI (`US-004`). (3) One e2e smoke test drives the real upload path against `FakeTranscriptionProvider`. (4) A recorded benchmark: minutes of wall-clock per audio hour on this machine, for the model chosen — the number that decides whether M1's queue is urgent. (5) ≥1 recording from the named design partner (Q9) processed successfully. |
-| **Deferred** | Accounts, persistence, async jobs, topics, speakers, charts, retries, any file >10 min. |
-| **Stop-here value?** | Thin but real — a user can get a word-frequency readout of a short recording they could not get before. Not retainable. |
+| **Goal** | Prove upload → real Groq transcript → one real count → rendered, on a public URL. |
+| **Crude on purpose** | One shared password in an env var, nothing persisted, one file per request, no chunking or compression, naive tokenising plus a stopword list, unstyled table, raw error strings. Chunking is M1's hard part and deserves its own weekends, not a corner of this one. |
+| **Non-negotiable even so** | Real Groq transcription behind the `TranscriptionProvider` port with a fixture-backed fake; deployed to the real Vercel URL on push; CI green; test-first from the first commit. Deployment is *in* M0 — Vercel Hobby auto-deploys from git, so there is no reason to sit on localhost. |
+| **Exit** | (1) A 3-min clip uploaded from a phone browser returns a table in <30 s. (2) Term counts for a committed fixture match a hand-counted expectation exactly, asserted in CI. (3) One e2e smoke drives the real upload path against the fake provider. (4) It is reachable at the production URL by someone who is not the engineer. |
+| **Deferred** | Accounts, persistence, chunking, compression, watchlists, series view, sharing. |
+| **Stop here?** | Thin but real: a word readout of a short clip nobody had before. Nobody would miss it. |
 
-### M1 — Library & Reliable Pipeline · ~3 weeks (est.)
+### M1 — Sign in, library, full-length episodes · 3 weekends (est.)
 
-| | |
-|---|---|
-| **Goal** | Make it survivable: real accounts, durable library, async jobs that recover from failure. |
-| **User-visible** | Sign in; upload a 120-minute meeting; see it move `uploaded → transcribing → analyzing → ready` with live status; a library list of past recordings you can revisit; retry a `failed` one yourself; delete a recording. |
-| **Exit criteria** | (1) A 120-minute / 200 MB file completes without a request timeout. (2) Direct-to-storage upload (ADR 0008) resumes or clearly fails on a killed network — no silent half-uploads, and `/complete` probes the blob for real duration and format rather than trusting the client. (3) Submitting the same file twice creates one job and one ASR charge — idempotency on content hash asserted by test. (4) Injected ASR 500 / timeout / malformed-response each produce a retried-then-`failed` job with a user-readable message, never a stuck `transcribing`; the 3× duration hard timeout forces `failed`. (5) Delete removes DB rows *and* the audio blob, verified by test; unconfirmed blobs are swept after 24 h. (6) Processing success rate ≥98% over ≥30 real uploads. (7) All queries scoped by `user_id`; a cross-tenant read test fails closed. |
-| **Deferred** | Topics/watchlists, speakers, charts, cross-recording views, sharing, non-English. |
-| **Stop-here value?** | Yes — a personal archive of meetings with per-recording word stats you can return to. Weakly retainable. |
-
-### M2 — The Insight Layer · ~3 weeks (est.)
+The increment that makes it *their* app rather than a demo, and the one that makes two-hour episodes work. The biggest and riskiest thing in the plan.
 
 | | |
 |---|---|
-| **Goal** | Turn word counts into answers: watched topics, counted properly, with a quote behind every number. |
-| **User-visible** | Define a topic ("Pricing" = pricing, price, discount, rate card) once; every recording reports mention counts per topic; click a count → the list of timestamped quotes that produced it → click a quote → transcript at that point. Mention-density strip showing *when* in the recording a topic clustered. |
-| **Exit criteria** | (1) Golden set of 10 real recordings × 20 terms with hand-labelled counts; median per-term count error ≤5%, p90 ≤15%. (2) Case, plural, hyphen and spacing variants ("hotdog/hot dog/hot-dogs") collapse to one topic, by test. (3) Every count drills to quotes; 100% of sampled quotes actually contain the term. (4) Re-running analysis on an existing transcript costs $0 in ASR and is a no-op at the same `pipeline_version` (ADR 0005) — the transcript is the durable artifact, counting is cheap and re-runnable. (5) Design partner confirms ≥1 topic count changed a decision or a follow-up. |
-| **Deferred** | Automatic topic discovery, semantic/paraphrase matching, speakers, cross-recording trends. |
-| **Stop-here value?** | Yes, and this is the first increment a user would miss if taken away — it answers the stakeholder's literal question for a single recording. |
+| **Goal** | Friends sign in and upload a real two-hour episode that comes back correct and stays in a library. |
+| **User-visible** | Magic-link sign-in; drag in a whole episode; the browser splits it on silence into ~20–25 min chunks, compresses each to 16 kHz mono Opus, uploads them, and the server transcribes them in parallel and stitches one continuous transcript; a library list with title, date and duration; delete an episode. When the hourly allowance is spent, a plain message saying so and roughly when to retry. |
+| **Checkpoints** (shippable states inside the increment, not separate increments — a one-chunk cap is of no use to a group whose episodes are all two hours) | **a)** auth + library + single-chunk episodes. **b)** chunking, compression and stitching. **c)** rate-limit handling, keep-alive, delete. |
+| **Exit** | (1) A real 1 h 40 m – 2 h episode from the actual show completes end to end and the transcript reads continuously across every seam — no lost or duplicated sentences. (2) **Timestamp stitching is tested at every chunk boundary**: word timestamps land within ±1 s of hand-checked positions in a committed multi-chunk fixture, and a deliberately wrong chunk offset fails a test. (3) Chunk boundaries fall on silence, never mid-word. (4) Total wall clock for a 2-hour episode is under 300 s, measured in prod. (5) Two friends sign in by magic link and each sees only their own episodes; a cross-account read test fails closed. (6) Uploading a second 2-hour episode within the hour produces a readable "free hour is used up, try again in ~N minutes" message, never a stack trace. (7) Audio is deleted from storage once transcription succeeds (transcript is the durable artifact, ADR 0005), asserted by test. (8) A daily cron pings Supabase; the project survives an 8-day gap with no uploads. |
+| **Deferred** | Watchlists, series view, sharing, speaker attribution, back-catalogue import. |
+| **If stitching fights back** | Ship checkpoint (a) — real auth, real library, episodes up to one chunk — and give chunking a dedicated weekend. Do **not** let it quietly absorb a fourth and fifth weekend; re-forecast out loud instead. |
+| **Stop here?** | Yes — the whole show, in one place, with per-episode word stats, usable from any device by the whole group. |
 
-### M3 — Speakers & Trends · ~3 weeks (est.)
+### M2 — Running jokes · 1 weekend (est.)
 
-| | |
-|---|---|
-| **Goal** | Add the two dimensions the brief names — *who* and *over time* — and build the chatbot's aggregate store as a side effect. |
-| **User-visible** | Talk-time share per speaker with renameable labels ("Speaker 2" → "Priya"); a library-wide trend chart for any topic by week; comparison across recordings. |
-| **Exit criteria** | (1) Diarisation shipped labelled **beta** with a visible caveat, capped at ≤4 speakers; talk-time share within ±10 percentage points of hand-labelled truth on 5 test files, else the feature stays off. (2) Trend query over 50 recordings returns in <1 s p95 from stored per-recording aggregates — no transcript re-scan. (3) Renaming a speaker updates every view, by test. (4) Aggregates are recomputed, not re-transcribed, when a topic definition changes. |
-| **Deferred** | Per-speaker topic attribution ("who said hotdogs most"), overlap/interruption analysis, >4 speakers. |
-| **Stop-here value?** | Yes — "I talk 70% of my 1:1s" and "pricing came up 4× more this month" are standalone insights. |
-
-### M4 — v1: Polish, Trust & Launchable · ~2 weeks (est., hard timebox)
+The headline feature. A podcast group already knows its bits by name.
 
 | | |
 |---|---|
-| **Goal** | Make it something you'd show a stranger, and honest about its limits. |
-| **User-visible** | Coherent visual system, real charts, empty/loading/error/partial states, responsive, keyboard-navigable; onboarding that gets a first upload done in <2 min; a visible accuracy & consent notice; self-serve export (CSV/PNG) and account-wide data deletion. |
-| **Exit criteria** | (1) The pre-agreed 10-item UI checklist and two reference products (Q10) are satisfied — checklist signed off, no open-ended polish. (2) Every async state has a designed screen, verified by a state-gallery test. (3) Time-to-first-insight for a new user p50 <2 min for a 10-min file. (4) "Delete my account and data" completes and is verified to leave zero audio blobs and zero transcript rows. (5) Lighthouse a11y ≥90; WCAG AA contrast on charts. (6) 5 external users complete a first upload unassisted. |
-| **Deferred** | Teams/sharing, billing, the assistant, non-English. |
-| **Stop-here value?** | Yes — this is a shippable v1 product. If the project froze here it would still be worth using and worth charging for. |
+| **Goal** | Count the things the group actually cares about, with a quote behind every number. |
+| **User-visible** | Name a bit once ("Hotdog Corner" = hotdog, hot dog, hotdogs, dog of heat); every episode reports a count per bit; click a count → the timestamped quotes that produced it → click a quote → the transcript at that moment. A density strip showing *when* in the episode a bit clustered. |
+| **Exit** | (1) Case, plural, hyphen and spacing variants collapse to one bit, by unit test per class. (2) Counts for a golden set of 2 real two-hour episodes × 10 named bits match hand counts: median error ≤5%. (3) Every count drills to quotes, and 100% of sampled quotes actually contain a matched form **at the right timestamp** — which is also the standing regression test for M1's stitching. (4) Matched surface forms are shown next to the count, so a gap is visible rather than silent. (5) Re-running analysis on a stored transcript is free, instant, and spends no audio-seconds (ADR 0005). (6) The group names at least five real bits without being prompted with examples. |
+| **Deferred** | Automatic topic discovery, paraphrase/semantic matching, anything cross-episode. |
+| **Stop here?** | Yes, and this is the first increment they'd be annoyed to lose. |
 
-### M5 — Ask Your Library (AI assistant, behind a flag) · ~3 weeks (est.)
-
-| | |
-|---|---|
-| **Goal** | Answer "how many times did they *ever* discuss hotdogs?" across the whole library — cheaply, with citations. |
-| **User-visible** | A chat panel that answers count, trend, speaker and recall questions over the full library and cites the recordings/timestamps it counted, with a "show the 12 quotes" affordance. |
-| **Exit criteria** | (1) Answers route to the aggregate store first; naive whole-library context stuffing is impossible by construction. (2) Median cost per answered question ≤$0.03 and p95 ≤$0.10 (est.); per-user daily cap enforced with a friendly ceiling message. (3) 20-question eval set (counts, trends, "who said", not-mentioned, ambiguous); ≥90% numerically correct, 0 fabricated citations — every cited timestamp resolves to real text containing the claim. (4) Refuses or flags rather than guessing when the library has no coverage. (5) Flag default **off**; global kill switch tested in production. (6) Rollout: self → 3 friendly users → 25% → all, per [`release-strategy.md`](./release-strategy.md). |
-| **Deferred** | Multi-turn memory across sessions, chart generation from chat, actions/write-back, voice input. |
-| **Stop-here value?** | Yes — and if the eval bar fails, the flag stays off and v1 is unharmed. That's the point of doing it last. |
-
-### M6 — Beyond · ~4 weeks (est., pick by evidence)
+### M3 — The series view · 1 weekend (est.)
 
 | | |
 |---|---|
-| **Goal** | Reduce the cost of getting audio in, and of sharing what comes out. One lane, chosen by M4/M5 data — not all of them. |
-| **User-visible** | **(a)** Ingest integrations (Zoom/Meet/Drive/RSS) so uploading stops being manual; **(b)** sharing & teams — a read-only insight link, then shared libraries; **(c)** second language with a measured accuracy bar; **(d)** scheduled digests ("your week in topics"). |
-| **Exit criteria** | Chosen lane ships end-to-end with its own exit bar; the deciding metric is named *before* work starts (e.g. integrations only if manual upload is the top drop-off in the M4 funnel). |
-| **Deferred** | Everything not chosen; mobile apps; realtime/live transcription. |
-| **Stop-here value?** | Yes by construction — each lane is independently shippable. |
+| **Goal** | Answer "across episodes" — the stakeholder's actual words — and make the series the home page. |
+| **User-visible** | One row per episode, one column per bit, counts in the cells; a per-bit line across the season; "compare episode to episode" picking any two and showing what rose and fell; the series view becomes the landing page after sign-in. |
+| **Exit** | (1) The series view reads stored per-episode aggregates, never re-scans transcripts; 30 episodes render in <1 s. (2) Adding or editing a bit backfills counts across the whole library by recomputing from stored transcripts, with no re-transcription and no audio-seconds spent — asserted by test. (3) A two-episode comparison names the biggest movers in both directions. (4) The group can point at one thing the series view told them that they did not already know. |
+| **Deferred** | Who talks most, the assistant, back-catalogue import, per-bit alerts. |
+| **Stop here?** | Yes — this is the product the stakeholder described. If the project froze here it would have delivered. |
+
+### M4 — Share links and rough edges · 1 weekend (est., hard timebox)
+
+| | |
+|---|---|
+| **Goal** | Make one result shareable and the app pleasant. Then stop. |
+| **User-visible** | "Share this" on an episode or a bit → an unguessable read-only link that works without signing in; empty, loading and error states that read like sentences; works on a phone; one line saying episode audio is sent to Groq for transcription and roughly how accurate to expect it to be. |
+| **Exit** | (1) A share link opens for a signed-out stranger and exposes exactly the shared result — no library, no other episodes, no account data; asserted by test. (2) Revoking a link makes it 404. (3) Every async state has a designed screen, including "this hour's free transcription is used up". (4) A friend who has never seen the app signs in and uploads an episode with no help. (5) One weekend. Unfinished polish is cut, not carried. |
+| **Deferred** | Everything in *Later*. |
+| **Stop here?** | Yes — this is v1, and v1 is the plan. |
+
+---
+
+## Later, only if the group asks
+
+Not scheduled, not estimated, no implied order. Each needs a trigger before any work starts.
+
+| Lane | Trigger, and what it actually involves |
+|---|---|
+| **Who talks most** (per-host tracks as an energy signal) | The group confirms they already record one track per host (Q13). Design: transcribe the **mixed** file once, then attribute each word to whichever host's track is loudest at that timestamp. Transcribing tracks separately is wrong twice — mics pick each other up, so counts double, and three 2-hour tracks is 6 audio-hours against a 2-hour hourly allowance (R24). |
+| **Back-catalogue import** | The group asks for old episodes. There is no clever version: 50 episodes × 2 h is 100 audio-hours, about **two weeks of drip-feeding** at four a day (R26). The only thing worth building is an honest "12 of 50 imported, next at 14:30" screen. |
+| **Ask the series** (chat over the aggregates, Groq's free LLM, behind the one `assistant` flag) | M3 has shipped, counts are trusted, and someone keeps asking a question the series view can't answer. Counting stays in SQL — the model only phrases answers (ADR 0007). |
+| Automatic bit *suggestions*; a second language; scheduled digests; RSS ingest | Real demand, stated twice, by someone other than the builder. |
 
 ---
 
 ## Product decisions that constrain the stack
 
-Architecture owns the choices; these are the constraints it must satisfy. Most are already honoured by an accepted ADR — the right-hand column says which, so a future reversal is traceable to the product reason that caused it. (See [`open-questions.md`](./open-questions.md).)
+Beyond the five stack facts above:
 
-| Product decision | Constraint it imposes | Satisfied by |
+| Product decision | Constraint | Satisfied by |
 |---|---|---|
-| Real accounts from M1 | `user_id` on every row and query from M1; cross-tenant isolation testable. Retrofitting this later is a rewrite. | open (Q1) |
-| 120-min files | Background execution beyond request timeouts; rules out doing ASR in a request handler. | ADR 0003 (durable queue in Postgres) |
-| 200 MB uploads | Presigned direct-to-storage upload; bytes must not transit the app server. | ADR 0008 |
-| Deletion guarantee (GDPR-style) | Every audio blob addressable from a DB row; no orphan storage paths, ever. | ADR 0008 (24 h orphan sweep) |
-| Transcript is the durable artifact | Counting re-runs for free; changing a topic definition must never re-bill ASR. | ADR 0005 (`pipeline_version`), ADR 0004 (raw payload kept) |
-| Library-wide chat at M5 | Per-recording aggregates stored queryably from M2; transcript segments addressable by timestamp; the model must never do the arithmetic. | ADR 0007 (tool use, not RAG) |
-| Counts must be explainable to the user | Deterministic matching over a user-defined watchlist; no non-reproducible clustering in the counting path. | ADR 0006 |
-| TDD throughout | ASR/LLM behind ports with fixture-backed fakes; no test may hit a paid API. | ADR 0004, `CLAUDE.md` |
-| Cost caps | Spend metering per user and per job from M1, not bolted on at M5. | open (Q7) |
+| Accounts from M1 | `user_id` on every row and every query from the first migration; cross-account isolation testable | Supabase magic-link auth + RLS |
+| 7,200 audio-seconds/hour | Rate-limit state is a **user-visible product state**, not an error page; no feature may assume more than four episodes a day | M1 |
+| Transcript is the durable artifact | Changing a bit definition recomputes counts for free and never re-transcribes; audio is deleted after success | ADR 0005 |
+| Series view is the home page | Per-episode aggregates stored queryably from M2, every word addressable by timestamp | M2/M3 |
+| Counts must be explainable | Deterministic matching over named bits with synonym sets; no clustering in the counting path | ADR 0006 |
+| TDD throughout | Groq behind a port with a fixture-backed fake; **no test may call Groq** — the allowance is shared with real users | ADR 0004, `CLAUDE.md` |
 
 ---
 
 ## Sequence at a glance
 
 ```
-                        1111111111
-                       1234567890123456789   (week, 1 engineer, est.)
-M0 Walking Skeleton    █
-M1 Library & Pipeline   ███
-M2 Insight Layer           ███
-M3 Speakers & Trends          ███
-M4 v1 Polish & Trust             ██
-M5 AI Assistant (flag)             ███
-M6 Beyond                             ████
+                  W1  W2  W3  W4  W5  W6  W7
+M0 Skeleton       ███
+M1 Sign in + eps      ███ ███ ███
+M2 Running jokes                  ███
+M3 Series view                        ███
+M4 Share + edges                          ███
 ```
 
-| # | Increment | Weeks | Start | End | Cumulative | Ships to users |
-|---|---|---|---|---|---|---|
-| M0 | Walking Skeleton | 1 | W1 | W1 | W1 | Yes (design partner) |
-| M1 | Library & Reliable Pipeline | 3 | W2 | W4 | W4 | Yes |
-| M2 | Insight Layer | 3 | W5 | W7 | W7 | Yes — core promise met |
-| M3 | Speakers & Trends | 3 | W8 | W10 | W10 | Yes (diarisation beta) |
-| M4 | v1 Polish & Trust | 2 | W11 | W12 | W12 | Yes — **v1.0** |
-| M5 | AI Assistant | 3 | W13 | W15 | W15 | Staged, flagged |
-| M6 | Beyond (one lane) | 4 | W16 | W19 | W19 | Yes |
+| # | Increment | Weekends | Ships |
+|---|---|---|---|
+| M0 | Walking skeleton | 1 | live URL |
+| M1 | Sign in, library, full-length episodes | 3 | yes |
+| M2 | Running jokes | 1 | yes |
+| M3 | The series view | 1 | yes |
+| M4 | Share links and rough edges | 1 | **v1** |
 
-**Total ≈19 weeks (~4.5 months) for one engineer with AI assistance — an estimate.** Treat M0–M2 (7 weeks) as the committed plan and M3–M6 as directional; re-forecast after M2 with real throughput. The most likely slip is M2 (count-accuracy work is open-ended — see R1/R2); if it slips, cut M3's trends before cutting M2's quote-level verification, because unverifiable counts make the whole product pointless.
+**Total ≈7 weekends, roughly 55 hours — an estimate.** Calendar-wise, two to three months of spare time. M0–M1 are the committed part; re-forecast after M1, because chunking and stitching are the one place this plan could be wrong by a weekend or two.
+
+If something has to be cut, cut M4's polish before M3's series view. A pretty single-episode page is not what was asked for.
