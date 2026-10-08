@@ -48,7 +48,7 @@ uploaded ──► transcribing ──► analyzing ──► ready ──► de
    └──────────────┴───────────────┴──► failed ──► (retry) ──► uploaded
 ```
 
-Those six strings are canonical, from `../product/glossary-and-domain.md`. Tests assert on them literally.
+Those six strings are canonical, from `../product/glossary-and-domain.md`. Tests assert on them literally — they are **database values**, not display text. The UI renders them through the `STATUS_*` message codes from the catalogue (ADR 0017), so `uploaded` is stored once and reads as *Enviado* or *Uploaded* depending on the reader. Never store the display label, and never branch on it.
 
 | Stage | Does |
 |---|---|
