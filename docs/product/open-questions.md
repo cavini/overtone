@@ -8,20 +8,20 @@ Roles: **Stakeholder** = product owner of the business outcome and the budget. *
 
 ## Summary
 
-| ID | Question | Recommendation | Decides | Settle by |
-|---|---|---|---|---|
-| Q1 | Single-user or multi-user/auth from day one? | Real accounts + `user_id` scoping from **M1**; shared secret at M0; no teams/sharing until M6 | Stakeholder + Eng | **pre-M0** (data model), fully M1 |
-| Q2 | Cloud transcription API or local model? | **Cloud API** behind a swappable interface; revisit local only if cost >$0.40/audio-hr at >200 hr/mo, or a privacy deal demands it | Stakeholder (cost/privacy) + Eng | **pre-M0** |
-| Q3 | File size and duration ceilings? | M0: 25 MB / 10 min · M1: 500 MB / 120 min · v1: 2 GB / 240 min, with client-side transcode to 64 kbps mono | PM + Eng | **pre-M0** (M0 value), M1 for the rest |
-| Q4 | User-defined topic watchlists or automatic topic discovery? | **Watchlists first** (deterministic, testable, explainable); auto-*suggestion* as a seeding aid in M3+; never auto-discovery as the primary surface | PM + Stakeholder | M2 |
-| Q5 | Which languages? | **English only**, stated in-product, with language detection + warning from M4; second language only in M6 behind its own accuracy bar | Stakeholder | M2 (position), M4 (ship) |
-| Q6 | Data retention policy? | Audio deleted **30 days** after successful processing (opt-in to keep); transcripts until user deletes; erasure fulfilled ≤7 days; no vendor training on our data, ever | Stakeholder (+ lawyer before public signup) | M1 (default), M4 (controls) |
-| Q7 | Hosting and budget expectations? | ≤$75/mo fixed + ≤$100/mo variable for the first 3 months (est.), alerting at 70%; a named number is required before M0 | Stakeholder | **pre-M0** |
-| Q8 | Speaker diarisation in v1? | **Yes, labelled beta**, ≤4 speakers, talk-time share only; hard-gated on ±10 pp accuracy — fails the gate ⇒ ships off | PM + Eng (on evidence) | M3 |
-| Q9 | Who is the first real user / design partner? | One named person with ≥5 real recordings and willingness to be interviewed; the engineer alone is not sufficient | Stakeholder | **pre-M0** |
-| Q10 | What is the acceptance bar for "nice UI"? | Two named reference products + a 10-item checklist, agreed before M4 so the timebox is enforceable | Stakeholder | M2 |
-| Q11 | Does the assistant answer from aggregates, transcripts, or both? | **Aggregates-first** for all counting; capped transcript retrieval for citations only | PM + Eng | M2 (schema), M5 (ship) |
-| Q12 | Is this free, paid, or internal? Who is it for? | Decide before M4 polish; it changes onboarding, limits and the privacy posture — and whether we need billing at all | Stakeholder | M4 |
+| ID | Question | Recommendation | Status | Decides | Settle by |
+|---|---|---|---|---|---|
+| Q1 | Single-user or multi-user/auth from day one? | Real accounts + `user_id` scoping from **M1**; shared secret at M0; no teams/sharing until M6 | open — data-model half settled | Stakeholder + Eng | **pre-M0** (data model), fully M1 |
+| Q2 | Cloud transcription API or local model? | **Cloud API** behind a swappable interface; revisit local only if cost >$0.40/audio-hr at >200 hr/mo, or a privacy deal demands it | **resolved — ADR 0004** (buy, Deepgram first, behind a port) | Stakeholder (cost/privacy) + Eng | **pre-M0** |
+| Q3 | File size and duration ceilings? | M0: 25 MB / 10 min · MVP: **200 MB / 120 min**; widen later only on evidence, with client-side transcode to 64 kbps mono | settled for MVP — `backlog.md` constants | PM + Eng | **pre-M0** (M0 value), M1 for the rest |
+| Q4 | User-defined topic watchlists or automatic topic discovery? | **Watchlists first** (deterministic, testable, explainable); auto-*suggestion* as a seeding aid in M3+; never auto-discovery as the primary surface | **resolved — ADR 0006** | PM + Stakeholder | M2 |
+| Q5 | Which languages? | **English only**, stated in-product, with language detection + warning from M4; second language only in M6 behind its own accuracy bar | settled for MVP — English only | Stakeholder | M2 (position), M4 (ship) |
+| Q6 | Data retention policy? | Audio deleted **30 days** after successful processing (opt-in to keep); transcripts until user deletes; erasure fulfilled ≤7 days; no vendor training on our data, ever | open | Stakeholder (+ lawyer before public signup) | M1 (default), M4 (controls) |
+| Q7 | Hosting and budget expectations? | ≤$75/mo fixed + ≤$100/mo variable for the first 3 months (est.), alerting at 70%; a named number is required before M0 | **open — blocks M0** | Stakeholder | **pre-M0** |
+| Q8 | Speaker diarisation in v1? | **Yes, labelled beta**, ≤4 speakers, talk-time share only; hard-gated on ±10 pp accuracy — fails the gate ⇒ ships off | open — gated at M3 | PM + Eng (on evidence) | M3 |
+| Q9 | Who is the first real user / design partner? | One named person with ≥5 real recordings and willingness to be interviewed; the engineer alone is not sufficient | **open — blocks M0** | Stakeholder | **pre-M0** |
+| Q10 | What is the acceptance bar for "nice UI"? | Two named reference products + a 10-item checklist, agreed before M4 so the timebox is enforceable | open | Stakeholder | M2 |
+| Q11 | Does the assistant answer from aggregates, transcripts, or both? | **Aggregates-first** for all counting; capped transcript retrieval for citations only | **resolved — ADR 0007** (tool use, not RAG) | PM + Eng | M2 (schema), M5 (ship) |
+| Q12 | Is this free, paid, or internal? Who is it for? | Decide before M4 polish; it changes onboarding, limits and the privacy posture — and whether we need billing at all | open | Stakeholder | M4 |
 
 ---
 
@@ -47,7 +47,9 @@ Roles: **Stakeholder** = product owner of the business outcome and the budget. *
 | Self-hosted open model (Whisper-class) on CPU/GPU | No per-hour vendor fee and no third-party data flow; fixed GPU cost (~$50–300/mo est.) or slow CPU inference (1–3× realtime, wrecking TTFI); ops burden a solo dev cannot carry at M0 |
 | Hybrid: cloud default, local for sensitive flagged recordings | Best story, two pipelines to test — premature before real demand |
 
-**Recommendation:** cloud, chosen on the **R1 bake-off** (5 real recordings, 2 providers, keyword recall) and gated on the **R10 vendor-terms review** (DPA, zero retention, no training, named region). Price is the third criterion, not the first. Keep it behind one interface with a fixture double (R17) so the decision stays reversible. Revisit local if monthly volume exceeds ~200 audio-hours or a user demands no third-party processing.
+**Resolved by ADR 0004** — buy transcription, Deepgram Nova-3 as the first real adapter behind a `TranscriptionProvider` port with `Fake` and `LocalWhisper` implementations alongside it. The residual stakeholder question is narrower and still open: *must audio never leave the machine?* A yes supersedes ADR 0004 and ADR 0002 and makes local transcription a day-one requirement, so it must be answered before the M1 vendor commitment.
+
+**Recommendation on the residual:** cloud, confirmed by the **R1 bake-off** (5 real recordings, 2 providers, keyword recall) and gated on the **R10 vendor-terms review** (DPA, zero retention, no training, named region). Price is the third criterion, not the first. Keep it behind one interface with a fixture double (R17) so the decision stays reversible. Revisit local if monthly volume exceeds ~200 audio-hours or a user demands no third-party processing.
 
 ### Q3 — File size and duration ceilings
 *Why it matters:* ceilings are the primary cost control (R3) and the main upload-failure driver (R8). They also cap the worst-case single invoice.
@@ -58,7 +60,7 @@ Roles: **Stakeholder** = product owner of the business outcome and the budget. *
 | Tight and widening per increment | Every increment's ceiling is tested at the limit; users occasionally blocked, with a clear message |
 | No ceiling | Unbounded cost and a guaranteed timeout bug |
 
-**Recommendation:** tight and widening — M0 25 MB/10 min, M1 500 MB/120 min, v1 2 GB/240 min. Pair with **client-side transcode to 64 kbps mono** (≈28 MB/audio-hr vs ≈350 MB for WAV), which makes long files practical without raising byte limits. Always show the ceiling *before* the user picks a file, never after the upload. **Stack constraint:** presigned direct-to-storage, resumable multipart.
+**Settled for MVP** at 200 MB / 120 min (`backlog.md` constants), with M0 held at 25 MB / 10 min. Widening past that is a later decision, taken on evidence of real demand rather than in advance — and ADR 0008 makes it a pure product choice, since audio bytes never touch the app server. Pair with **client-side transcode to 64 kbps mono** (≈28 MB/audio-hr vs ≈350 MB for WAV), which makes long files practical without raising byte limits. Always show the ceiling *before* the user picks a file, never after the upload. **Stack constraint:** presigned direct-to-storage, resumable multipart.
 
 ### Q4 — Watchlists vs automatic topic discovery
 *Why it matters:* this is the difference between "a number I asked for" and "a number I have to interpret". It also sets how testable the core is (R2, R16).
@@ -69,7 +71,7 @@ Roles: **Stakeholder** = product owner of the business outcome and the budget. *
 | Automatic discovery (topic modelling / LLM labelling) | Zero setup, feels magic; non-deterministic, hard to test, per-recording LLM cost, labels drift between runs so **trends over time become meaningless** |
 | Watchlist + "suggested topics" seeded from the transcript | Best of both; suggestions are a one-off cost at M3+, no cross-recording commitment |
 
-**Recommendation:** watchlists as the product; suggestions as onboarding sugar later. Drifting labels silently break M3's trend charts, which is a far worse failure than asking a user to type "pricing" once.
+**Resolved by ADR 0006** — watchlists are the counting mechanism; automatic discovery arrives later only as a *suggestion* engine proposing watchlists the user accepts, edits or rejects. Drifting labels silently break M3's trend charts, which is a far worse failure than asking a user to type "pricing" once.
 
 ### Q5 — Languages supported
 *Why it matters:* silent failure is the danger — confident English nonsense from non-English audio produces counts that look fine and are meaningless (R13).
@@ -80,7 +82,7 @@ Roles: **Stakeholder** = product owner of the business outcome and the budget. *
 | Multilingual from the start | Larger market; multiplies the golden-set work per language and the normalisation rules (stemming, compounds) |
 | English only but *silently* accept anything | Worst option: garbage counts presented as facts |
 
-**Recommendation:** English only, **said out loud in-product**, with detection + a visible warning (and optional refusal) from M4. Code-switched audio flagged low-confidence. A second language in M6 only if real demand appears, and only behind its own measured recall bar — adding a language without a golden set for it is just adding unverified numbers.
+**Settled for MVP** at English only (`backlog.md`), **said out loud in-product**, with detection + a visible warning (and optional refusal) from M4. Code-switched audio flagged low-confidence. A second language in M6 only if real demand appears, and only behind its own measured recall bar — adding a language without a golden set for it is just adding unverified numbers.
 
 ### Q6 — Data retention policy
 *Why it matters:* it determines storage cost (minor), the privacy surface (major), and whether erasure requests are answerable at all (R11). It is also the question a prospective user asks first.
@@ -114,7 +116,7 @@ Roles: **Stakeholder** = product owner of the business outcome and the budget. *
 | In v1, labelled beta, talk-time only, ≤4 speakers, renameable | Delivers the brief's intent with honest bounds and manual correction |
 | Deferred past v1 | Safest; omits something explicitly asked for |
 
-**Recommendation:** labelled beta, hard-gated on the M3 measurement (±10 pp vs hand-labelled on 5 files). Fails the gate ⇒ ships off and we say why. No per-speaker *topic* attribution in v1 — it compounds two error rates (diarisation × counting) into a number nobody can audit.
+**Recommendation:** labelled beta, hard-gated on the M3 measurement. Deepgram's diarisation ships with the transcription we are already buying (ADR 0004), so inclusion costs integration and UI work, not a new vendor — which lowers the price of trying it but does **not** lower the accuracy bar (±10 pp vs hand-labelled on 5 files). Fails the gate ⇒ ships off and we say why. No per-speaker *topic* attribution in v1 — it compounds two error rates (diarisation × counting) into a number nobody can audit.
 
 ### Q9 — First real user / design partner
 *Why it matters:* M0's and M2's exit criteria both require a real user with real recordings. Without one, every accuracy and usefulness judgement is the engineer grading their own homework (R16).
@@ -147,7 +149,7 @@ Roles: **Stakeholder** = product owner of the business outcome and the budget. *
 | Aggregates-first, LLM for parsing + narration | Counting is a DB query: cheap, exact, instant, and *auditable*; needs the aggregate schema designed at M2 |
 | Vector retrieval over transcript chunks | Good for "what did we say about X"; **bad at counting** — retrieval returns top-k, not all occurrences, so counts are systematically low |
 
-**Recommendation:** aggregates-first for every number; capped transcript retrieval (≤20 segments) purely to produce citations. Counting must never depend on retrieval recall. **Stack constraint:** per-recording aggregates stored queryably from M2, transcript segments addressable by timestamp — this is the "cheap to add later" the stakeholder asked for, and it is paid for at M2, not M5.
+**Resolved by ADR 0007** — the assistant is a tool-using agent over the analytics functions the UI already calls: Claude does language, SQL does arithmetic, and `pgvector` only proposes candidate terms that SQL then counts exactly. `CLAUDE.md` states the rule as *never let an LLM count anything*. Capped transcript retrieval (≤20 segments) exists purely to produce citations. Counting must never depend on retrieval recall. **Stack constraint:** per-recording aggregates stored queryably from M2, transcript segments addressable by timestamp — this is the "cheap to add later" the stakeholder asked for, and it is paid for at M2, not M5.
 
 ### Q12 — Free, paid, or internal? Who is the user?
 *Why it matters:* unanswered, it quietly decides itself. It changes whether M4 needs billing, how aggressive the quotas are, how much privacy/compliance work is mandatory, and whether retention or revenue is the v1 success test.
@@ -164,4 +166,13 @@ Roles: **Stakeholder** = product owner of the business outcome and the budget. *
 
 ## Blocking the first increment (M0)
 
-**Q2** (which ASR provider — no M0 without a key), **Q7** (budget — authorises the spend), **Q9** (design partner — an M0 exit criterion), **Q3** (M0 ceiling — one line of config), and **Q1's data-model half** (`user_id` in the first migration). Everything else can be decided while M0 is being built. The pre-M0 work is roughly one afternoon of experiments (R1/R2/R16/R18 on the same 5 recordings, ~4 hours, <$5) plus two conversations.
+Architecture has closed Q2, Q4 and Q11 (ADRs 0004, 0006, 0007) and the backlog has fixed Q3 and Q5, so only two questions genuinely block M0, and both are the stakeholder's:
+
+| Blocker | What is needed | Why it cannot wait |
+|---|---|---|
+| **Q7 — budget** | One hard monthly ceiling | M0 needs a paid Deepgram key, and no cost risk (R3, R5) is manageable against an unstated number |
+| **Q9 — design partner** | One named person with ≥5 real recordings | It is an M0 exit criterion, and without it every accuracy judgement is the engineer grading their own homework (R16) |
+
+Needed in the same window, but not blocking the first commit: **Q2's residual** (must audio never leave the machine? — answer before the M1 vendor commitment, since a yes supersedes ADR 0004), the **R10 vendor-terms review** (DPA, zero retention, no training — gates M1), and **Q1's data-model half** (`user_id` in the first migration, which is a one-line decision the engineer can take now).
+
+Everything else can be decided while M0 is being built. The pre-M0 work is roughly one afternoon of experiments (R1/R2/R16/R18 on the same 5 recordings, ~4 hours, <$5) plus two conversations.
