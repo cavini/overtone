@@ -8,7 +8,18 @@
 
 Domain nouns are in `glossary-and-domain.md`. Statuses are exactly `uploaded`, `transcribing`, `analyzing`, `ready`, `failed`, `deleting`.
 
-**Two facts shape every scenario below.** The show is recorded **in Brazilian Portuguese**, so the counting rules are pt-BR rules (D2–D6, D14) and **all example data is pt-BR** — English fixtures would let an accent-stripping bug ship green. And an episode arrives as **one already-edited file** (D15), so there is no track-set concept anywhere and no speaker dimension at all.
+**Three facts shape every scenario below.** The show is recorded **in Brazilian Portuguese**, so the counting rules are pt-BR rules (D2–D6, D14) and **all example data is pt-BR** — English fixtures would let an accent-stripping bug ship green. An episode arrives as **one already-edited file** (D15), so there is no track-set concept anywhere and no speaker dimension at all. And **the interface is bilingual — pt-BR and English, switchable** (D16) — which changes how every message below is asserted.
+
+### How a user-facing message is asserted
+
+**No scenario asserts a sentence.** A message is a `SCREAMING_SNAKE_CASE` **code** plus named **parameters**. The sentences live once, in two catalogues (`pt-BR` and `en`), and are asserted there by **US-045** — because the text now exists in two languages and **no layer below the presenter is allowed to know which one the reader wants** (D16).
+
+```gherkin
+Then the upload is rejected with code `UNSUPPORTED_FORMAT`
+And the parameters are { extension: ".docx", accepted: [".mp3", ".m4a", ".wav", ".aac", ".ogg", ".flac", ".webm"] }
+```
+
+Where the wording *is* the requirement — a limit, a refusal, a disclosure — the scenario also names both renderings, as US-007 and US-043 do. Every code and its parameters are listed in **Message codes** at the end of this doc; that table is the TypeScript union the engineer implements against. The interface language is a **presentation** setting and changes no count (US-046).
 
 ### Fixed constants referenced by acceptance criteria
 
@@ -19,13 +30,15 @@ Domain nouns are in `glossary-and-domain.md`. Statuses are exactly `uploaded`, `
 | Upload chunk length | **20–25 minutes**, cut on a silence boundary | Fits the service cap with margin, transcribes in parallel, isolates failure to one chunk |
 | Chunk codec | **16 kHz mono Opus** (~24 kbps) | A 25-minute chunk is ≈ 4.5 MB; a 2-hour episode ≈ 22 MB total |
 | Max size per chunk | 25 MB (hard service cap) | With Opus this stops being the binding limit — it stays in the AC to prove it |
-| **Transcription allowance** | **2 audio-hours per hour · 8 per day, shared across every user** | ≈ **one 2-hour episode per hour, four per day.** Fine weekly; a 50-episode backfill takes ~2 weeks |
+| **Transcription allowance** | **2 audio-hours per hour · 8 per day, shared across every user** | ≈ **one 2-hour episode per hour, four per day.** Ample for a weekly show, which is the only case there is: no back catalogue is ever imported (see *Not for this app*) |
 | Request limits | 20/min · 2 000/day (shared) | Free tier |
 | Per-chunk processing ceiling | **120 s** → `failed` | The platform hard-kills a request at 300 s; fail honestly first |
-| Total file storage | **1 GB** ≈ 37 two-hour episodes | Binds sooner than the allowance on a backfill |
+| Total file storage | **1 GB** ≈ 37 two-hour episodes | About nine months of a weekly show before D12's per-episode purge is needed |
 | Total database | 500 MB | Free tier |
 | Accepted extensions | `.mp3`, `.m4a`, `.wav`, `.aac`, `.ogg`, `.flac`, `.webm` | What the browser can decode |
-| **Language** | **`pt` — Brazilian Portuguese**, set explicitly on every transcription request, never auto-detected | The language the show is recorded in. Auto-detect misfires on accented and code-switched speech, and per-chunk detection could return different languages for one episode (D14) |
+| **Analysis language** | **`pt` — Brazilian Portuguese**, set explicitly on every transcription request, never auto-detected | The language the show is recorded in. Auto-detect misfires on accented and code-switched speech, and per-chunk detection could return different languages for one episode (D14) |
+| **Interface language** | **pt-BR (default) and `en`**, switchable, persisted per user | Both, by stakeholder answer (D16). **A different axis from the analysis language** — the audio is always pt-BR whatever the UI reads |
+| Locale formatting | pt-BR `1.234,56` and `08/10/2026` · en `1,234.56` and `10/8/2026` | Numbers are this product's entire output, so a count rendered with the wrong thousands separator is a defect, not a nicety (US-045) |
 | Normalization | **Unicode NFC + lowercase + strip leading/trailing punctuation.** Diacritics preserved; no `unaccent`/NFD-strip anywhere | `e`/`é`, `por`/`pôr`, `esta`/`está`, `as`/`às` are different words (D2) |
 | Stop-word list | **pt-BR, ~200 items, versioned** alongside the normalization version | Larger than the English list it replaces: mandatory contractions and auxiliary inflections multiply the entries (D5) |
 | Clitic-pronoun list (closed) | `me, te, se, lhe, lho, nos, vos, lo, la, los, las, no, na` | A trailing hyphen plus one of these splits; everything else keeps its hyphen. `o, a, os, as` are deliberately excluded so compounds stay safe (D3) |
@@ -37,9 +50,9 @@ Domain nouns are in `glossary-and-domain.md`. Statuses are exactly `uploaded`, `
 
 ### Walking-skeleton sequence (build in exactly this order)
 
-`US-032` → `US-001` → `US-002` → `US-003` → `US-004` → `US-005` → `US-040`
+`US-032` → `US-045` → `US-001` → `US-002` → `US-003` → `US-004` → `US-005` → `US-040`
 
-Sign-in is first because tenancy retrofits badly and because "my friends can use it" is the premise, not a later feature. US-040 is seventh and not optional: after US-005 the pipeline works on a short file, after US-040 it works on a real episode.
+Sign-in is first because tenancy retrofits badly and because "my friends can use it" is the premise, not a later feature. **US-045 is second because the very first message the app shows — US-001's interrupted upload — already has to come from a catalogue in two languages;** retrofitting that means rewriting every component and every assertion. US-040 is last and not optional: after US-005 the pipeline works on a short file, after US-040 it works on a real episode.
 
 **Then the first increment that is actually the product:** `US-019` → `US-020` → `US-038` → `US-022` → `US-042` → `US-039`. A running joke, counted per episode, across a Series, ranked, and shareable.
 
@@ -66,6 +79,39 @@ Scenario: Nobody can read anybody else's data
   Then the request is refused as unauthenticated
 ```
 
+### US-045 — Every message comes from a catalogue, in pt-BR and in English
+*As Rafa, I want the app in Portuguese, and as Mel I want to show it to a friend who reads English, so that neither of us is reading someone else's language.*
+Priority: **Must** · Size: **S**
+
+```gherkin
+Scenario: A message is a code and parameters, and only the presenter knows a language
+  Given the upload of "notes.docx" is rejected
+  Then the rejection carries the code `UNSUPPORTED_FORMAT`
+  And the parameters are { extension: ".docx", accepted: [".mp3", ".m4a", ".wav", ".aac", ".ogg", ".flac", ".webm"] }
+  And no layer below the presenter returned a sentence in any language
+  And no domain, use-case or infrastructure module contains a user-facing sentence
+
+Scenario: Both catalogues are complete and every parameter is substituted
+  Given the Message codes table at the end of this doc
+  Then the pt-BR catalogue and the en catalogue each render every code in it
+  And neither catalogue holds a code the other lacks, nor a code absent from the table
+  And no rendering contains an unsubstituted placeholder
+  And rendering a code with a missing parameter fails the build instead of printing "undefined"
+
+Scenario: Numbers and dates are formatted for the reading locale, never interpolated raw
+  Given the count 1234.56 and the date 8 October 2026
+  Then pt-BR renders them "1.234,56" and "08/10/2026"
+  And en renders them "1,234.56" and "10/8/2026"
+  And a 7 245 000 ms duration renders "2h00m" in both
+  And every count, rate and date rendered anywhere in the app went through this formatter
+
+Scenario: pt-BR is the default
+  Given a new user whose browser asks for "en-US,en"
+  Then the interface is English
+  Given instead a new user with no usable language preference
+  Then the interface is pt-BR
+```
+
 ### US-001 — Upload one episode's audio
 *As Rafa, I want to upload audio, so that there is something to analyse.*
 Priority: **Must** · Size: **M**
@@ -75,14 +121,14 @@ Scenario: Accept a supported file
   Given I am signed in with an empty Library
   And I have a 2-minute pt-BR file named "ep12-final.m4a"
   When I confirm the upload
-  Then an Episode is created with status "uploaded" and the title "ep12-final"
+  Then an Episode is created with status `uploaded` and the title "ep12-final"
   And its duration reads 120 seconds within 1 second
   And it appears in my Library without a page reload
 
 Scenario: Interrupted upload creates no Episode
   When the connection drops at 40 percent
   Then no Episode appears in my Library
-  And I see "Upload interrupted. Nothing was saved — please try again."
+  And I am told with code `UPLOAD_INTERRUPTED` and no parameters
 ```
 
 ### US-002 — Watch processing, and resume a half-finished episode
@@ -91,16 +137,17 @@ Priority: **Must** · Size: **M**
 
 ```gherkin
 Scenario: Waiting shows numbers, never a bare spinner
-  Given a 2-hour Episode of 6 chunks with status "uploaded"
+  Given a 2-hour Episode of 6 chunks with status `uploaded`
   When transcription starts, then completes, then analysis completes
-  Then the status reads "transcribing", then "analyzing", then "ready"
-  And while transcribing I see "4 of 6 chunks transcribed" and the elapsed time in seconds
+  Then the status is `transcribing`, then `analyzing`, then `ready`
+  And each status is displayed through its `STATUS_*` label, never as the raw enum value
+  And while transcribing I see code `CHUNK_PROGRESS` with the parameters { done: 4, total: 6 } and the elapsed time in seconds
   And I see an estimate derived from the remaining audio duration
 
 Scenario: Closing the tab keeps finished chunks
   Given an Episode whose chunks 1 to 4 of 6 have transcribed
   When I close the tab and return
-  Then the Episode reads "4 of 6 chunks transcribed" and offers Resume
+  Then the Episode reports `CHUNK_PROGRESS` { done: 4, total: 6 } and offers Resume
   When I choose Resume
   Then only chunks 5 and 6 are sent for transcription
   And chunks 1 to 4 are not transcribed again
@@ -177,7 +224,7 @@ Scenario: A count does not move because the transcriber chose the written spelli
   And each occurrence names the surface form that produced it
 
 Scenario: Analysis records its configuration for reproducibility
-  Given an Episode with status "ready"
+  Given an Episode with status `ready`
   Then its Analysis records the language, the normalization, stop-word list, lemma dictionary and pipeline versions
   And re-running analysis with the same configuration yields identical counts
 ```
@@ -198,7 +245,7 @@ Scenario: Inflections are grouped by default, and the merge is visible
   Given a Transcript containing "falou" 5 times, "falei" 4 times, "falar" 3 times and "falando" 2 times
   Then the list shows the term "falar" with the count 14
   And expanding it lists "falou 5 / falei 4 / falar 3 / falando 2"
-  And any form grouped by the stemmer rather than the dictionary is marked as heuristic
+  And any form grouped by the stemmer rather than the dictionary carries code `LEMMA_GROUPED_BY_STEMMER` with { term: "falar" }
 
 Scenario: Over-merges that a stemmer would make are not made, and would be visible if they were
   Given a Transcript containing "casa" 20 times, "casar" 4 times, "com" 300 times and "comer" 9 times
@@ -208,7 +255,7 @@ Scenario: Over-merges that a stemmer would make are not made, and would be visib
 
 Scenario: An episode with no speech is reported honestly
   Given a 30-second Episode containing only silence
-  Then its status is "ready" and I see "No speech detected in this recording."
+  Then its status is `ready` and I see code `NO_SPEECH_DETECTED` with no parameters
   And no top-words list is rendered
 ```
 
@@ -226,7 +273,7 @@ Priority: **Must** · Size: **L** → split: decode and compress · silence-boun
 Scenario: A two-hour episode is chunked, compressed and uploaded
   Given a 120-minute 160 MB wav file
   When I select it
-  Then I see "This episode is 2h00m. That is 2h00m of today's 8-hour transcription budget — about a quarter of it."
+  Then I see code `UPLOAD_COST_PREVIEW` with { duration_ms: 7200000, daily_allowance_hours: 8, share_of_daily: 0.25 }
   When I confirm the upload
   Then the browser splits it into 5 or 6 chunks of 20 to 25 minutes
   And each chunk is encoded as 16 kHz mono Opus and is at most 25 MB
@@ -258,7 +305,7 @@ Scenario: A timestamp after a chunk join resolves to the same moment in the audi
 Scenario: One chunk failing does not lose the others
   Given a 6-chunk Episode where chunk 4 fails 3 times
   Then chunks 1, 2, 3, 5 and 6 remain transcribed
-  And the Episode status is "failed" with the reason naming chunk 4
+  And the Episode status is `failed` with code `CHUNK_FAILED` and { chunk_index: 4, chunk_count: 6, succeeded_count: 5 }
   And Retry re-sends only chunk 4, spending no allowance on the five that succeeded
 ```
 
@@ -269,18 +316,26 @@ Priority: **Must** · Size: **S**
 ```gherkin
 Scenario: Unsupported and unreadable files are rejected before anything is spent
   When I select "notes.docx"
-  Then no bytes are uploaded, no Episode is created, and I see "Unsupported file type .docx. Overtone accepts .mp3, .m4a, .wav, .aac, .ogg, .flac and .webm."
+  Then no bytes are uploaded and no Episode is created
+  And the upload is rejected with code `UNSUPPORTED_FORMAT`
+  And the parameters are { extension: ".docx", accepted: [".mp3", ".m4a", ".wav", ".aac", ".ogg", ".flac", ".webm"] }
+  And the pt-BR catalogue renders it as "Formato não suportado: .docx. O Overtone aceita .mp3, .m4a, .wav, .aac, .ogg, .flac e .webm."
+  And the en catalogue renders it as "Unsupported file type .docx. Overtone accepts .mp3, .m4a, .wav, .aac, .ogg, .flac and .webm."
   When I select a text file renamed "fake.mp3"
-  Then the browser fails to decode it and I see "This file is not readable as audio."
+  Then the browser fails to decode it and I see code `UNREADABLE_AUDIO` with { filename: "fake.mp3" }
   And no transcription request is made
 
 Scenario: Every accepted extension is in fact accepted
   When I upload a valid 10-second file for each of mp3, m4a, wav, aac, ogg, flac and webm
-  Then 7 Episodes are created with status "uploaded"
+  Then 7 Episodes are created with status `uploaded`
 
 Scenario: An episode beyond the supported length is refused with numbers
   When I select a 200-minute file
-  Then I see "This is 200 minutes. Overtone supports episodes up to 150 minutes, and today's allowance covers about 4 hours of audio. Split it into two episodes."
+  Then the upload is rejected with code `EPISODE_TOO_LONG`
+  And the parameters are { duration_minutes: 200, max_minutes: 150, allowance_hours_today: 4 }
+  And the pt-BR catalogue renders it as "São 200 minutos. O Overtone aceita episódios de até 150 minutos, e a cota de hoje cobre cerca de 4 horas de áudio. Divida em dois episódios."
+  And the en catalogue renders it as "This is 200 minutes. Overtone supports episodes up to 150 minutes, and today's allowance covers about 4 hours of audio. Split it into two episodes."
+  And the numbers in both renderings came from the parameters, not from the sentence
 ```
 
 ### US-008 — Recover from a failure without re-uploading
@@ -289,17 +344,17 @@ Priority: **Must** · Size: **M**
 
 ```gherkin
 Scenario: Transient errors are retried, then fail terminally with a cause
-  Given a chunk being transcribed
+  Given chunk 4 of 6 being transcribed
   When the service returns HTTP 503 three times
   Then the request was retried with increasing backoff
-  And the Episode status is "failed" with the reason "Transcription failed (service unavailable)"
-  And I see "Your audio is safe." and a Retry action
+  And the Episode status is `failed` with code `TRANSCRIPTION_SERVICE_UNAVAILABLE` and { chunk_index: 4, attempts: 3 }
+  And I also see code `AUDIO_IS_SAFE` and a Retry action
   When I choose Retry
-  Then the status becomes "transcribing" and I was not asked to upload or re-compress anything
+  Then the status becomes `transcribing` and I was not asked to upload or re-compress anything
 
 Scenario: Nothing stalls indefinitely
-  Given a chunk that has been transcribing for 120 seconds
-  Then the Episode status is "failed" and the reason names a timeout
+  Given chunk 4 has been transcribing for 120 seconds
+  Then the Episode status is `failed` with code `CHUNK_TIMEOUT` and { chunk_index: 4, timeout_seconds: 120 }
   And no Episode remains in a non-terminal state
 ```
 
@@ -395,21 +450,30 @@ Scenario: A Topic is created with alias Terms
 
 Scenario: A spoken form is offered its written-standard variant as an alias
   When I add the Term "tá ligado"
-  Then "está ligado" is offered as an alias, already selected, with the reason "the transcriber may write it this way"
+  Then "está ligado" is offered as an alias, already selected, with code `ALIAS_SUGGESTED_WRITTEN_VARIANT` and { term: "tá ligado", alias: "está ligado" }
   When I add the Term "né"
   Then "não é" is offered the same way
   And I can decline either without losing the Term
 
-Scenario: Bad input and limits are rejected with specific messages
+Scenario: Bad input and limits are rejected with specific codes
   Given a Topic named "a parada do hotdog" exists
   When I create another named "A Parada do Hotdog"
-  Then it is rejected with "A topic named 'a parada do hotdog' already exists."
+  Then it is rejected with code `TOPIC_NAME_TAKEN` and { name: "a parada do hotdog" }
   When I create a Topic with no Terms
-  Then it is rejected with "Add at least one term to this topic."
+  Then it is rejected with code `TOPIC_NEEDS_A_TERM` and no parameters
   When I add a Term of 6 words
-  Then it is rejected with "A term can be at most 5 words."
-  When I add a 21st Term, or a 51st Topic
-  Then each is rejected naming the limit, 20 terms and 50 topics
+  Then it is rejected with code `TERM_TOO_MANY_WORDS` and { word_count: 6, max_words: 5 }
+  When I add a 21st Term
+  Then it is rejected with code `TOPIC_TERM_LIMIT` and { max_terms: 20 }
+  When I create a 51st Topic
+  Then it is rejected with code `LIBRARY_TOPIC_LIMIT` and { max_topics: 50 }
+
+Scenario: A Topic created before the first episode says so instead of showing a zero
+  Given a Library with 0 Episodes
+  When I create the Topic "a parada do hotdog"
+  Then it is created, and I see code `TOPIC_NO_EPISODES_YET` with no parameters
+  And no count, chart or "0 mentions" is rendered for it
+  And it is counted on the first Episode analysed after it, with no further action from me
 ```
 
 ### US-020 — See running-joke counts for one episode
@@ -451,19 +515,27 @@ Scenario: An Episode belongs to a Series, carries a number, and can be retitled
   Then the Episode has an episode number and a recorded-on date
   And the next Episode added defaults to the next number
   When I set another Episode's number to an existing one
-  Then it is rejected with "Episode 12 already exists in this series."
+  Then it is rejected with code `EPISODE_NUMBER_TAKEN` and { number: 12 }
   When I rename the Episode to "Cúpula do Hotdog"
   Then the listing reads "12 · Cúpula do Hotdog" and the source filename is still recorded
-  And an empty title is rejected with "Give this episode a title."
+  And an empty title is rejected with code `EPISODE_TITLE_REQUIRED` and no parameters
 
 Scenario: Episodes list newest first with Topic chips
   Given 12 ready Episodes and 2 Topics
   When I open the Series
   Then 12 rows are listed in descending episode number
   And each row shows number, title, recorded-on date, duration and status
+  And each row's status is rendered through its `STATUS_*` label
   And each ready row shows a mention-count chip per Topic
-  When I filter by status "ready"
+  When I filter by status `ready`
   Then only ready Episodes are listed
+
+Scenario: A Series starts at episode 1, and says so
+  Given a Series whose only Episode is number 1 and is ready
+  Then the row for episode 1 is listed with its counts
+  And I see code `SERIES_FIRST_EPISODE` with no parameters
+  And no trend, arc, comparison or per-episode chart is rendered
+  And the one next action offered is to add another episode
 ```
 
 ### US-022 — See one running joke across every episode
@@ -485,10 +557,19 @@ Scenario: Normalised rate is shown alongside raw counts
 Scenario: No trend claimed below three episodes
   Given 2 ready Episodes
   Then per-episode counts are listed and no trend direction is claimed
+  And I see code `TREND_NEEDS_MORE_EPISODES` with { episode_count: 2, minimum: 3 }
+
+Scenario: One episode is an episode, not a series — and the page is honest about it
+  Given a Series with exactly 1 ready Episode and the Topic "a parada do hotdog" counted 9 times in it
+  When I open the Topic
+  Then the count 9 is shown for episode 1
+  And I see code `SERIES_FIRST_EPISODE` with no parameters
+  And no trend, no mentions-per-hour comparison and no sparkline are rendered
+  And nothing on the page implies a missing or unimported episode
 
 Scenario: Episodes still processing are excluded, not counted as zero
-  Given 5 ready Episodes and 1 with status "transcribing"
-  Then 5 Episodes are included and I see "1 episode is still processing."
+  Given 5 ready Episodes and 1 with status `transcribing`
+  Then 5 Episodes are included and I see code `EPISODES_STILL_PROCESSING` with { processing_count: 1 }
 ```
 
 ### US-042 — See the season's running-joke leaderboard
@@ -507,12 +588,22 @@ Scenario: Topics are ranked by total mentions across the Series
 Scenario: A Series with one episode says so instead of showing a season
   Given a Series with 1 ready Episode
   Then the leaderboard covers that episode only
-  And I see "Add another episode to compare across the series."
+  And every row's episodes-appeared-in reads 1 of 1, not a blank
+  And I see code `SERIES_FIRST_EPISODE` and code `SERIES_NEEDS_SECOND_EPISODE`, neither taking parameters
+  And no season total, trend or rank change is claimed
+
+Scenario: A Series with no ready episodes offers the upload, not an empty leaderboard
+  Given a Series with 0 ready Episodes and 3 Topics
+  When I open the Series leaderboard
+  Then no leaderboard, no zero rows and no placeholder chart are rendered
+  And I see code `TOPIC_NO_EPISODES_YET` and exactly one action, to add an episode
 ```
 
-### US-026 — Apply a new running joke to past episodes
-*As Rafa, I want a bit I invented in episode 12 counted across episodes 1 to 11, so that the back catalogue answers new questions.*
+### US-026 — Apply a new running joke to the episodes I already have
+*As Rafa, I want a bit I invented in episode 12 counted across episodes 1 to 11, so that every episode Overtone has analysed answers the new question.*
 Priority: **Must** · Size: **M**
+
+> **"Already have" means episodes analysed in Overtone, from episode 1 onwards.** Nothing is imported — there is no back catalogue (see *Not for this app*) — so this story's reach grows one episode a week, and the one- and zero-episode cases below are the normal early state, not an edge case.
 
 ```gherkin
 Scenario: A new Topic is applied to existing Episodes on request
@@ -524,9 +615,18 @@ Scenario: A new Topic is applied to existing Episodes on request
   And the operation completes within 10 seconds
 
 Scenario: Episodes without a Transcript are reported as skipped
-  Given an Episode with status "failed"
+  Given an Episode with status `failed`
   When I apply a new Topic to existing Episodes
-  Then it is reported as skipped with the reason "no transcript"
+  Then it is reported as skipped with code `TOPIC_APPLY_SKIPPED_NO_TRANSCRIPT` and { episode_number: 7, status: "failed" }
+
+Scenario: With nothing to apply it to, the offer is not made
+  Given a Library with 0 ready Episodes
+  When I create a Topic
+  Then no "apply to existing episodes" action is offered
+  And I see code `TOPIC_NO_EPISODES_YET` with no parameters
+  Given instead a Library with exactly 1 ready Episode
+  When I create a Topic and apply it to existing Episodes
+  Then that 1 Episode reports a mention count and the result names 1 episode, not a series
 ```
 
 ### US-035 — One query engine behind every number
@@ -566,7 +666,9 @@ Scenario: Creating a link states exactly what becomes public
   Given a ready Episode
   When I create a share link
   Then an unguessable URL is produced
-  And the dialog states "Anyone with this link can see this episode's counts and the quotes behind them. They cannot read the full transcript, hear the audio, see your other episodes, or see your other series."
+  And the dialog states code `SHARE_LINK_DISCLOSURE`, which takes no parameters
+  And the pt-BR catalogue renders it as "Quem tiver este link vê as contagens deste episódio e os trechos por trás delas. Não vê a transcrição completa, não ouve o áudio, não vê seus outros episódios nem suas outras séries."
+  And the en catalogue renders it as "Anyone with this link can see this episode's counts and the quotes behind them. They cannot read the full transcript, hear the audio, see your other episodes, or see your other series."
 
 Scenario: An anonymous visitor sees the counts and can check them
   When someone opens the link while not signed in
@@ -574,6 +676,16 @@ Scenario: An anonymous visitor sees the counts and can check them
   And selecting a count lists its timestamped quotes
   And no audio playback is offered
   And no horizontal scrolling is required at a viewport 390 pixels wide
+
+Scenario: A visitor with no account still reads it in their own language
+  Given a share link for an Episode whose counts are 1 234 mentions
+  When a visitor whose browser asks for "pt-BR" opens it
+  Then the page renders in pt-BR and the count reads "1.234"
+  When a visitor whose browser asks for "en-GB,en" opens it
+  Then the page renders in English and the count reads "1,234"
+  And the count is 1 234 in both
+  And a language switch is offered on the page, needing no account
+  And the owner's own interface language does not decide what a visitor reads
 
 Scenario: The link exposes counts and quotes, and nothing else
   Given a share link for Episode 12 and another Episode 11 in the same Series
@@ -583,7 +695,7 @@ Scenario: The link exposes counts and quotes, and nothing else
   And the owner's Library, other Series and email address are not disclosed
   And no audio file is reachable from any URL on the page
   When I revoke the link
-  Then opening it returns not-found and the Episode itself is unchanged
+  Then opening it returns not-found with code `SHARE_LINK_NOT_FOUND`, and the Episode itself is unchanged
 ```
 
 ---
@@ -598,54 +710,72 @@ Priority: **Must** · Size: **M**
 Scenario: The hourly and daily allowances are reported in hours, not errors
   Given 2 audio-hours have been transcribed in the last hour across all users
   When I start a 120-minute Episode
-  Then the chunks are uploaded, the audio is saved, and the Episode status stays "uploaded"
-  And I see "You've used this hour's 2 hours of transcription. Try again in 34 minutes. Your audio is saved."
+  Then the chunks are uploaded, the audio is saved, and the Episode status stays `uploaded`
+  And I see code `HOURLY_ALLOWANCE_EXHAUSTED`
+  And the parameters are { allowance_hours: 2, minutes_until_reset: 34 }
+  And the pt-BR catalogue renders it as "Você já usou as 2 horas de transcrição desta hora. Tente de novo em 34 minutos. Seu áudio está salvo."
+  And the en catalogue renders it as "You've used this hour's 2 hours of transcription. Try again in 34 minutes. Your audio is saved."
   And an Analyse action is offered for later
   Given instead that 8 audio-hours have been transcribed today
-  Then I see "You've used today's 8 hours of transcription. It resets at 00:00 UTC, in 6 hours. Your audio is saved."
+  Then I see code `DAILY_ALLOWANCE_EXHAUSTED` with { allowance_hours: 8, reset_at_utc: "00:00", hours_until_reset: 6 }
 
 Scenario: Remaining allowance is visible before I commit
   Given 6 of today's 8 audio-hours are used
   When I open the upload screen
-  Then I see "2h00m of today's 8 hours remain — room for one more 2-hour episode."
+  Then I see code `ALLOWANCE_REMAINING` with { remaining_ms: 7200000, allowance_hours: 8, whole_episodes_remaining: 1 }
 
 Scenario: The request rate limit is absorbed, not surfaced
   Given a 6-chunk Episode
   When the service returns a rate-limit response on chunk 4
-  Then chunk 4 is retried after a delay, the status stays "transcribing", and no failure is shown
+  Then chunk 4 is retried after a delay, the status stays `transcribing`, and no message of any code is shown
 
 Scenario: Storage refuses with a specific remedy
   Given stored audio totals 1 GB
-  When I upload an Episode
-  Then it is refused with "Storage is full (1 GB of 1 GB). Delete an episode, or purge an old episode's audio and keep its stats."
-  And the refusal names how much space this upload needed
+  When I upload an Episode needing 22 MB
+  Then it is refused with code `STORAGE_FULL`
+  And the parameters are { used_bytes: 1073741824, limit_bytes: 1073741824, needed_bytes: 23068672 }
+  And both renderings name the space this upload needed, and both remedies: delete an episode, or purge an old episode's audio and keep its stats
+  And the byte sizes are rendered by the locale formatter, "1 GB" in both and "22 MB" in both
 ```
 
-### US-044 — Backfill a back catalogue in honest batches
-*As Rafa, I want to work through 50 old episodes over a couple of weeks, so that the Series covers the whole show.*
-Priority: **Should** · Size: **M**
-
-```gherkin
-Scenario: The plan is stated in days and gigabytes before anything starts
-  Given 50 unanalysed episodes averaging 110 minutes
-  When I open backfill
-  Then I see "That is about 92 hours of audio: 4 episodes a day, roughly 13 days."
-  And I see "50 episodes would need about 1.1 GB of storage and you have 1 GB. Overtone will purge each episode's audio after analysing it and keep the stats."
-
-Scenario: Today's batch runs, the rest keep their place, and this week's episode jumps the line
-  Given today's allowance covers 4 episodes
-  When I start the backfill
-  Then 4 Episodes reach status "ready" and the remaining 46 stay "uploaded" marked "waiting for tomorrow's allowance"
-  And choosing Continue the next day processes the next 4
-  When I upload a new Episode mid-backfill
-  Then it is analysed before any remaining backfill episode
-```
-
-> **Deliberately not a queue.** There is no worker and no scheduler (ADR 0010). Backfill is a saved intent plus a Continue button pressed on return. Four episodes a day tolerates a manual nudge, and a second runtime to save one click is not worth it.
+> **No backfill story, and deliberately none.** The stakeholder chose **only new episodes from now on**, so there is nothing to import. A weekly show never meets the daily allowance as a wall, and the 1 GB ceiling is nine months away (D12, US-034). See *Not for this app*.
 
 ---
 
 ## E9 — Making the number land, and cleaning up
+
+### US-046 — Switch the interface language without moving a single number
+*As Rafa, I want to flip the interface to English and back, so that the app reads in my language and nothing about my show changes.*
+Priority: **Must** · Size: **M**
+
+```gherkin
+Scenario: Switching changes every string on screen, and only the strings
+  Given I am reading an Episode page in pt-BR
+  When I switch the interface language to English
+  Then every visible string is the `en` rendering of its code
+  And no visible string is still pt-BR
+  And the status label, the empty states, the chips and any warning banner switched with it
+
+Scenario: The choice survives the session
+  Given I switched the interface to English
+  When I sign out, sign in again on another device, and open my Library
+  Then the interface is English
+
+Scenario: A count never changes because the interface language changed
+  Given an Episode reporting the Topic "a parada do hotdog" 17 times, 24312 total words and 213 words per minute
+  When I switch the interface language to English and back to pt-BR
+  Then the Topic still reports 17 mentions, the same total words and the same words per minute
+  And the Transcript, every Segment, every Token, every lemma and every Analysis are byte-identical
+  And the Analysis still records the analysis language "pt" and the pt-BR normalization, stop-word list and lemma dictionary versions
+  And the only difference between the two renderings is formatting: "24.312" in pt-BR, "24,312" in `en`
+
+Scenario: The interface language never reaches the pipeline
+  Given my interface is English
+  When I upload an Episode and it is analysed
+  Then every transcription request carried language "pt"
+  And no transcription request, no Analysis row and no stored Token carries an interface locale
+  And the English interface states code `ANALYSIS_ALWAYS_PTBR`, so I am not told the analysis followed my interface
+```
 
 ### US-027 — The episode page, and what it looks like when there is nothing yet
 *As Rafa, I want one page that tells me what this episode became, so that I do not assemble the story from widgets.*
@@ -655,19 +785,30 @@ Priority: **Must** · Size: **M**
 Scenario: The page renders a fixed, ordered hierarchy
   Given a ready Episode
   Then it renders in this order: any warning banner, headline sentence, running-joke counts, top words, link to the transcript
-  And one line states that the counts describe the published episode, as transcribed
+  And one line carries code `COUNTS_DESCRIBE_PUBLISHED_EDIT`, stating that the counts describe the published episode, as transcribed
+  And a warning banner, where there is one, carries `TRANSCRIPT_QUALITY_POOR` or `AUDIO_MAY_NOT_BE_PTBR`
   And the headline and top three terms are visible without scrolling at 1280 by 800
   And every rendered count is actionable and opens its occurrence list
-  Given instead an Episode with status "transcribing"
+  Given instead an Episode with status `transcribing`
   Then the chunk progress from US-002 is shown and no empty statistics sections are rendered
 
 Scenario: Empty states offer exactly one thing to do
   Given a signed-in user with 0 Episodes
   Then exactly one primary action is offered, to add an episode
-  And it states the accepted formats, that episodes up to 150 minutes are fine, and that Overtone analyses Brazilian Portuguese
+  And I see code `LIBRARY_EMPTY` with { accepted: [".mp3", ".m4a", ".wav", ".aac", ".ogg", ".flac", ".webm"], max_minutes: 150 }
+  And both renderings state that Overtone analyses Brazilian Portuguese audio whatever language the interface is in (D16)
   And no empty charts or placeholder widgets are rendered
   Given instead a ready Episode and 0 Topics
-  Then the running-jokes area invites me to track a suggested term rather than rendering an empty chart
+  Then the running-jokes area shows code `NO_TOPICS_YET` with { suggested_term: "hotdog" } rather than an empty chart
+
+Scenario: The first episode is a complete page, not a page with holes
+  Given a ready Episode that is episode 1 of its Series
+  Then the headline, running-joke counts and top words render in full
+  And I see code `SERIES_FIRST_EPISODE`, which takes no parameters
+  And the pt-BR catalogue renders it as "Este é o seu primeiro episódio. Ainda não há nada para comparar."
+  And the en catalogue renders it as "This is your first episode. There is nothing to compare yet."
+  And no cross-episode section, trend, arc or "compared to last episode" delta is rendered
+  And nothing on the page implies an episode is missing, unimported or still to be added
 ```
 
 ### US-025 — Delete an episode permanently
@@ -678,7 +819,8 @@ Priority: **Must** · Size: **M**
 Scenario: Deletion names what it destroys, then destroys it
   Given a ready Episode titled "Cúpula do Hotdog"
   When I choose Delete
-  Then the confirmation names "Cúpula do Hotdog" and states "This permanently deletes the audio, transcript and all statistics."
+  Then the confirmation carries code `DELETE_EPISODE_CONFIRMATION` with { title: "Cúpula do Hotdog" }
+  And both renderings name the title and state that the audio, transcript and all statistics are destroyed permanently
   When I confirm
   Then the Episode disappears from the Series immediately
   And its Transcript, Segments, Tokens and Analyses are not retrievable by any request
@@ -701,7 +843,7 @@ Scenario: Deletion updates Series-wide counts
 | US-021 | Suggest running jokes from the episode's own top terms | Should | S | Solves the blank-page problem, which only exists once US-019 ships |
 | US-018 | Filler-word and pace stats ("this episode says 'né' 4.2 times a minute") | Should | S | Pure fun, on-brand, no dependencies. First thing to pull after the Musts. **Must be labelled as measuring the published edit, not anyone's speech habits** (D15), and is per-episode only — there is no speaker to attribute it to |
 | US-016 | An "exact words" toggle over the lemma-grouped default | Should | M | The grouping itself is **not** deferred — pt-BR needs it to say anything at all, so it ships in US-004/US-005 (D4). US-016 is only the toggle, which is display logic over data already stored |
-| US-034 | Purge an episode's audio, keep its stats | Should | S | The pressure valve for the 1 GB ceiling, and a dependency of US-044 |
+| US-034 | Purge an episode's audio, keep its stats | Should | S | The pressure valve for the 1 GB ceiling (D12). It waits because a weekly show takes about nine months to fill 1 GB — nothing imports a back catalogue any more |
 | US-012 | Quality warning when mean confidence is below 70 | Should | S | Podcast audio is usually good; matters the first time someone records in a car |
 | US-010 | Read the transcript with timestamps, searchable in-page | Should | M | Useful for show notes. US-011's quotes already cover the trust case |
 | US-041 | Compare two episodes side by side | Should | S | Trivial once US-035 exists; US-022 answers most of the same question |
@@ -742,11 +884,12 @@ Scenario: Deletion updates Series-wide counts
 | Reconstructing the unedited conversation | We are given the published edit. Counts describe what listeners heard (D15) — the more meaningful number for a podcast, and the only one we have |
 | Fuzzy or phonetic matching of mishearings | Trades invisible false negatives for invisible false positives with no eval set (D9) |
 | Sentiment, emotion, summarisation, "best clip" detection | Unfalsifiable. Every claim in this app must be a count a test can assert |
-| Analysis in any language other than pt-BR | One pipeline per language, not one setting: stop-word list, lemma dictionary, clitic rules, compound handling, normalization. US-013 warns honestly instead |
+| **Importing a back catalogue** (was US-044, id retired) | **Stakeholder answer: only new episodes from now on, so there is nothing to import.** The Series therefore starts at episode 1 and grows about one episode a week — which is why the zero- and one-episode states in US-019, US-022, US-026, US-027, US-038 and US-042 carry real weight, and why neither the daily allowance nor the 1 GB ceiling is a near-term wall any more |
+| Analysis in any language other than pt-BR | One pipeline per language, not one setting: stop-word list, lemma dictionary, clitic rules, compound handling, normalization. US-013 warns honestly instead. **The bilingual interface (D16) is a different axis and changes nothing in this row** — an English reader is still analysing pt-BR speech |
 | Translating or language-tagging code-switched English words | `deploy`, `bug`, `hype` are counted as spelled, as ordinary Tokens (D14). Inflections and alternate spellings are handled by a Term's alias set, which the user controls and can see |
 | Video files, live transcription, bots joining calls | A different product |
 | Teams, shared libraries, roles, per-episode permissions | Each friend has their own Library; sharing is a link. An authorisation model would slow every story for a group of four |
-| A background worker, a job queue, or a cron scheduler | ADR 0010 deleted all three. Even backfill is a saved intent plus a button |
+| A background worker, a job queue, or a cron scheduler | ADR 0010 deleted all three. With one new episode a week there is nothing to queue: the user is the scheduler |
 | Billing, plans, quotas, spend alerts, cost dashboards | There is no spend. The only budget is the free tier, and US-043 owns it |
 | PII redaction, DPAs, consent flows, mobile apps | Scoped for enterprise buyers. This app has friends who know they are being recorded, and a phone-first share page |
 
@@ -761,3 +904,63 @@ Scenario: Deletion updates Series-wide counts
 5. **Transcripts and raw chunk payloads retained.** Retroactive Topic application (US-026) is the most valuable thing the app does, and it is free only because nothing is ever re-transcribed.
 6. **Diacritics survive the whole pipeline.** NFC in, NFC stored, NFC compared, NFC rendered (D2). US-004. A single accent-stripping call anywhere — a `deburr`, an `unaccent`, a collation that ignores accents — merges `e` into `é` and makes every count in the app quietly wrong, with nothing in the UI to show it happened.
 7. **Every transcription request declares `language: "pt"`.** US-003 asserts it per chunk. Auto-detection could return a different language for different chunks of one episode and stitch half a transcript of confident nonsense (D14).
+8. **The interface locale never crosses into the pipeline, and no layer below the presenter holds a sentence.** Messages travel as a code plus parameters; only the presenter resolves them against a catalogue (D16, US-045). Asserted by US-046: switching the interface changes every string and no count. A locale that reaches tokenising, lemmatising or counting would make the same episode report two different numbers to two readers — the one bug this design exists to make impossible.
+
+---
+
+## Message codes
+
+**This table is the contract.** Every code becomes a member of one TypeScript union, every parameter list becomes its payload type, and **both catalogues — `pt-BR` and `en` — must render every code here and nothing else** (US-045). A scenario asserts a code and its parameters; the sentences live in the catalogues, never in a test and never below the presenter (D16).
+
+| Code | Parameters | Raised by |
+|---|---|---|
+| **Input, upload and format** | | |
+| `UNSUPPORTED_FORMAT` | `extension`, `accepted[]` | US-007 |
+| `UNREADABLE_AUDIO` | `filename` | US-007 |
+| `EPISODE_TOO_LONG` | `duration_minutes`, `max_minutes`, `allowance_hours_today` | US-007 |
+| `UPLOAD_COST_PREVIEW` | `duration_ms`, `daily_allowance_hours`, `share_of_daily` | US-040 |
+| `UPLOAD_INTERRUPTED` | — | US-001 |
+| **Pipeline, progress and failure** | | |
+| `CHUNK_PROGRESS` | `done`, `total` | US-002 |
+| `CHUNK_FAILED` | `chunk_index`, `chunk_count`, `succeeded_count` | US-040 |
+| `CHUNK_TIMEOUT` | `chunk_index`, `timeout_seconds` | US-008 |
+| `TRANSCRIPTION_SERVICE_UNAVAILABLE` | `chunk_index`, `attempts` | US-008 |
+| `AUDIO_IS_SAFE` | — | US-008, US-043 |
+| `NO_SPEECH_DETECTED` | — | US-005 |
+| `LEMMA_GROUPED_BY_STEMMER` | `term` | US-005 |
+| **Allowance and storage** | | |
+| `ALLOWANCE_REMAINING` | `remaining_ms`, `allowance_hours`, `whole_episodes_remaining` | US-043 |
+| `HOURLY_ALLOWANCE_EXHAUSTED` | `allowance_hours`, `minutes_until_reset` | US-043 |
+| `DAILY_ALLOWANCE_EXHAUSTED` | `allowance_hours`, `reset_at_utc`, `hours_until_reset` | US-043 |
+| `STORAGE_FULL` | `used_bytes`, `limit_bytes`, `needed_bytes` | US-043 |
+| **Topics and Terms** | | |
+| `TOPIC_NAME_TAKEN` | `name` | US-019 |
+| `TOPIC_NEEDS_A_TERM` | — | US-019 |
+| `TERM_TOO_MANY_WORDS` | `word_count`, `max_words` | US-019 |
+| `TOPIC_TERM_LIMIT` | `max_terms` | US-019 |
+| `LIBRARY_TOPIC_LIMIT` | `max_topics` | US-019 |
+| `ALIAS_SUGGESTED_WRITTEN_VARIANT` | `term`, `alias` | US-019 |
+| `TOPIC_APPLY_SKIPPED_NO_TRANSCRIPT` | `episode_number`, `status` | US-026 |
+| **Series and Episodes** | | |
+| `EPISODE_NUMBER_TAKEN` | `number` | US-038 |
+| `EPISODE_TITLE_REQUIRED` | — | US-038 |
+| `EPISODES_STILL_PROCESSING` | `processing_count` | US-022 |
+| `DELETE_EPISODE_CONFIRMATION` | `title` | US-025 |
+| **Empty and first-episode states** — load-bearing, because the Series starts at episode 1 and nothing is imported | | |
+| `LIBRARY_EMPTY` | `accepted[]`, `max_minutes` | US-027 |
+| `NO_TOPICS_YET` | `suggested_term` | US-027 |
+| `TOPIC_NO_EPISODES_YET` | — | US-019, US-026, US-042 |
+| `SERIES_FIRST_EPISODE` | — | US-022, US-027, US-038, US-042 |
+| `SERIES_NEEDS_SECOND_EPISODE` | — | US-042 |
+| `TREND_NEEDS_MORE_EPISODES` | `episode_count`, `minimum` | US-022 |
+| **Honesty, warnings and disclosure** | | |
+| `COUNTS_DESCRIBE_PUBLISHED_EDIT` | — | US-027, US-039 |
+| `ANALYSIS_ALWAYS_PTBR` | — | US-046 |
+| `TRANSCRIPT_QUALITY_POOR` | `quality_score`, `threshold` | US-012 |
+| `AUDIO_MAY_NOT_BE_PTBR` | `quality_score`, `detected_language` | US-013 |
+| `SHARE_LINK_DISCLOSURE` | — | US-039 |
+| `SHARE_LINK_NOT_FOUND` | — | US-039 |
+| **Status labels** — the enum value is the contract, the label is text | | |
+| `STATUS_UPLOADED` · `STATUS_TRANSCRIBING` · `STATUS_ANALYZING` · `STATUS_READY` · `STATUS_FAILED` · `STATUS_DELETING` | — | US-002, US-038 |
+
+**45 codes**, of which 6 are status labels. Rules the lint enforces (US-045): a code is referenced by at least one scenario before it is added; both catalogues are complete; no component, use case, domain object or infrastructure adapter contains a user-facing sentence; and every number inside a rendering arrives as a parameter through the locale formatter, never baked into the sentence.
