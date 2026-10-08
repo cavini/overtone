@@ -4,7 +4,8 @@
   "private": true,
   "type": "module",
   "exports": {
-    "./groq": "./src/groq/index.ts"
+    "./groq": "./src/groq/index.ts",
+    "./lemmas": "./src/lemmas/index.ts"
   },
   "scripts": {
     "test": "vitest",
