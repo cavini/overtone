@@ -20,3 +20,28 @@ export interface Token {
  * dropped from storage on the strength of this.
  */
 export type TokenClass = 'word' | 'stopword' | 'filler'
+
+/**
+ * Where a token's lemma came from, so a grouping can always be justified.
+ *
+ * `dictionary` is exact. `stemmer` is a heuristic the UI marks as such, since
+ * it can over-group. `surface` means nothing was found and the word stands
+ * for itself — a visible gap, which is strictly better than a silent merge.
+ */
+export type LemmaSource = 'dictionary' | 'stemmer' | 'surface'
+
+/** A token with everything counting needs attached. */
+export interface AnnotatedToken extends Token {
+  readonly lemma: string
+  readonly lemmaSource: LemmaSource
+  readonly tokenClass: TokenClass
+}
+
+/**
+ * Surface form to lemma.
+ *
+ * Passed into the analysis rather than fetched by it: the caller performs one
+ * bulk query for the episode's distinct forms and hands the result over, so
+ * the analysis stays a pure function with no database underneath it.
+ */
+export type LemmaLookup = ReadonlyMap<string, string>
