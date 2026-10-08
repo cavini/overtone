@@ -1,8 +1,10 @@
 # Overtone — Metrics
 
-A hobby app for one podcast group whose episodes run 1 h 40 m – 2 h. Every metric here must be readable from a single SQL query or one log line, or it does not belong. Targets are **estimates** until there are ~10 real episodes in the library.
+A hobby app for one podcast group whose episodes run 1 h 40 m – 2 h, **recorded in Brazilian Portuguese**. Every metric here must be readable from a single SQL query or one log line, or it does not belong. Targets are **estimates** until there are ~10 real episodes in the library.
 
 There are **no cost metrics**. The stack is free; cost per audio hour, monthly burn and cost per user are retired — see [`risks.md`](./risks.md).
+
+**Two things every number here is measured against.** First, the input is the **final edited mix**, so every count describes the **published episode, not the raw conversation** — anything the edit cut was never said as far as Overtone can tell, and any filler-word or pace figure measures the *edit*, not how someone talks. Say that next to the number rather than letting a reader assume otherwise. Second, there is **no speaker dimension** at all (ADR 0015), so no metric here splits by host and none ever will.
 
 ---
 
@@ -27,12 +29,16 @@ There are **no cost metrics**. The stack is free; cost per audio hour, monthly b
 
 | # | Metric | Definition | Target (est.) |
 |---|---|---|---|
-| M0 | Clip processed end to end | Real clips returning a transcript and a count table in prod | ≥3, one uploaded by someone other than the builder |
-| M0 | Count fidelity | Term counts vs a hand-counted committed fixture | 100% exact, asserted in CI |
+| — | **pt-BR recall pilot** (before M0, gates everything) | Recall on a hand-listed set of in-joke terms and proper nouns, from ten minutes of one real episode through Groq at `language=pt` | ≥85%; below that, re-plan the product before writing code (R1) |
+| M0 | Clip processed end to end | Real pt-BR clips returning a transcript and a count table in prod | ≥3, one uploaded by someone other than the builder |
+| M0 | Count fidelity | Term counts vs a hand-counted committed **pt-BR** fixture | 100% exact, asserted in CI |
+| M0 | **Diacritic fidelity** | `e`/`é` and `por`/`pôr` counted as distinct terms | pass, permanent in CI (R29) |
 | M1 | Full-length episode completes | 1 h 40 m – 2 h episodes chunked, compressed, transcribed in parallel, stitched, stored | ≥3 real episodes, 0 lost or duplicated sentences at any seam |
 | M1 | **Seam timestamp accuracy** | Word timestamps vs hand-checked positions at every chunk boundary | within ±1 s, asserted in CI on a multi-chunk fixture |
 | M1 | Friends signed in | Distinct accounts with ≥1 episode | ≥2 |
 | M2 | **Bit count accuracy** | median \|counted − hand-counted\| ÷ hand-counted, 2 two-hour episodes × 10 named bits | median ≤5% |
+| M2 | **Orthographic stability** | Counts from a colloquial-only fixture vs a written-standard-only fixture of the same speech | identical, asserted in CI (R27) |
+| M2 | **Over-merge rate** | pt-BR near-miss pairs (`casa`/`casar`, `com`/`comer`) that the matcher collapses | 0, asserted in CI (R28) |
 | M2 | Bits defined | Named running jokes/topics in the library | ≥5, named by the group unprompted |
 | M3 | Series view opens | Opens of the series view per new episode | ≥1 per episode |
 | M3 | Series query latency | Series view render over 30 episodes, from stored aggregates | <1 s |
@@ -47,7 +53,8 @@ There are **no cost metrics**. The stack is free; cost per audio hour, monthly b
 |---|---|---|
 | Episode success rate | ≥95% of uploads reach a readable result | any episode silently truncated, or a seam that lost a sentence |
 | Upload → result wall clock, 2-hour episode | <120 s including browser compression (~45 s of Groq work across ~5 parallel chunks) | >300 s — the Vercel request limit is in play |
-| Keyword recall on named bits | ≥90% of bits truly said are surfaced | <85%, or any bit the group insists was said and isn't counted |
+| Keyword recall on named bits (pt-BR) | ≥90% of bits truly said **in the published episode** are surfaced | <85%, or any bit the group insists was said and isn't counted |
+| Unmatched surface forms per bit | ≤3 forms the ASR produced that no alias catches | >3 on any bit — the alias list is behind the transcriber (R2, R27) |
 | Quote-timestamp spot check | 5 random quotes per new episode land where they claim | any mismatch — that is the stitching bug (R22), stop and fix |
 | Low-confidence episodes | ≤15%, each visibly flagged | any unflagged low-confidence episode (a quiet wrong number) |
 | Trust incidents | 0 reports of "that number is wrong" per 10 episodes | any wrong count traced to a bug rather than to the audio |
@@ -67,5 +74,7 @@ There are **no cost metrics**. The stack is free; cost per audio hour, monthly b
 | Number of bits auto-suggested | Rewards generating noise. Five bits the group actually says beat forty guesses. |
 | Test count, coverage %, commits, LOC | Process exhaust. TDD and small commits are how we work, not a score. |
 | NPS, satisfaction surveys | It's your friends. Ask them. |
+| Anything split by speaker — talk share, words per host, interruptions | There is no speaker dimension. One edited file, no per-host tracks (ADR 0015). A number here would be invented. |
+| Filler rate presented as a speech habit | The audio is post-edit, so the figure measures the **editor**. Counting fillers is fine; attributing them to how someone talks is not. |
 
 **Standing rule:** any number that can improve without the group getting a more trustworthy answer is vanity. Say so out loud instead of reporting it.
