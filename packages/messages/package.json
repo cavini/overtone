@@ -1,0 +1,20 @@
+{
+  "name": "@overtone/messages",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./pt": "./src/pt.json",
+    "./en": "./src/en.json"
+  },
+  "scripts": {
+    "test": "vitest",
+    "test:unit": "vitest run --coverage",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "devDependencies": {
+    "@vitest/coverage-v8": "^5.0.3",
+    "vitest": "^5.0.3"
+  }
+}
