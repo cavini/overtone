@@ -6,3 +6,4 @@ export type {
   TokenClass,
 } from './token.js'
 export type { TermCount, TermCounts } from './term.js'
+export type { EpisodeAnalysis } from './episode-analysis.js'

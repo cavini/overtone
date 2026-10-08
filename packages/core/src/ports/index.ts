@@ -1,3 +1,4 @@
+export type { LemmaRepository } from './lemma-repository.js'
 export type {
   TranscribedWord,
   Transcript,
