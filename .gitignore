@@ -27,9 +27,9 @@ blob-report/
 # local storage adapter (dev audio blobs)
 .storage/
 
-# whisper ggml model files (0.5-1.6 GB each) - fetched by pnpm setup:models
-models/
-*.bin
+# supabase local dev
+.branches/
+.temp/
 
 # os / editor
 .DS_Store
