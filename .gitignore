@@ -27,6 +27,9 @@ blob-report/
 # local storage adapter (dev audio blobs)
 .storage/
 
+# fetched dictionary data - 17 MB, see scripts/fetch-lemmas.mjs
+packages/db/data/
+
 # supabase local dev
 .branches/
 .temp/
