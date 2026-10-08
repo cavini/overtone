@@ -1,6 +1,8 @@
 # ADR 0004 — Buy transcription, hide it behind a port
 
-**Date:** 2026-10-07 · **Status:** accepted, **default amended by ADR 0009**
+**Date:** 2026-10-07 · **Status:** accepted; adapter changed twice (ADR 0009, then **ADR 0010** — now Groq's free tier)
+
+> **This is the ADR that paid for all the others.** The provider went Deepgram → local whisper.cpp → Groq in a single planning session. Each reversal cost one adapter and zero changes to the domain model, the tests or the UI. The decision to define the port *before* choosing a provider is the reason the other reversals were cheap.
 
 ## Context
 Transcription is the product's hardest technical dependency and its central risk: **every statistic we show is only as accurate as the transcript underneath it.** It is also the only paid, slow, non-deterministic step in the pipeline — which makes it poison for a test suite if it is called directly.
