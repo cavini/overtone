@@ -1,5 +1,6 @@
 import type { TermCount, TermCounts } from '../domain/term.js'
 import type { AnnotatedToken } from '../domain/token.js'
+import { compareByCountThenLabel } from './ranking.js'
 
 export interface CountTermsOptions {
   /** `words` hides stop words and fillers, as the default view does. */
@@ -10,20 +11,6 @@ interface Tally {
   count: number
   readonly forms: Set<string>
   heuristic: boolean
-}
-
-/**
- * Ties are broken by code unit rather than by locale collation.
- *
- * `Intl.Collator` would order accented terms the way a Portuguese reader
- * expects, but its output depends on the ICU version bundled with the
- * runtime — so the same episode could rank two equal terms differently on
- * two machines. Counts must be reproducible, so ordering here is mechanical
- * and locale-aware sorting belongs to the presenter.
- */
-function byCountThenTerm(a: TermCount, b: TermCount): number {
-  if (b.count !== a.count) return b.count - a.count
-  return a.term < b.term ? -1 : a.term > b.term ? 1 : 0
 }
 
 /**
@@ -73,7 +60,12 @@ export function countTerms(
       surfaceForms: [...forms].sort(),
       heuristic,
     }))
-    .sort(byCountThenTerm)
+    .sort((a, b) =>
+      compareByCountThenLabel(
+        { count: a.count, label: a.term },
+        { count: b.count, label: b.term },
+      ),
+    )
 
   return {
     terms,

@@ -85,6 +85,16 @@ describe('findMentions', () => {
     expect(mentionsIn('comi hotdog', topic)).toHaveLength(1)
   })
 
+  it('ignores a pattern with no letters in it', () => {
+    const topic: Topic = { id: 'x', name: 'Junk', patterns: ['...', '---'] }
+    expect(mentionsIn('hotdog ... ---', topic)).toEqual([])
+  })
+
+  it('keeps a pattern that is nothing but determiners', () => {
+    const topic: Topic = { id: 'y', name: 'Artigo', patterns: ['o a'] }
+    expect(mentionsIn('o a', topic)).toHaveLength(1)
+  })
+
   it('finds nothing for a topic with no patterns', () => {
     expect(mentionsIn('hotdog', { id: 'x', name: 'Empty', patterns: [] })).toEqual([])
   })

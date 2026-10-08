@@ -25,14 +25,21 @@ function keyOf(words: readonly string[]): string {
   return words.join('').replace(SEPARATORS, '')
 }
 
+/**
+ * Drops articles from the front of a pattern, so `o hotdog` matches `hotdog`.
+ *
+ * A pattern made entirely of determiners is left alone: someone tracking how
+ * often they say `o a` is doing something odd, but they meant it.
+ */
+function stripLeadingDeterminers(words: readonly string[]): readonly string[] {
+  const firstMeaningful = words.findIndex((word) => !LEADING_DETERMINERS.has(word))
+  return firstMeaningful > 0 ? words.slice(firstMeaningful) : words
+}
+
 function compilePattern(pattern: string): string | undefined {
-  let words = tokenise(normalize(pattern)).map((token) => token.surface)
+  const words = tokenise(normalize(pattern)).map((token) => token.surface)
+  const key = keyOf(stripLeadingDeterminers(words))
 
-  while (words.length > 1 && LEADING_DETERMINERS.has(words[0] ?? '')) {
-    words = words.slice(1)
-  }
-
-  const key = keyOf(words)
   return key.length > 0 ? key : undefined
 }
 
@@ -83,6 +90,10 @@ export function findMentions(
 
     for (let end = start; end < tokens.length; end += 1) {
       const token = tokens[end]
+      /* c8 ignore next -- unreachable: `end` is bounded by `tokens.length`.
+         The check exists only because `noUncheckedIndexedAccess` cannot see
+         that, and removing it would mean either a non-null assertion or
+         slicing the array at every position. */
       if (token === undefined) break
 
       spellings.push(token.surface)

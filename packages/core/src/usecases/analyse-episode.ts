@@ -13,6 +13,7 @@ import { annotate } from '../analysis/annotate.js'
 import { countTerms } from '../analysis/count-terms.js'
 import { findMentions } from '../analysis/find-mentions.js'
 import { PIPELINE_VERSION } from '../analysis/pipeline-version.js'
+import { compareByCountThenLabel } from '../analysis/ranking.js'
 import { tokeniseTimed } from '../analysis/tokenise-timed.js'
 import { VOCABULARY_VERSION } from '../analysis/vocabulary.js'
 
@@ -50,11 +51,22 @@ function countTopic(
   topic: Topic,
   tokens: ReadonlyArray<Annotated<TimedToken>>,
 ): TopicMentionCount {
-  const mentions = findMentions(tokens, topic).map((mention) => ({
-    matchedText: mention.matchedText,
-    startMs: tokens[mention.startIndex]?.startMs ?? 0,
-    endMs: tokens[mention.endIndex]?.endMs ?? 0,
-  }))
+  const mentions = findMentions(tokens, topic).flatMap((mention) => {
+    const first = tokens[mention.startIndex]
+    const last = tokens[mention.endIndex]
+
+    /* c8 ignore next -- unreachable: both indices come from this same array.
+       The guard exists only to satisfy `noUncheckedIndexedAccess`. */
+    if (first === undefined || last === undefined) return []
+
+    return [
+      {
+        matchedText: mention.matchedText,
+        startMs: first.startMs,
+        endMs: last.endMs,
+      },
+    ]
+  })
 
   return {
     topicId: topic.id,
@@ -62,11 +74,6 @@ function countTopic(
     count: mentions.length,
     mentions,
   }
-}
-
-function byCountThenName(a: TopicMentionCount, b: TopicMentionCount): number {
-  if (b.count !== a.count) return b.count - a.count
-  return a.topicName < b.topicName ? -1 : a.topicName > b.topicName ? 1 : 0
 }
 
 /**
@@ -107,7 +114,12 @@ export async function analyseEpisode(
 
   const topics = (request.topics ?? [])
     .map((topic) => countTopic(topic, annotated))
-    .sort(byCountThenName)
+    .sort((a, b) =>
+      compareByCountThenLabel(
+        { count: a.count, label: a.topicName },
+        { count: b.count, label: b.topicName },
+      ),
+    )
 
   return {
     ok: true,

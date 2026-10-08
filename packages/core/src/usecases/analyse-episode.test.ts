@@ -97,6 +97,21 @@ describe('analyseEpisode', () => {
     expect(outcome.analysis.topTerms[0]).toMatchObject({ term: 'falar', count: 2 })
   })
 
+  it('caps the number of terms it returns when asked', async () => {
+    const outcome = await analyseEpisode(
+      { audioUrl: AUDIO, topTermLimit: 2 },
+      {
+        transcription: FakeTranscriptionProvider.withText(AUDIO, SENTENCE),
+        lemmas: lemmaRepository(),
+      },
+    )
+
+    if (!outcome.ok) throw new Error('expected an analysis')
+    expect(outcome.analysis.topTerms).toHaveLength(2)
+    // Capping the list must not change the totals it was drawn from.
+    expect(outcome.analysis.uniqueTerms).toBe(4)
+  })
+
   it('records the versions that produced the numbers', async () => {
     const outcome = await analyse()
     if (!outcome.ok) throw new Error('expected an analysis')
@@ -197,6 +212,16 @@ describe('analyseEpisode', () => {
       expect(outcome.analysis.topics.map((t) => [t.topicName, t.count])).toEqual([
         ['Pirão', 3],
         ['Hotdog', 1],
+      ])
+    })
+
+    it('breaks a tie between topics alphabetically, so the order is stable', async () => {
+      const outcome = await analyse('hotdog pirão', [], [PIRAO, HOTDOG])
+      if (!outcome.ok) throw new Error('expected an analysis')
+
+      expect(outcome.analysis.topics.map((t) => t.topicName)).toEqual([
+        'Hotdog',
+        'Pirão',
       ])
     })
 
