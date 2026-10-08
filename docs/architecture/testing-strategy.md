@@ -30,7 +30,7 @@ Rules we hold ourselves to:
       ╱ ~8 ╲        faked transcription. Slow, few, precious.
      ╱──────╲
     ╱        ╲      Integration — Vitest
-   ╱   ~60    ╲     Route Handlers, repositories, the worker pipeline.
+   ╱   ~60    ╲     Route Handlers, repositories, transcribe-and-analyse.
   ╱            ╲    Real Postgres via Supabase. Groq faked with MSW, always.
  ╱──────────────╲
 ╱                ╲  Unit — Vitest
