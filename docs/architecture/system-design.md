@@ -56,7 +56,7 @@ Those six strings are canonical, from `../product/glossary-and-domain.md`. Tests
 | `transcribing` | Fetch each chunk of the **master** file from Storage, POST to Groq **concurrently with `language: "pt"`** (never auto-detected — a misdetection would yield confident nonsense), store every raw response verbatim, then stitch: offset each chunk's word timings by its start and concatenate into `segments`. |
 | `analyzing` | One bulk `lemmas` lookup for this episode's distinct forms, then the pure pt-BR engine: NFC normalise (**accents preserved**) → clitic-aware tokenise → lemmatise by dictionary, stem as fallback → classify stop words and fillers → term frequency → n-gram watchlist matches. |
 | `ready` | `insights`, `term_counts` and `mentions` written. The episode page and the series rollups have everything. |
-| `failed` | A typed `failure_reason` and a human-readable message. Retryable without re-uploading, because the audio is already in Storage. |
+| `failed` | A typed `failure_code` plus `failure_params` — **never a message string** (ADR 0017). The presenter renders it in the reader's language. Retryable without re-uploading, since the audio is already in Storage. |
 | `deleting` | Row and audio being removed. |
 
 **Still two stages, still independently re-runnable.** ADR 0005 survives the loss of the queue: transcription is paid-for-in-rate-limit and non-deterministic, analysis is free and deterministic. `POST /api/episodes/:id/reanalyze` re-runs analysis alone against the stored transcript. During development, when every tokeniser tweak needs re-deriving every count, this is the difference between a two-second loop and burning the daily Groq allowance.
@@ -76,7 +76,8 @@ users(id, email, created_at)                           -- Supabase Auth
         ├─ topics(id, series_id, name, color)          -- the running jokes
         │    └─ topic_terms(id, topic_id, pattern, match_key)
         └─ episodes(id, series_id, number, title, recorded_on,
-                    status, failure_reason, pipeline_version,
+                    status, failure_code, failure_params jsonb,
+                    pipeline_version,
                     duration_ms, share_token, created_at)
              ├─ chunks(id, episode_id, index, blob_key,
              │          start_ms, end_ms, byte_size, status)  -- the master, split
@@ -112,6 +113,7 @@ Decisions that are expensive to change, so they are made now:
 - **All three forms stored: `surface`, `normalized`, `lemma`** (domain decision D4). Lemma-grouped is the default view with an "exact words" toggle; storing all three makes that a display concern, not a re-analysis.
 - **`share_token`** is an unguessable per-episode token. Present means the stats page is publicly readable; revoking is deleting the column value. No separate ACL system for a feature this small.
 - **Audio and transcripts have different lifetimes** (ADR 0013). Audio for recent episodes is kept for playback and the oldest is auto-purged as storage fills; transcripts and counts are kept forever. A purged episode keeps every number and quote and loses only playback. Storage pressure must never be able to change a count.
+- **No row stores user-facing text.** `failure_code` is a `SCREAMING_SNAKE_CASE` member of a TypeScript union with typed `failure_params`; the sentence is produced in the presenter from `messages/{pt,en}.json`. An unhandled code is a compile error and a code missing from a catalogue is a test failure, so neither can reach a user (ADR 0017).
 - **`raw_provider_payload` is never discarded.** It is how we re-derive everything, compare providers, and debug a wrong count without spending the daily transcription budget twice.
 
 ---
@@ -170,6 +172,8 @@ The hard cases are acceptance criteria, therefore tests, not implementation deta
 | `casa` vs `casar` | The stemmer would merge them. The dictionary does not. If a stemmed fallback ever merges them, `lemma_source` marks it heuristic and the UI shows the surface forms so the user can split them. |
 | `pra` vs `para` | Whisper may transcribe either. A watchlist carries both as aliases (ADR 0006); a test pins the behaviour so it cannot drift silently. |
 | English loanwords | Counted as transcribed, lemma falls back to the stemmer, marked heuristic. Code-switching is normal in Brazilian podcasts. |
+| Interface switched to English | **Every count must be byte-identical.** The UI locale and the audio locale are different things: analysis is always `pt`. This invariant gets its own test, because conflating the two is the obvious bug (ADR 0017). |
+| `1.234` mentions | Rendered `1.234` for a pt-BR reader and `1,234` for an English one — via `next-intl`'s locale formatters, never `toLocaleString()` or a hand-rolled separator. The whole output is numbers, so this is correctness. |
 | A word spanning a chunk join | Cannot happen: chunks are split on silence, never mid-word. Asserted by test. |
 | A **phrase** spanning a chunk join | **Must still count.** Matching runs over the whole stitched episode stream, never per chunk (domain decision D8). Chunks are a mechanical upload unit, not a semantic one — our own plumbing must never be able to change a count. This is a distinct test from the one above. |
 | Chunked vs single-pass timings | Must agree within tolerance. A property test compares both for the same audio — the guard on the riskiest code in the repo. |

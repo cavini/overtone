@@ -34,6 +34,7 @@ The app is one deployable thing. You push to git; Vercel deploys it.
 | Analysis | **our own pt-BR pipeline** — NFC normaliser, clitic-aware tokeniser, a `lemmas` dictionary table, Snowball `pt` stemmer fallback, pt-BR stop-word list | `wink-nlp` was the plan and is **out**: its lemmatiser and stop words are English-only and have no Portuguese equivalent (ADR 0014). Still pure JS, no native build, and **deterministic** — the same episode always yields the same counts. |
 | Architecture | **Clean Architecture** layers + `dependency-cruiser` in CI | The dependency rule is a failed build, not a code-review conversation (ADR 0016). |
 | Validation | **Zod** at every boundary | One schema is the runtime guard, the TS type, and the test fixture. |
+| i18n | **next-intl**, locales `pt` + `en` | The App Router standard, with Server Component support. Carries locale-aware number and date formatting — which is *correctness* here, not polish, because the whole output is numbers (ADR 0017). |
 | Assistant (later) | Groq's free LLMs, or Claude API | It only translates a question into a `Query` — it never counts. See ADR 0007. |
 | Tests | **Vitest** + **Playwright** + **MSW** | Whole suite offline and free, because every external service has a fake. |
 | CI | **GitHub Actions** | typecheck → lint → test → build on every push. |
@@ -141,6 +142,9 @@ overtone/
 │  │                              presenters. Vendor SDKs live only here.
 │  ├─ db/                      3. Drizzle schema + migrations + lemma seed
 │  └─ contracts/               Zod schemas at every boundary
+├─ messages/
+│  ├─ pt.json                  the only place user-facing text may live
+│  └─ en.json
 ├─ docs/
 └─ fixtures/                   audio clips + canned Groq responses
 ```
@@ -183,4 +187,6 @@ Almost nothing. Everything structural is settled in `docs/adr/`, and the three q
 | 2 | ~~How long are your episodes?~~ | **Answered: 1h40–2h.** Chunking is first-class — ADR 0011. |
 | 3 | ~~Keep the audio forever?~~ | **Resolved:** keep recent, auto-purge oldest, counts live forever — ADR 0013. |
 | 4 | ~~English or another language?~~ | **Answered: Brazilian Portuguese.** Own pipeline, `wink-nlp` out — ADR 0014. |
-| 5 | Which pt-BR form→lemma list, under what licence? | **Open.** Pick at M1 and verify the licence before it ships — ⚠️ flagged in ADR 0014. The only genuinely open technical choice left. |
+| 5 | ~~English or bilingual UI?~~ | **Answered: both, switchable.** `next-intl`, message codes not strings — ADR 0017. |
+| 6 | ~~Back catalogue?~~ | **Answered: only new episodes.** Nothing to import; the story is deleted. |
+| 7 | Which pt-BR form→lemma list, under what licence? | **Open.** Pick at M1 and verify the licence before it ships — ⚠️ flagged in ADR 0014. The only genuinely open technical choice left. |
