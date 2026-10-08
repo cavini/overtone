@@ -1,0 +1,54 @@
+{
+  "UNSUPPORTED_FORMAT": "Unsupported file type: {extension}. Overtone accepts {accepted}.",
+  "UNREADABLE_AUDIO": "We couldn't read the audio in {filename}. The file may be corrupt or contain no audio.",
+  "EPISODE_TOO_LONG": "This episode is {duration_minutes, number} minutes and the limit is {max_minutes, number}. There are {allowance_hours_today, number} hours of audio left today — splitting it in two would work.",
+  "UPLOAD_COST_PREVIEW": "This episode will use {share_of_daily, number, percent} of today's allowance, which is {daily_allowance_hours, number} hours.",
+  "UPLOAD_INTERRUPTED": "The upload was interrupted. Nothing was lost — just try again.",
+
+  "CHUNK_PROGRESS": "Transcribing part {done, number} of {total, number}.",
+  "CHUNK_FAILED": "Part {chunk_index, number} of {chunk_count, number} failed. The other {succeeded_count, number} came through, so there's no need to upload again.",
+  "CHUNK_TIMEOUT": "Part {chunk_index, number} ran past {timeout_seconds, number} seconds and was stopped.",
+  "TRANSCRIPTION_SERVICE_UNAVAILABLE": "The transcription service didn't answer on part {chunk_index, number}, after {attempts, number} attempts.",
+  "AUDIO_IS_SAFE": "Your audio is safe. Nothing was lost.",
+  "NO_SPEECH_DETECTED": "We found no speech in this audio.",
+  "LEMMA_GROUPED_BY_STEMMER": "We grouped \"{term}\" by resemblance rather than from the dictionary. Worth a look.",
+
+  "ALLOWANCE_REMAINING": "Room for about {whole_episodes_remaining, number} more episodes today, out of a {allowance_hours, number} hour allowance.",
+  "HOURLY_ALLOWANCE_EXHAUSTED": "This hour's allowance is spent — it's {allowance_hours, number} hours of audio per hour. Try again in {minutes_until_reset, number} minutes.",
+  "DAILY_ALLOWANCE_EXHAUSTED": "Today's allowance is spent — it's {allowance_hours, number} hours of audio per day. It comes back in {hours_until_reset, number} hours.",
+  "STORAGE_FULL": "Out of room: storage is using {used_bytes, number, ::compact-short} of {limit_bytes, number, ::compact-short}, and this episode needs {needed_bytes, number, ::compact-short}. Delete the audio from older episodes — their statistics stay.",
+
+  "TOPIC_NAME_TAKEN": "There's already a running joke called \"{name}\".",
+  "TOPIC_NEEDS_A_TERM": "Add at least one word or phrase to count.",
+  "TERM_TOO_MANY_WORDS": "That phrase has {word_count, number} words and the limit is {max_words, number}.",
+  "TOPIC_TERM_LIMIT": "A running joke can have up to {max_terms, number} variations.",
+  "LIBRARY_TOPIC_LIMIT": "You can track up to {max_topics, number} running jokes per series.",
+  "ALIAS_SUGGESTED_WRITTEN_VARIANT": "The transcriber usually writes \"{term}\" as \"{alias}\". Count both?",
+  "TOPIC_APPLY_SKIPPED_NO_TRANSCRIPT": "Episode {episode_number, number} was skipped because it's still {status}.",
+
+  "EPISODE_NUMBER_TAKEN": "There's already an episode {number, number}.",
+  "EPISODE_TITLE_REQUIRED": "Give the episode a title.",
+  "EPISODES_STILL_PROCESSING": "{processing_count, number} episodes are still processing, so these numbers will change.",
+  "DELETE_EPISODE_CONFIRMATION": "Delete \"{title}\" for good? The audio, the transcript and the counts all go.",
+
+  "LIBRARY_EMPTY": "No episodes yet. Drag in a file of up to {max_minutes, number} minutes — we accept {accepted}.",
+  "NO_TOPICS_YET": "No running jokes tracked yet. Start with one you say constantly, like \"{suggested_term}\".",
+  "TOPIC_NO_EPISODES_YET": "There are no episodes to count this joke in yet.",
+  "SERIES_FIRST_EPISODE": "This is the series' first episode. Episode-to-episode comparison starts with the second.",
+  "SERIES_NEEDS_SECOND_EPISODE": "One episode leaves nothing to compare. Upload the next one and this page comes alive.",
+  "TREND_NEEDS_MORE_EPISODES": "There are {episode_count, number} episodes and a trend needs at least {minimum, number}.",
+
+  "COUNTS_DESCRIBE_PUBLISHED_EDIT": "These counts describe the published episode, not the raw recording — whatever the edit cut doesn't appear.",
+  "ANALYSIS_ALWAYS_PTBR": "Analysis is always in Brazilian Portuguese. Changing the language here changes the interface only, never a number.",
+  "TRANSCRIPT_QUALITY_POOR": "Transcription quality came in at {quality_score, number} out of 100, below {threshold, number}. Treat these counts with suspicion.",
+  "AUDIO_MAY_NOT_BE_PTBR": "This audio may not be in Portuguese — we detected {detected_language}, at quality {quality_score, number} out of 100.",
+  "SHARE_LINK_DISCLOSURE": "Anyone with the link can see this episode's counts and quotes without signing in. The full transcript is not shown.",
+  "SHARE_LINK_NOT_FOUND": "This link no longer exists.",
+
+  "STATUS_UPLOADED": "Uploaded",
+  "STATUS_TRANSCRIBING": "Transcribing",
+  "STATUS_ANALYZING": "Analysing",
+  "STATUS_READY": "Ready",
+  "STATUS_FAILED": "Failed",
+  "STATUS_DELETING": "Deleting"
+}
