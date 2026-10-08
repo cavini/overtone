@@ -1,99 +1,94 @@
 # Overtone — User Journeys
 
-All MVP journeys use **Maya Okonkwo**, engineering manager (see `personas.md`). Journey J5 is a future state including the AI assistant.
+Five journeys. J1–J3 are the product; J4–J5 are the ways it has to fail well. Episodes in this show run **100–120 minutes** — that is the normal case throughout. **Make-or-break moments are marked 🔥** — they get disproportionate design and test attention.
 
-**Make-or-break moments are marked 🔥.** These are the steps where the product is won or lost; they get disproportionate design and test attention.
-
----
-
-## J1 — First run: from a file on disk to a number she believes 🔥
-
-Scenario: Thursday 16:10. Standup ended 10 minutes ago. Maya has `standup-2026-10-08.m4a` (14 min, 11 MB) in Downloads. She has just signed up and has never seen the product.
-
-| Step | User action | System response | What the user feels / needs | Risk |
-|---|---|---|---|---|
-| 1 | Lands on empty Library | Single primary affordance: a drop zone reading "Drop an audio file — mp3, m4a, wav, aac, ogg, flac, webm · up to 200 MB / 120 min" | "I don't have to learn anything." Needs zero config, zero onboarding tour | A dashboard full of empty widgets reads as broken; she leaves |
-| 2 | Drags the file in | Client-side validation passes in < 200 ms; upload begins with a real byte-progress bar | Needs to know it took the file *before* the upload finishes | Silent 30-second gap = she clicks again and double-uploads |
-| 3 🔥 | Watches processing | Status `transcribing` with elapsed time and an honest estimate ("about 3 min for a 14-min recording"). Page is leaveable; she is told she can close it | **The dead-time moment.** Needs permission to stop watching | An indeterminate spinner with no ETA is the #1 abandonment point. Never show a spinner without a number |
-| 4 | Returns 3 min later | Status `ready`; insight page loads with the top 25 words (stop-words excluded), total word count, duration, and her words-per-minute | Curiosity | Top words are `like, yeah, okay, think` → feels like a toy |
-| 5 🔥 | Scans the stats | Above the word cloud sits one sentence of plain-language framing: "Most-discussed in this 14-min recording: **deploy** (23), **flaky** (17), **rollback** (12)" | **The "wow".** She must recognise her own meeting in the output within 5 seconds | If the headline is generic filler words rather than domain nouns, the product looks stupid. Stop-word and filler filtering must be aggressive by default |
-| 6 🔥 | Clicks `flaky` (17) | A panel lists all 17 occurrences: timestamp + the surrounding sentence, each clickable to play that moment | **The moment of doubt, resolved.** She needs to verify one before trusting any | If a listed quote doesn't contain the word, trust is gone permanently. This is the single highest-value test in the suite |
-| 7 | Plays `08:42` | Audio seeks and plays from 2 s before the match | "It's actually right." | Seek drift > 2 s makes it feel broken even when the count is correct |
-| 8 | Prompted: "Track a topic?" | Inline suggestion seeded from her own top terms — one click creates the Topic `flaky tests` with aliases `flaky, flake, flaky test` | Needs the next action handed to her, not a blank form | Asking her to invent a taxonomy from scratch stalls the journey |
-
-**Success looks like:** within 6 minutes of first visit, Maya has verified one count against the audio and created one Topic without reading any documentation.
+Actors: **Rafa** (host, uploads) and **Mel** (co-host, mostly opens links). See `personas.md`.
 
 ---
 
-## J2 — The weekly ritual: has it stopped being a problem?
+## J1 — "We just recorded episode 12. What do we do?" 🔥
 
-Scenario: Following Thursday. Maya has 5 recordings in the Library and 3 Topics. This is the retention journey — it must take under 90 seconds.
+Sunday night. The episode is **1 hour 54 minutes**, which is normal for them. Riverside gave Rafa a mixed master plus three host tracks. He has never used Overtone.
 
-| Step | User action | System response | What the user feels / needs | Risk |
+| Step | User action | System response | What he needs | Risk |
 |---|---|---|---|---|
-| 1 | Opens Overtone | Library lists recordings newest-first with name, date, duration, status, and her Topic hit counts as inline chips | Needs her answer *on the list page*, before clicking anything | A list of filenames forces a click-hunt; the ritual dies |
-| 2 | Uploads today's standup | Accepted; processing starts; she navigates away immediately | Confidence from habit | — |
-| 3 🔥 | Opens the Topic `flaky tests` | Mention count per recording across all 6 recordings, chronological: `9 → 17 → 14 → 6 → 2 → 1` | **The payoff of a Library.** This is the first insight no single recording could give | If trend data requires equal-length recordings to be meaningful, raw counts mislead — show mentions-per-hour alongside raw count |
-| 4 | Sees the decline | Trend labelled plainly: "down from 17 to 1 over 5 meetings" | Vindication, or an early warning | Over-interpreting noise from a 3-point series; do not render a trend line below 3 recordings |
-| 5 | Adds a new Topic `oncall load` | Topic saved; she is offered "Apply to 6 existing recordings" | Expects the past to be re-queryable | If new topics only apply going forward, the Library stops compounding and the "ever" promise is dead |
-| 6 | Confirms re-analysis | Re-analysis runs from stored transcripts (no re-transcription), completing in < 10 s for 6 recordings | Needs it to be instant — no transcription cost is involved | Re-running ASR here would be a cost and latency disaster. Transcripts must be stored and re-analysable |
+| 1 | Enters his email | Magic link arrives; one click signs him in. No password, no workspace setup, no team invite | To be inside the app in under 30 seconds | A sign-up funnel for a free app a friend mentioned loses him at step one |
+| 2 | Lands on an empty Library | One affordance: a drop zone reading "Drop your episode. Episodes up to 2.5 hours are fine. Add one track per host and Overtone can tell you who talked most." | To not have to learn a concept first | An empty dashboard of widgets reads as broken. Stating the two-hour support *before* he picks a file is what stops him assuming it won't work |
+| 3 | Drops the master and three host tracks | All four accepted as **one Episode**: the master is the audio, the three tracks are speaker-attribution signals. He names each host | To not upload four times and manually associate them | Treating them as four episodes destroys every number. Transcribing all four would double-count every sentence through mic bleed |
+| 4 🔥 | Sees what it will cost | "Episode 12 is 1h54m. That is 1h54m of today's 8-hour transcription budget — about a quarter. The host tracks are free; Overtone only reads their volume." | Honesty about a shared limit, before he commits | Discovering the allowance after the fact feels like a bait and switch. Quoting four times the real cost would make him think the app is too expensive to use |
+| 5 | Confirms | The browser splits the master on silence into 6 chunks of about 22 minutes, compresses each to 16 kHz mono Opus (≈4.5 MB each, 27 MB total), and uploads them with per-chunk progress. Takes a couple of minutes | To not open an audio editor, ever | Cutting a chunk mid-word loses or duplicates a word, and the user can never see why a count is off by one |
+| 6 | Waits | Chunks transcribe in parallel; the page reads "5 of 6 chunks transcribed" with elapsed time. Under a minute | A number, not a spinner | A spinner with no count is the single biggest abandonment point. Never ship one |
+| 7 🔥 | Reads the result | One episode, one set of stats: headline sentence naming the top three terms with counts, per-host talk split, total words, words per minute | To recognise his own show in the output within 5 seconds | If the headline is `like, yeah, really`, it looks like a toy. Stop-word and filler filtering must be aggressive by default |
+| 8 🔥 | Clicks a count at 1:47:30 | Occurrences listed with timestamps and quotes; playback seeks to 1:47:30 of the episode, not of chunk 5 | To catch the product lying once, and find it isn't | A chunk offset applied wrong — or twice — sends every quote in the last 90 minutes to the wrong moment, and it fails silently |
+| 9 🔥 | Sees "Dave talked 41% of the episode" | Every word in the master transcript credited to whichever host's track was loudest at that moment. Per-host counts sum exactly to the episode total | A number he can send to Dave immediately | Double-counted bleed would inflate every host's total and the sum would exceed the episode's own word count — visibly wrong, and fatal to trust |
+| 10 | Prompted: "Track a running joke?" | Inline suggestion seeded from his own top terms; one click creates the Topic `hotdog` with aliases `hotdog, hot dog, hot-dog` | The next action handed to him, not a blank taxonomy form | Asking him to invent a watchlist from nothing stalls everything that follows |
 
-**Success looks like:** Maya answers "is it still a problem?" for a new topic, retroactively across her whole history, in under 90 seconds.
+**Success:** in one sitting of about ten minutes, Rafa has a two-hour episode analysed, has verified one count against the audio, knows who talked most, and has created one running joke — without paying, installing, or reading anything.
+
+**If he closes the tab mid-way:** finished chunks are kept. On return the Episode reads "4 of 6 chunks transcribed" with a Resume action that sends only the missing chunks. Nothing is re-uploaded, nothing is transcribed twice, and no allowance is spent twice.
+
+**Single-file fallback:** a group with only a mixed master follows the identical path and gets everything except step 9, and is told once, plainly, that per-host stats need one track per host.
 
 ---
 
-## J3 — The bad input: 2 hours of noisy conference audio
+## J2 — The Series view: "is the hotdog thing getting worse?" 🔥
 
-Scenario: Maya uploads `allhands-recording.wav` — 118 min, 1.2 GB, recorded on a laptop mic in a reverberant room.
+Six weeks later. Twelve episodes in the Series, four running jokes tracked. **This is the retention journey and the reason the app exists.** It must pay off in under 60 seconds.
 
-| Step | User action | System response | What the user feels / needs | Risk |
+| Step | User action | System response | What he needs | Risk |
 |---|---|---|---|---|
-| 1 | Drops a 1.2 GB file | Rejected client-side before any bytes upload: "This file is 1.2 GB. The limit is 200 MB. A 2-hour recording usually fits if you convert it to m4a or mp3." | Needs the *fix*, not the rule | A bare "file too large" sends her to a competitor |
-| 2 | Converts to `.m4a` (96 MB) and retries | Accepted; duration 118 min is within the 120-min cap; a notice warns processing may take ~25 min | Needs the long-wait expectation set up front | Setting no expectation makes a correct 25-min job feel like a hang |
-| 3 | Closes the laptop | Processing continues server-side; recording is `transcribing` on return | Needs the job to not depend on her tab | Browser-tied processing loses a 25-minute job |
-| 4 🔥 | Opens the result | Banner above all statistics: "Audio quality: **poor** (confidence 54/100). Counts on this recording are unreliable — verify before using." Statistics are shown but visually de-emphasised | **The honesty moment.** Needs the product to admit uncertainty before she does | Presenting low-confidence counts with full confidence is the fastest way to lose a user forever |
-| 5 | Spot-checks 3 occurrences | 2 of 3 quotes match; 1 is a mis-transcription | Calibrated, not betrayed | — |
-| 6 | Deletes the recording | Confirmation dialog names the recording and states "This permanently deletes the audio, transcript, and all statistics." Removed from Library instantly; audio purged within 24 h | Needs deletion to feel final | A soft-delete that she discovers later reads as a betrayal of the dialog's wording |
+| 1 | Opens the Series | Episodes listed newest-first with number, date, duration, and a chip per running joke — **counts on the list page** | His answer before clicking anything | A list of filenames forces a click-hunt and the ritual dies |
+| 2 🔥 | Opens the season leaderboard | Every tracked Topic ranked by total mentions across 12 episodes: `hotdog 212 · anyway 312 · Dave's conspiracy corner 46`, plus episodes-appeared-in | **The screenshot moment.** One number that is funny and true | A per-episode-only product has no payoff here, and 12 episodes of per-episode stats is 12 toys, not one product |
+| 3 🔥 | Opens the Topic `hotdog` | Count per episode in order: `3 → 0 → 9 → 14 → 22 → 18 …` with mentions-per-hour beside raw counts | To see an *arc*, not a total | Raw counts across unequal episode lengths mislead. Always show the normalised rate too |
+| 4 | Reads the trend | Plain words: "up from 3 to 18 over 12 episodes". No trend claimed below 3 episodes | Vindication | Drawing a trend line through two points invents a finding |
+| 5 | Invents a new bit mid-season | Creates Topic `Dave's conspiracy corner`, offered "Apply to all 12 episodes" | The past to become answerable | If Topics only apply going forward, the Series stops compounding and the product is back to being per-episode |
+| 6 | Confirms | Re-analysis runs from stored transcripts — no re-transcription, no daily budget spent — and finishes in seconds | It to be instant and free | Re-transcribing here would burn the whole day's budget on a Topic edit. Transcripts must be stored and re-analysable |
 
-**Success looks like:** Maya is never surprised — the product refuses, warns, or explains at every step, and she still trusts it enough to upload again tomorrow.
+**Success:** a running joke invented in episode 12 is counted across episodes 1–11 in seconds, for free, and the arc is readable at a glance.
 
 ---
 
-## J4 — The failure: processing dies halfway
+## J3 — Posting it in the group chat 🔥
 
-Scenario: Transcription job crashes on an 18-minute recording (ASR provider 503).
+Rafa wants the group to see episode 12's numbers. Mel is on a phone, on a bus, not signed in.
 
-| Step | User action | System response | What the user feels / needs | Risk |
+| Step | User action | System response | What they need | Risk |
 |---|---|---|---|---|
-| 1 | Uploads; walks away | Status `transcribing`; worker retries automatically 3× with backoff | Needs nothing — she is gone | — |
-| 2 | Returns after 20 min | Status `failed` with a specific cause: "Transcription failed (service unavailable). Your audio is safe. [Retry]" | Needs to know whether *she* broke it or *it* broke | A recording stuck on `transcribing` forever is worse than a visible failure; add a hard timeout at 3× duration that forces `failed` |
-| 3 🔥 | Clicks Retry | Job re-queues from the stored audio; status returns to `transcribing` | **The recoverability moment.** Her file must not need re-uploading | Requiring re-upload after a server-side failure is an unforced churn event |
-| 4 | Succeeds | Status `ready`; insights appear; the prior failure is not surfaced as history | Relief | — |
+| 1 | Clicks Share on the episode | An unguessable link is created; a dialog states exactly what is public: "Anyone with this link can see this episode's stats and quotes. They cannot hear the audio, see your other episodes, or see your other Series. [Revoke]" | To know precisely what he is exposing before he pastes it anywhere | Vague sharing language on a page containing quotes from a private conversation is how a fun app becomes a regret |
+| 2 | Pastes it in the chat | Link preview shows the show name, episode number and the headline stat | Something that looks good unfurled in a chat app | A bare URL with no preview does not get clicked |
+| 3 🔥 | Mel taps it on a phone | Public stats page renders with no sign-in: headline sentence, running-joke leaderboard for the episode, who-talked-most, top words. Readable at 390 px with no horizontal scroll | To get the joke in 10 seconds without an account | A sign-in wall here kills the only distribution mechanism the app has |
+| 4 | Mel taps a count | The same drill-down as the owner sees: timestamps and quotes, no audio playback | The number to be checkable by her too | A public page whose numbers can't be inspected is a marketing claim, not a stat |
+| 5 | Mel wants her own | One line at the bottom: "Analyse your own show" → magic-link sign-in → her own empty Library | A path in that doesn't touch Rafa's data | Dropping her into Rafa's Library, or asking her to "join a workspace", is the wrong model: friends get their own libraries |
+| 6 | Rafa revokes it later | The link 404s; the episode is untouched | Deletion that is real | A revoked link that still resolves from a cache is a broken promise |
 
-**Success looks like:** a server-side failure costs Maya one click and zero re-uploads, and no recording can ever sit in a non-terminal state indefinitely.
+**Success:** Rafa pastes one link, three friends see the numbers on their phones without signing in, and one of them signs up.
 
 ---
 
-## J5 — FUTURE STATE: the assistant answers a Library-wide question
+## J4 — The limits they will actually hit
 
-Scenario: Maya has 60 recordings over 5 months. She types a question instead of navigating. **Not MVP** — included to constrain the data model today.
+Chunking means length is no longer the problem. The real walls are the shared allowance and the 1 GB of storage — and both must be stated in the units the user thinks in.
 
-| Step | User action | System response | What the user feels / needs | Risk |
+| Step | Trigger | System response | What he needs | Risk |
 |---|---|---|---|---|
-| 1 | Types "how many times did we ever discuss hotdogs?" | Question is compiled into a structured Library Query: `term ∈ {hotdog, hot dog, hot-dog}` × `scope = all recordings` × `date = all time` | Needs natural language to be *accepted*, including vague words like "ever" | Free-text that silently becomes a fuzzy semantic search produces unverifiable numbers — the opposite of the product's promise |
-| 2 🔥 | Reads the answer | "**7 mentions across 4 recordings**, between 12 May and 29 Sep." Every number is a link | **The grounding moment.** The answer must be the same number the Topic page would show — computed from the same index, not re-derived by the model | If the assistant's number disagrees with the dashboard's number for the same question, the product has no credibility left |
-| 3 | Clicks `7 mentions` | Drills to the 7 timestamped quotes across 4 recordings, each playable | Needs the identical drill-down affordance as UC-05 | — |
-| 4 | Asks "who brought it up most?" | Follow-up reuses the prior Query as context, adding a speaker group-by | Expects conversational continuity | Stateless Q&A forces her to restate scope every turn |
-| 5 | Asks "what did we decide?" | Model summarises the 7 retrieved segments and **cites each claim** with a timestamp link; states plainly when no decision is present | Needs the distinction between a *counted fact* and a *generated summary* to be visible | Blending deterministic counts and model prose in one undifferentiated answer destroys the auditability invariant |
+| 1 | A 3-hour live special | Refused before upload with numbers: "This is 180 minutes. Overtone supports episodes up to 150 minutes, and today's allowance covers about 4 hours of audio. Split it into two episodes." | The real limit and a next step | "File too large" is wrong here and would send him looking for a compressor he doesn't need |
+| 2 🔥 | A second two-hour episode in the same hour | Chunks upload, audio is saved, Episode stays `uploaded`: "You've used this hour's 2 hours of transcription. Try again in 34 minutes. Your audio is saved. [Analyse]" | To know nothing was lost and when to come back | A generic failure here reads as "the app is broken". The limit is a fact of the free tier and must be stated as one, with a time |
+| 3 | A fifth episode in one day | "You've used today's 8 hours of transcription. It resets at 00:00 UTC, in 6 hours." | The same honesty at the daily scale | — |
+| 4 🔥 | Decides to backfill 50 old episodes | Up front, before anything starts: "That is about 92 hours of audio: 4 episodes a day, roughly 13 days. 50 episodes would need about 1.1 GB and you have 1 GB — Overtone will purge each episode's audio after analysing it and keep the stats." | The whole truth in days and gigabytes, on the first screen | Starting a 13-day job that silently dies at episode 37 when storage fills is the worst possible version of this |
+| 5 | Comes back the next evening | 4 more episodes analysed, 42 waiting, a Continue button. This week's new episode is analysed before any backfill episode | Progress he can see, and his actual show not stuck behind the archive | A backfill that starves the weekly episode inverts the user's priorities |
+| 6 | Storage hits 1 GB anyway | "Storage is full (1 GB of 1 GB). Delete an episode, or purge an old episode's audio and keep its stats." | The remedy named, with the stats-preserving option | A full disk that manifests as a failed transcription is undiagnosable from outside |
 
-**Success looks like:** the assistant is a new front-end over the same deterministic count index — it never invents a number, always cites, and visibly separates "counted" from "summarised".
+**Success:** no limit is ever discovered by failure. Every ceiling is quoted in hours or gigabytes, before the user commits, with the remedy attached.
 
-### What J5 demands of the MVP data model (build these now, use them later)
+---
 
-| Requirement | Why |
-|---|---|
-| Token-level index: every word with `recording_id`, `start_ms`, `speaker_id`, `segment_id` | Step 3 drill-down and step 4 group-by are impossible to retrofit cheaply |
-| `Query` as a first-class stored object, not a UI parameter bundle | Step 1 compiles NL into the *existing* Query; step 4 extends a stored one |
-| Counts computed by one shared engine, exposed to both the UI and the assistant | Step 2's agreement guarantee is architectural, not a prompt instruction |
-| Transcripts and segments retained post-processing | Step 5 retrieval and all retroactive re-analysis (J2 step 6) |
-| Stable Term identity with alias sets | "hotdog"/"hot dog"/"hot-dog" must resolve to one countable thing in both front-ends |
+## J5 — When one chunk breaks
+
+| Step | Trigger | System response | Risk |
+|---|---|---|---|
+| 1 | A chunk errors out, or the 20-requests-per-minute limit is hit | Retried 3× with backoff; status stays `transcribing`; nothing is shown to the user | Surfacing a rate-limit as a failure makes a six-chunk episode look broken when it only needed to wait three seconds |
+| 2 | Retries exhausted on chunk 4 | Chunks 1, 2, 3, 5 and 6 stay transcribed. Status `failed`, naming chunk 4, with "Your audio is safe. [Retry]" | Throwing away five good chunks because one failed spends the allowance twice and wastes ten minutes of the user's evening |
+| 3 🔥 | Rafa clicks Retry | Only chunk 4 is re-sent, from the stored chunk; no re-upload, no re-compression, no allowance spent on the other five | Re-running the whole episode after one transient 503 is the difference between a 10-second fix and a 2-hour one |
+| 4 | A chunk hangs | A 120-second per-chunk ceiling forces `failed` with a timeout reason | An episode stuck on `transcribing` forever is worse than a visible failure |
+
+**Success:** every failure says what broke, whether the audio survived, and what it will cost to retry. Nothing ever sits in a non-terminal state, and no success is ever thrown away to recover from a neighbour's failure.
