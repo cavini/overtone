@@ -12,6 +12,7 @@
     "verify": "pnpm typecheck && pnpm test:unit"
   },
   "devDependencies": {
+    "@rolldown/binding-darwin-arm64": "^1.2.13",
     "@vitest/coverage-v8": "^5.0.3",
     "typescript": "^7.0.2",
     "vitest": "^5.0.3"
