@@ -32,6 +32,17 @@ export type TranscriptionFailure =
   | { readonly code: 'AUDIO_UNREADABLE' }
   | { readonly code: 'ALLOWANCE_EXHAUSTED'; readonly retryAfterMs: number }
   | { readonly code: 'PROVIDER_UNAVAILABLE' }
+  /**
+   * The service answered, but not in a shape we recognise.
+   *
+   * Its own category rather than folded into `PROVIDER_UNAVAILABLE`, because
+   * the two mean different things: one is a transient outage worth retrying,
+   * the other means the API changed under us and a retry will fail the same
+   * way. Silently accepting an unexpected shape would be worse than either —
+   * a transcript with no words still counts to zero, and zero looks like an
+   * answer.
+   */
+  | { readonly code: 'PROVIDER_RESPONSE_INVALID' }
 
 /**
  * Failure is part of the return type rather than an exception, so a caller
