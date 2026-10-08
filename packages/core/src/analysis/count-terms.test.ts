@@ -1,23 +1,34 @@
-// US-004, US-015 · domain decisions D1, D5
+// US-004, US-015, US-016 · domain decisions D1, D4, D5
 import { describe, expect, it } from 'vitest'
-import { countTerms } from './count-terms.js'
+import { annotate } from './annotate.js'
+import { countTerms, type CountTermsOptions } from './count-terms.js'
 import { normalize } from './normalize.js'
 import { tokenise } from './tokenise.js'
 
-const analyse = (text: string, options?: Parameters<typeof countTerms>[1]) =>
-  countTerms(tokenise(normalize(text)), options)
+const NO_DICTIONARY: ReadonlyMap<string, string> = new Map()
+
+const VERBS: ReadonlyMap<string, string> = new Map([
+  ['falei', 'falar'],
+  ['falando', 'falar'],
+  ['falar', 'falar'],
+  ['falou', 'falar'],
+])
+
+const analyse = (
+  text: string,
+  options?: CountTermsOptions,
+  lemmas: ReadonlyMap<string, string> = NO_DICTIONARY,
+) => countTerms(annotate(tokenise(normalize(text)), lemmas), options)
 
 const SENTENCE = 'O pirão do churrasco é melhor que o pirão da feira'
 
 describe('countTerms', () => {
   it('counts every occurrence, including repeats in one sentence', () => {
-    const { terms } = analyse(SENTENCE)
-    expect(terms.find((t) => t.term === 'pirão')?.count).toBe(2)
+    expect(analyse(SENTENCE).terms.find((t) => t.term === 'pirão')?.count).toBe(2)
   })
 
   it('leaves stop words and fillers out of the default view', () => {
-    const { terms } = analyse(`${SENTENCE} eh`)
-    const listed = terms.map((t) => t.term)
+    const listed = analyse(`${SENTENCE} eh`).terms.map((t) => t.term)
     expect(listed).not.toContain('o')
     expect(listed).not.toContain('é')
     expect(listed).not.toContain('eh')
@@ -26,13 +37,11 @@ describe('countTerms', () => {
 
   it('includes them on request', () => {
     const { terms } = analyse(SENTENCE, { include: 'all' })
-    expect(terms.map((t) => t.term)).toContain('o')
     expect(terms.find((t) => t.term === 'o')?.count).toBe(2)
   })
 
   it('sorts by count, then alphabetically, so the order never wobbles', () => {
-    const { terms } = analyse(SENTENCE)
-    expect(terms.map((t) => [t.term, t.count])).toEqual([
+    expect(analyse(SENTENCE).terms.map((t) => [t.term, t.count])).toEqual([
       ['pirão', 2],
       ['churrasco', 1],
       ['feira', 1],
@@ -58,10 +67,33 @@ describe('countTerms', () => {
     expect(analyse(SENTENCE, { include: 'all' }).uniqueTerms).toBe(9)
   })
 
-  it('keeps every surface form that contributed to a term', () => {
-    const { terms } = analyse('Pirão pirão PIRÃO')
-    expect(terms[0]?.surfaceForms).toEqual(['pirão'])
-    expect(terms[0]?.count).toBe(3)
+  describe('grouping inflections', () => {
+    it('counts every form of a verb as one term', () => {
+      const { terms } = analyse('Falei, estou falando, vou falar e ele falou', {}, VERBS)
+      expect(terms[0]?.term).toBe('falar')
+      expect(terms[0]?.count).toBe(4)
+    })
+
+    // What makes a grouped count explicable: the user sees exactly which
+    // spellings were folded together, and can tell us if we got it wrong.
+    it('lists the surface forms that produced the term', () => {
+      const { terms } = analyse('Falei, estou falando, vou falar', {}, VERBS)
+      expect(terms[0]?.surfaceForms).toEqual(['falando', 'falar', 'falei'])
+    })
+
+    it('marks a grouping the stemmer made, so the UI can flag it', () => {
+      const { terms } = analyse('hotdogs e hotdog')
+      expect(terms[0]).toMatchObject({ term: 'hotdog', count: 2, heuristic: true })
+    })
+
+    it('does not mark a grouping the dictionary made', () => {
+      const { terms } = analyse('Falei e falando', {}, VERBS)
+      expect(terms[0]?.heuristic).toBe(false)
+    })
+
+    it('does not mark a term that was never grouped at all', () => {
+      expect(analyse('pirão').terms[0]?.heuristic).toBe(false)
+    })
   })
 
   it('handles an empty stream', () => {
@@ -72,16 +104,15 @@ describe('countTerms', () => {
   })
 
   it('never merges words that differ only by an accent', () => {
-    const { terms } = analyse('Ele pode falar. Ele pôde falar.', { include: 'all' })
-    const listed = terms.map((t) => t.term)
+    const listed = analyse('Ele pode falar. Ele pôde falar.', { include: 'all' }).terms
+      .map((t) => t.term)
     expect(listed).toContain('pode')
     expect(listed).toContain('pôde')
   })
 
   // The contract the whole product rests on.
   it('is deterministic', () => {
-    const once = analyse(SENTENCE)
-    const twice = analyse(SENTENCE)
-    expect(JSON.stringify(twice)).toBe(JSON.stringify(once))
+    const once = analyse(SENTENCE, {}, VERBS)
+    expect(JSON.stringify(analyse(SENTENCE, {}, VERBS))).toBe(JSON.stringify(once))
   })
 })

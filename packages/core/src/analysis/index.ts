@@ -1,5 +1,7 @@
 export { normalize } from './normalize.js'
 export { tokenise } from './tokenise.js'
 export { classify } from './classify.js'
+export { stem } from './stem.js'
+export { annotate } from './annotate.js'
 export { countTerms, type CountTermsOptions } from './count-terms.js'
 export { FILLERS, STOP_WORDS, VOCABULARY_VERSION } from './vocabulary.js'
