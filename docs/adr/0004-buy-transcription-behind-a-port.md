@@ -1,6 +1,6 @@
 # ADR 0004 — Buy transcription, hide it behind a port
 
-**Date:** 2026-10-07 · **Status:** accepted
+**Date:** 2026-10-07 · **Status:** accepted, **default amended by ADR 0009**
 
 ## Context
 Transcription is the product's hardest technical dependency and its central risk: **every statistic we show is only as accurate as the transcript underneath it.** It is also the only paid, slow, non-deterministic step in the pipeline — which makes it poison for a test suite if it is called directly.
@@ -16,7 +16,7 @@ Define `TranscriptionProvider` in `packages/core` with three implementations fro
 | `DeepgramProvider` | dev and production |
 | `LocalWhisperProvider` | later, if privacy or volume demands it |
 
-Deepgram is the first real adapter, chosen for word-level timestamps and built-in diarisation. The raw provider response is stored verbatim in `transcripts.raw_provider_payload` and never discarded.
+~~Deepgram is the first real adapter~~ — **ADR 0009 inverts this**: `LocalWhisperProvider` (whisper.cpp) is the default, Deepgram an opt-in adapter. The *port* is unchanged, and it is the reason the reversal cost nothing: a different default is a config value, not a refactor. The raw provider response is stored verbatim in `transcripts.raw_provider_payload` and never discarded, whichever adapter produced it.
 
 ## Consequences
 - The entire test suite runs offline, instantly, deterministically, and for free. This is the single highest-leverage decision in the repo.
