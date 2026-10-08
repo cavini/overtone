@@ -55,6 +55,8 @@ Those six strings are canonical, from `../product/glossary-and-domain.md`. Tests
 | `uploaded` | Browser has compressed each track to ~64 kbps mono and PUT it to a signed Storage URL. Server validates size, probes real duration. |
 | `transcribing` | Fetch each chunk of the **master** file from Storage, POST to Groq **concurrently**, store every raw response verbatim, then stitch: offset each chunk's word timings by its start and concatenate into `utterances`. Per-host tracks are *not* transcribed — see §5. |
 | `analyzing` | The pure engine: normalize → lemmatise → classify stop words and fillers → term frequency → n-gram watchlist matches → attribute each word to a host by track energy → per-host speaking share. |
+
+Per-host audio is **reduced to an RMS envelope in the browser and never uploaded** — only the envelope is. Host tracks therefore cost nothing against the 1 GB storage tier and nothing against the transcription allowance.
 | `ready` | `insights`, `term_counts` and `mentions` written. The episode page and the series rollups have everything. |
 | `failed` | A typed `failure_reason` and a human-readable message. Retryable without re-uploading, because the audio is already in Storage. |
 | `deleting` | Row and audio being removed. |
@@ -82,7 +84,8 @@ users(id, email, created_at)                           -- Supabase Auth
              ├─ chunks(id, episode_id, index, blob_key,
              │          start_ms, end_ms, byte_size, status)  -- the master, split
              ├─ host_tracks(id, episode_id, host_id,
-             │              rms_envelope jsonb)        -- energy only, NOT transcribed
+             │              rms_envelope jsonb)        -- envelope ONLY; no blob,
+             │                                         -- never uploaded, never transcribed
              ├─ transcripts(id, episode_id, provider, provider_model,
              │         raw_provider_payload jsonb, full_text,
              │         quality_score, normalization_version)
@@ -102,7 +105,8 @@ queries(id, user_id, series_id, name, spec jsonb)      -- a saved question
 
 Decisions that are expensive to change, so they are made now:
 
-- **`chunks` and `host_tracks` are separate things, and that distinction is the whole design.** `chunks` are slices of the master file that get transcribed. `host_tracks` are per-host audio reduced to an RMS envelope and **never transcribed** — transcribing them would double-count via mic bleed and blow the rate limit (ADR 0011). "Who talks most" is a `GROUP BY host_id` over energy-attributed words, not a diarisation model.
+- **`chunks` and `host_tracks` are separate things, and that distinction is the whole design.** `chunks` are slices of the master that get transcribed. `host_tracks` hold only an RMS envelope, computed in the browser, **never uploaded as audio and never transcribed** — transcribing them would double-count via mic bleed and blow the rate limit (ADR 0011). "Who talks most" is a `GROUP BY host_id` over energy-attributed words, not a diarisation model.
+- **Attribution needs a dominance threshold, not a plain argmax** (domain decision D13). A word is credited to a host only if that host's track leads the others by **≥ 3 dB** across the word's span; otherwise it is `unknown`. Crosstalk is most of what a podcast is, and `unknown` is an honest answer where a forced pick would be a confident lie. The invariant that falls out — and gets a test — is that per-host counts plus `unknown` always sum to the episode total.
 - **Word timings live in `utterances.words` as compact JSONB, not one row per token.** A 2-hour episode is ~20 k words; one row each would be ~4–5 MB per episode and would exhaust the 500 MB free database at about 110 episodes. JSONB is roughly a quarter of that. Counting reads `term_counts`; playback reads the JSONB for only the utterances on screen.
 - **Every read is scoped by `series_members`, never by `owner_id`** (ADR 0012). A new series gets exactly one member — its owner — so this behaves identically to single-owner today, while "invite a co-host" stays a row insert instead of a migration touching every query and RLS policy. Writing the predicate this way from the first query means there is no cutover to forget.
 - **`topics` and `hosts` are scoped to the `series`, not the episode.** A running joke belongs to the show. This is the schema fact that makes "how many times have we *ever* mentioned the hotdog thing" one indexed aggregate instead of a scan.
@@ -164,6 +168,7 @@ The hard cases are acceptance criteria, therefore tests, not implementation deta
 | `um`, `uh` | A separate filler class — excluded from top terms, but filler rate is a genuinely funny podcast stat in its own right (D2). |
 | Phrase across a sentence boundary | Counts. ASR punctuation is too unreliable to respect; a rare false positive beats systematic false negatives (D8). |
 | Phrase across two hosts | Never counts. A speaker turn is semantically real (D8) — and after energy attribution we know where the turns are. |
+| Two hosts within 3 dB | Attributed `unknown`, not guessed (D13). Per-host counts plus `unknown` must equal the episode total. |
 | A word spanning a chunk join | Cannot happen: chunks are split on silence, never mid-word. Asserted by test. |
 | Chunked vs single-pass timings | Must agree within tolerance. A property test compares both for the same audio — the guard on the riskiest code in the repo. |
 | Same phrase twice in one utterance | Two mentions. We count occurrences, not utterances-containing (D1). |
