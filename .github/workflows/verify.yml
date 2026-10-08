@@ -1,0 +1,36 @@
+name: verify
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: verify-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # Ordered cheapest-first so a trivial mistake fails in seconds rather
+      # than after the whole suite has run.
+      - name: Types
+        run: pnpm typecheck
+
+      - name: Layer boundaries
+        run: pnpm lint:deps
+
+      - name: Tests and coverage
+        run: pnpm test:unit
