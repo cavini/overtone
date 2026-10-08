@@ -9,3 +9,4 @@ export {
 } from './codes.js'
 export { default as pt } from './pt.json' with { type: 'json' }
 export { default as en } from './en.json' with { type: 'json' }
+export { renderMessage } from './render.js'
