@@ -1,5 +1,6 @@
 // US-003, US-004, US-005
 import { describe, expect, it } from 'vitest'
+import type { Topic } from '../domain/topic.js'
 import type { LemmaLookup } from '../domain/token.js'
 import type { LemmaRepository } from '../ports/lemma-repository.js'
 import { FakeTranscriptionProvider } from '../testing/fake-transcription-provider.js'
@@ -26,14 +27,18 @@ const lemmaRepository = (entries: Iterable<readonly [string, string]> = []): Lem
 const analyse = (
   text = SENTENCE,
   lemmas: Iterable<readonly [string, string]> = [],
+  topics: readonly Topic[] = [],
 ) =>
   analyseEpisode(
-    { audioUrl: AUDIO },
+    { audioUrl: AUDIO, topics },
     {
       transcription: FakeTranscriptionProvider.withText(AUDIO, text),
       lemmas: lemmaRepository(lemmas),
     },
   )
+
+const HOTDOG: Topic = { id: 'topic-1', name: 'Hotdog', patterns: ['hotdog'] }
+const PIRAO: Topic = { id: 'topic-2', name: 'Pirão', patterns: ['pirão'] }
 
 describe('analyseEpisode', () => {
   it('turns audio into counted terms', async () => {
@@ -142,6 +147,64 @@ describe('analyseEpisode', () => {
       uniqueTerms: 0,
     })
     expect(outcome.analysis.topTerms).toEqual([])
+  })
+
+  describe('running jokes', () => {
+    it('counts a topic across its spellings', async () => {
+      const outcome = await analyse('eu amo hotdog e hot dog', [], [HOTDOG])
+      if (!outcome.ok) throw new Error('expected an analysis')
+
+      expect(outcome.analysis.topics).toEqual([
+        {
+          topicId: 'topic-1',
+          topicName: 'Hotdog',
+          count: 2,
+          mentions: [
+            { matchedText: 'hotdog', startMs: 800, endMs: 1_200 },
+            { matchedText: 'hot dog', startMs: 1_600, endMs: 2_400 },
+          ],
+        },
+      ])
+    })
+
+    // Every mention can be played back. This is what makes a count arguable
+    // rather than something to be taken on faith.
+    it('locates every mention in the audio', async () => {
+      const outcome = await analyse('hotdog', [], [HOTDOG])
+      if (!outcome.ok) throw new Error('expected an analysis')
+
+      const [mention] = outcome.analysis.topics[0]?.mentions ?? []
+      expect(mention).toEqual({ matchedText: 'hotdog', startMs: 0, endMs: 400 })
+    })
+
+    it('reports a topic that never came up as zero', async () => {
+      const outcome = await analyse('só falamos de churrasco', [], [HOTDOG])
+      if (!outcome.ok) throw new Error('expected an analysis')
+
+      expect(outcome.analysis.topics).toEqual([
+        { topicId: 'topic-1', topicName: 'Hotdog', count: 0, mentions: [] },
+      ])
+    })
+
+    it('ranks the topics that came up most first', async () => {
+      const outcome = await analyse(
+        'pirão hotdog pirão pirão',
+        [],
+        [HOTDOG, PIRAO],
+      )
+      if (!outcome.ok) throw new Error('expected an analysis')
+
+      expect(outcome.analysis.topics.map((t) => [t.topicName, t.count])).toEqual([
+        ['Pirão', 3],
+        ['Hotdog', 1],
+      ])
+    })
+
+    it('reports no topics when none are being tracked', async () => {
+      const outcome = await analyse(SENTENCE)
+      if (!outcome.ok) throw new Error('expected an analysis')
+      expect(outcome.analysis.topics).toEqual([])
+    })
   })
 
   it('is deterministic', async () => {

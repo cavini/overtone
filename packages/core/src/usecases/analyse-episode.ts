@@ -1,4 +1,9 @@
-import type { EpisodeAnalysis } from '../domain/episode-analysis.js'
+import type {
+  EpisodeAnalysis,
+  TopicMentionCount,
+} from '../domain/episode-analysis.js'
+import type { Annotated, TimedToken } from '../domain/token.js'
+import type { Topic } from '../domain/topic.js'
 import type { LemmaRepository } from '../ports/lemma-repository.js'
 import type {
   TranscriptionFailure,
@@ -6,9 +11,9 @@ import type {
 } from '../ports/transcription-provider.js'
 import { annotate } from '../analysis/annotate.js'
 import { countTerms } from '../analysis/count-terms.js'
-import { normalize } from '../analysis/normalize.js'
+import { findMentions } from '../analysis/find-mentions.js'
 import { PIPELINE_VERSION } from '../analysis/pipeline-version.js'
-import { tokenise } from '../analysis/tokenise.js'
+import { tokeniseTimed } from '../analysis/tokenise-timed.js'
 import { VOCABULARY_VERSION } from '../analysis/vocabulary.js'
 
 const DEFAULT_TOP_TERMS = 25
@@ -16,6 +21,8 @@ const MS_PER_MINUTE = 60_000
 
 export interface AnalyseEpisodeRequest {
   readonly audioUrl: string
+  /** The running jokes being tracked for this series. */
+  readonly topics?: readonly Topic[]
   readonly topTermLimit?: number
 }
 
@@ -31,6 +38,35 @@ export type AnalyseEpisodeOutcome =
 function perMinute(count: number, durationMs: number): number {
   if (durationMs <= 0) return 0
   return Math.round(count / (durationMs / MS_PER_MINUTE))
+}
+
+/**
+ * Turns matches on the token stream into moments in the audio.
+ *
+ * Token indices never leave this file: a reader can seek to a timestamp, and
+ * cannot do anything at all with an index.
+ */
+function countTopic(
+  topic: Topic,
+  tokens: ReadonlyArray<Annotated<TimedToken>>,
+): TopicMentionCount {
+  const mentions = findMentions(tokens, topic).map((mention) => ({
+    matchedText: mention.matchedText,
+    startMs: tokens[mention.startIndex]?.startMs ?? 0,
+    endMs: tokens[mention.endIndex]?.endMs ?? 0,
+  }))
+
+  return {
+    topicId: topic.id,
+    topicName: topic.name,
+    count: mentions.length,
+    mentions,
+  }
+}
+
+function byCountThenName(a: TopicMentionCount, b: TopicMentionCount): number {
+  if (b.count !== a.count) return b.count - a.count
+  return a.topicName < b.topicName ? -1 : a.topicName > b.topicName ? 1 : 0
 }
 
 /**
@@ -57,13 +93,21 @@ export async function analyseEpisode(
   if (!outcome.ok) return { ok: false, failure: outcome.failure }
 
   const { transcript } = outcome
-  const tokens = tokenise(normalize(transcript.text))
+
+  // Tokenising per transcribed word rather than over the joined text is what
+  // keeps every token's link to the audio.
+  const tokens = tokeniseTimed(transcript.words)
 
   const distinctForms = [...new Set(tokens.map((token) => token.surface))]
   const dictionary = await lemmas.lookup(distinctForms)
 
-  const counts = countTerms(annotate(tokens, dictionary))
+  const annotated = annotate(tokens, dictionary)
+  const counts = countTerms(annotated)
   const limit = request.topTermLimit ?? DEFAULT_TOP_TERMS
+
+  const topics = (request.topics ?? [])
+    .map((topic) => countTopic(topic, annotated))
+    .sort(byCountThenName)
 
   return {
     ok: true,
@@ -77,6 +121,7 @@ export async function analyseEpisode(
       wordsPerMinute: perMinute(counts.totalTokens, transcript.durationMs),
       fillersPerMinute: perMinute(counts.fillerTokens, transcript.durationMs),
       topTerms: counts.terms.slice(0, limit),
+      topics,
       pipelineVersion: PIPELINE_VERSION,
       vocabularyVersion: VOCABULARY_VERSION,
     },
