@@ -23,6 +23,10 @@ The list is loaded as-is apart from three transformations, all in `packages/adap
 
 Roughly 824,978 of the original 850,264 pairs are kept.
 
+**A known limitation**
+
+The list maps a spelling to a lemma with no part-of-speech disambiguation, so a form that belongs to two different verbs gets one of them arbitrarily. `aposto` — "I bet" — resolves to `apor` ("to append") rather than `apostar`. Occasional and visible rather than silent: the UI shows the spellings that were folded into a term, so a wrong grouping can be spotted and split with an alias. Worth knowing it exists.
+
 ## Transcription
 
 Speech recognition by **Whisper** (`whisper-large-v3-turbo`), served by [Groq](https://groq.com). Transcripts are produced from audio uploaded by the people who recorded it.
