@@ -131,7 +131,7 @@ overtone/
 ├─ packages/
 │  ├─ core/
 │  │  ├─ domain/               1. entities: Episode, Series, Transcript,
-│  │  │                           Utterance, Term, Topic, Mention, Query
+│  │  │                           Segment, Term, Topic, Mention, Query
 │  │  │                           pure data + invariants, ZERO dependencies
 │  │  ├─ usecases/             2. ProcessEpisode, AnalyzeTranscript,
 │  │  │                           GetSeriesOverview, CreateTopic, ShareEpisode

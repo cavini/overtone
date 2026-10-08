@@ -57,7 +57,7 @@ Per-host tracks are therefore uploaded **for attribution, not for transcription.
 
 A 2-hour episode is roughly 18–20 k words. One row per token is ~20 k rows and ~4–5 MB per episode with index overhead, which exhausts the 500 MB free database at around 110 episodes.
 
-Instead: `utterances.words` holds a compact JSONB array of `[surface, lemma, startMs, endMs, class]`. Counting reads the materialised `term_counts` table (a few thousand small rows per episode); playback and drill-down read the JSONB for the handful of utterances actually being displayed. Roughly a quarter of the storage, and far fewer rows.
+Instead: `segments.words` holds a compact JSONB array of `[surface, lemma, startMs, endMs, class]`. Counting reads the materialised `term_counts` table (a few thousand small rows per episode); playback and drill-down read the JSONB for the handful of segments actually being displayed. Roughly a quarter of the storage, and far fewer rows.
 
 The per-token table is deleted from the design. `term_counts` and `mentions` remain real tables because they are what every aggregate query touches.
 

@@ -53,7 +53,7 @@ Those six strings are canonical, from `../product/glossary-and-domain.md`. Tests
 | Stage | Does |
 |---|---|
 | `uploaded` | Browser has compressed each track to ~64 kbps mono and PUT it to a signed Storage URL. Server validates size, probes real duration. |
-| `transcribing` | Fetch each chunk of the **master** file from Storage, POST to Groq **concurrently with `language: "pt"`** (never auto-detected — a misdetection would yield confident nonsense), store every raw response verbatim, then stitch: offset each chunk's word timings by its start and concatenate into `utterances`. |
+| `transcribing` | Fetch each chunk of the **master** file from Storage, POST to Groq **concurrently with `language: "pt"`** (never auto-detected — a misdetection would yield confident nonsense), store every raw response verbatim, then stitch: offset each chunk's word timings by its start and concatenate into `segments`. |
 | `analyzing` | One bulk `lemmas` lookup for this episode's distinct forms, then the pure pt-BR engine: NFC normalise (**accents preserved**) → clitic-aware tokenise → lemmatise by dictionary, stem as fallback → classify stop words and fillers → term frequency → n-gram watchlist matches. |
 | `ready` | `insights`, `term_counts` and `mentions` written. The episode page and the series rollups have everything. |
 | `failed` | A typed `failure_reason` and a human-readable message. Retryable without re-uploading, because the audio is already in Storage. |
@@ -83,14 +83,14 @@ users(id, email, created_at)                           -- Supabase Auth
              ├─ transcripts(id, episode_id, provider, provider_model,
              │         raw_provider_payload jsonb, full_text,
              │         quality_score, normalization_version)
-             │    └─ utterances(id, transcript_id, start_ms, end_ms,
+             │    └─ segments(id, transcript_id, start_ms, end_ms,
              │                  text, tsv tsvector,
              │                  words jsonb)            -- [surface,lemma,startMs,endMs,class]
              ├─ insights(id, episode_id, pipeline_version, word_count,
              │           unique_word_count, words_per_minute, computed_at)
              ├─ term_counts(id, episode_id, lemma, surface_forms text[],
              │              count, lemma_source)       -- dictionary | stemmer
-             └─ mentions(id, episode_id, topic_id, utterance_id,
+             └─ mentions(id, episode_id, topic_id, segment_id,
                          token_position, matched_text, start_ms, end_ms)
 
 queries(id, user_id, series_id, name, spec jsonb)      -- a saved question
@@ -104,7 +104,7 @@ Decisions that are expensive to change, so they are made now:
 - **There is no speaker dimension at all** (ADR 0015). Only the final edited file is uploaded, so no per-host signal exists and no free service diarises. `hosts`, `host_tracks` and the energy-attribution design are gone. Note what removing a whole feature cost: one optional table and nothing in the counting engine — the dependency rule (ADR 0016) earning its keep.
 - **`lemmas` is a static shared dictionary, read with one bulk query per episode.** `select form, lemma from lemmas where form = any($1)` over that episode's ~3–5k distinct forms, then the map is passed **into** the pure analysis functions. That is what lets `packages/core` keep its no-I/O rule while still having a dictionary (ADR 0014/0016).
 - **`term_counts.lemma_source` records whether a grouping came from the dictionary or the stemmer.** Stemmed groupings are heuristic and can over-merge (`casa`/`casar`), so the UI marks them and the user can split them with an alias. We never hide the provenance of a merge.
-- **Word timings live in `utterances.words` as compact JSONB, not one row per token.** A 2-hour episode is ~20 k words; one row each would be ~4–5 MB per episode and would exhaust the 500 MB free database at about 110 episodes. JSONB is roughly a quarter of that. Counting reads `term_counts`; playback reads the JSONB for only the utterances on screen.
+- **Word timings live in `segments.words` as compact JSONB, not one row per token.** A 2-hour episode is ~20 k words; one row each would be ~4–5 MB per episode and would exhaust the 500 MB free database at about 110 episodes. JSONB is roughly a quarter of that. Counting reads `term_counts`; playback reads the JSONB for only the segments on screen.
 - **Every read is scoped by `series_members`, never by `owner_id`** (ADR 0012). A new series gets exactly one member — its owner — so this behaves identically to single-owner today, while "invite a co-host" stays a row insert instead of a migration touching every query and RLS policy. Writing the predicate this way from the first query means there is no cutover to forget.
 - **`topics` are scoped to the `series`, not the episode.** A running joke belongs to the show. This is the schema fact that makes "how many times have we *ever* mentioned the hotdog thing" one indexed aggregate instead of a scan.
 - **`term_counts` is materialised per episode**, invalidated by `pipeline_version`. The series rollup — the feature the stakeholder actually asked for — is then a `SUM ... GROUP BY lemma` over a few dozen small rows, not an aggregate over millions of tokens.
@@ -126,7 +126,7 @@ Next.js Route Handlers. Every body is a Zod schema in `packages/contracts`.
 | `POST` | `/api/episodes/:id/process` | Transcribe + analyse, synchronously. The whole pipeline. |
 | `POST` | `/api/episodes/:id/reanalyze` | Re-run analysis only, against the stored transcript |
 | `GET` | `/api/episodes/:id` | Insights, top terms, topic mentions |
-| `GET` | `/api/episodes/:id/transcript` | Paged utterances for the reader |
+| `GET` | `/api/episodes/:id/transcript` | Paged segments for the reader |
 | `DELETE` | `/api/episodes/:id` | Delete row **and** audio — a promise, so it gets its own test |
 | `GET` | `/api/series/:id/overview` | **The headline view.** Every episode, side by side. |
 | `GET` | `/api/series/:id/trends?topicId=&from=&to=` | A topic across the whole series over time |
@@ -150,7 +150,7 @@ tokenise(text)                        → Token[]            // splits clitics, 
 annotate(tokens, lemmas)              → AnnotatedToken[]   // dictionary in, stemmer fallback
 countTerms(tokens, opts)              → TermCount[]
 findMentions(tokens, topic)           → Mention[]          // n-gram and alias aware
-stitchChunks(chunkResults)            → Utterance[]        // offset + concatenate
+stitchChunks(chunkResults)            → Segment[]        // offset + concatenate
 summarise(tokens, duration)           → Insight
 ```
 
@@ -171,8 +171,9 @@ The hard cases are acceptance criteria, therefore tests, not implementation deta
 | `pra` vs `para` | Whisper may transcribe either. A watchlist carries both as aliases (ADR 0006); a test pins the behaviour so it cannot drift silently. |
 | English loanwords | Counted as transcribed, lemma falls back to the stemmer, marked heuristic. Code-switching is normal in Brazilian podcasts. |
 | A word spanning a chunk join | Cannot happen: chunks are split on silence, never mid-word. Asserted by test. |
+| A **phrase** spanning a chunk join | **Must still count.** Matching runs over the whole stitched episode stream, never per chunk (domain decision D8). Chunks are a mechanical upload unit, not a semantic one — our own plumbing must never be able to change a count. This is a distinct test from the one above. |
 | Chunked vs single-pass timings | Must agree within tolerance. A property test compares both for the same audio — the guard on the riskiest code in the repo. |
-| Same phrase twice in one utterance | Two mentions. We count occurrences, not utterances-containing (D1). |
+| Same phrase twice in one segment | Two mentions. We count occurrences, not segments-containing (D1). |
 | Low-confidence word | Counted, and the episode carries a quality score with a warning under 70 (D9). We never silently drop data, and never silently assert a shaky count. |
 
 Determinism is a contract: the same transcript at the same `pipeline_version` must produce byte-identical counts. That is one property test, and it is what makes the numbers defensible.
@@ -200,7 +201,7 @@ Per ADR 0016, the dependency rule is enforced in CI. Concretely, for the main fl
 | 2 Use case | `ProcessEpisode` — orchestrates: fetch chunks, transcribe, stitch, look up lemmas, analyse, persist. Depends only on **port interfaces** | domain + ports |
 | 2 Ports | `TranscriptionProvider`, `BlobStore`, `EpisodeRepository`, `TranscriptRepository`, `LemmaRepository`, `Clock`, `IdGenerator` — declared here, **owned here**, implemented outside | domain |
 | 2 Analysis | `normalize`, `tokenise`, `annotate`, `countTerms`, `findMentions`, `stitchChunks` — pure, the lemma map passed in | domain |
-| 1 Domain | `Episode`, `Transcript`, `Utterance`, `Term`, `Topic`, `Mention`, `Query` | nothing |
+| 1 Domain | `Episode`, `Transcript`, `Segment`, `Term`, `Topic`, `Mention`, `Query` | nothing |
 | 3 Adapter (gateways) | `GroqTranscriptionProvider`, `SupabaseBlobStore`, `DrizzleEpisodeRepository`, `DrizzleLemmaRepository` | the ports they implement |
 
 Two things to notice, because they are the whole point:

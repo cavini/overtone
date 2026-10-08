@@ -26,7 +26,7 @@ What is missing is rigour and, more importantly, **enforcement**. Architecture t
    │  │  │  ┌────────────────────────────────────┐  │  │  │
    │  │  │  │ 1. Domain                          │  │  │  │
    │  │  │  │    Episode · Series · Transcript   │  │  │  │
-   │  │  │  │    Utterance · Term · Topic        │  │  │  │
+   │  │  │  │    Segment · Term · Topic        │  │  │  │
    │  │  │  │    Mention · Query                 │  │  │  │
    │  │  │  │    pure data + invariants, 0 deps  │  │  │  │
    │  │  │  └────────────────────────────────────┘  │  │  │

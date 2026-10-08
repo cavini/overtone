@@ -3,7 +3,7 @@
 **Date:** 2026-10-07 · **Status:** accepted
 
 ## Context
-"How many times were topics mentioned" admits two readings. A topic could be **machine-discovered** (embed utterances, cluster, label the clusters) or **user-defined** (a named group of terms the user cares about: *Hotdogs* = `hotdog`, `hot dog`, `hot-dog`).
+"How many times were topics mentioned" admits two readings. A topic could be **machine-discovered** (embed segments, cluster, label the clusters) or **user-defined** (a named group of terms the user cares about: *Hotdogs* = `hotdog`, `hot dog`, `hot-dog`).
 
 Machine discovery demos beautifully and is miserable in production: the clusters are unstable between runs, the labels are vague, the user cannot correct them, and — fatally for us — a count over a fuzzy cluster cannot be verified by the person reading it.
 

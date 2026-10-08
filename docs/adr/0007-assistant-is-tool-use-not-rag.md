@@ -14,7 +14,7 @@ The product-side domain model names the mechanism precisely (decision D11, "one 
 
 - Model `claude-opus-5`, `thinking: {type: "adaptive"}`, `output_config: {effort: "medium"}`.
 - The loop is the Anthropic SDK's Tool Runner (`client.beta.messages.tool_runner` with `betaZodTool`), so our existing Zod contracts become the tool schemas directly.
-- Tools: `count_mentions`, `compare_terms`, `search_utterances`, `list_recordings`, `speaker_breakdown`, `trend_over_time` — each one compiles its arguments into a `Query` and runs it through the same engine the dashboard uses. No tool contains its own SQL.
+- Tools: `count_mentions`, `compare_terms`, `search_segments`, `list_recordings`, `speaker_breakdown`, `trend_over_time` — each one compiles its arguments into a `Query` and runs it through the same engine the dashboard uses. No tool contains its own SQL.
 - Citations are capped transcript retrieval (≤20 segments) used **only** to quote; never to count.
 - Prompt caching on the stable prefix (system prompt + tool definitions) keeps multi-turn sessions cheap.
 - `pgvector` handles only the fuzzy half: *"did they talk about food?"* → find semantically near terms in the user's own vocabulary → hand those **exact** terms to `count_mentions`. **Semantic search proposes; SQL counts.**
