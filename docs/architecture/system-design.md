@@ -36,7 +36,8 @@
                      │ HTTPS
                      ▼
             ┌──────────────────┐
-            │ Deepgram         │   (later: local Whisper sidecar)
+            │ whisper.cpp      │   local subprocess, $0
+            │ (Metal, on-device)│   cloud adapter optional
             └──────────────────┘
 ```
 
@@ -60,7 +61,7 @@ These six strings — `uploaded`, `transcribing`, `analyzing`, `ready`, `failed`
 |---|---|---|
 | *(pre-row)* | browser | PUTs bytes straight to R2 against a presigned URL. The server never sees the audio. The row exists but is not yet `uploaded`. |
 | `uploaded` | web | Client confirms the upload; server probes real duration/format from the blob, validates against the ceiling, enqueues `transcribe`. |
-| `transcribing` | worker | Calls `TranscriptionProvider`. Stores the raw provider response verbatim in `transcripts.raw_provider_payload`, then normalises it into `utterances` + `tokens`. Enqueues `analyze`. |
+| `transcribing` | worker | Calls `TranscriptionProvider` — by default `ffmpeg` to 16 kHz mono WAV, then `whisper-cli` as a subprocess (ADR 0009). Stores the raw provider response verbatim in `transcripts.raw_provider_payload`, then normalises it into `utterances` + `tokens`. Enqueues `analyze`. |
 | `analyzing` | worker | Runs the pure analysis engine: normalize → lemmatise → classify stop words and fillers → term frequency → n-gram watchlist matches → speaker stats. |
 | `ready` | worker | Writes `insights` + `term_counts` + `mentions`. The UI has everything it needs. |
 | `failed` | any | Records a typed `failure_reason` and a user-facing message. Retryable without re-uploading. |
