@@ -67,4 +67,4 @@ That design has a useful side effect. Once per-episode aggregates are stored que
 - **Small commits.** One concern each, committed on green.
 - **Counts come from SQL, never from a language model.** The model phrases; it does not do arithmetic.
 
-See [`CONTRIBUTING.md`](CONTRIBUTING.md) and [`CLAUDE.md`](CLAUDE.md).
+See [`CONTRIBUTING.md`](CONTRIBUTING.md).

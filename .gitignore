@@ -43,3 +43,12 @@ Thumbs.db
 *.log
 npm-debug.log*
 pnpm-debug.log*
+
+# AI assistant config - local only, never committed
+CLAUDE.md
+AGENTS.md
+.claude/
+.cursor/
+.cursorrules
+.aider*
+.github/copilot-instructions.md
