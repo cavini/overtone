@@ -1,6 +1,8 @@
 # ADR 0009 — Default to local inference; zero marginal cost
 
-**Date:** 2026-10-07 · **Status:** accepted · **Amends:** ADR 0004 (inverts the default, keeps the port) · **Strengthens:** ADR 0002 · **Resolves:** open questions Q2, Q7
+**Date:** 2026-10-07 · **Status:** ~~accepted~~ **superseded by ADR 0010** · **Amends:** ADR 0004 · **Strengthens:** ADR 0002
+
+> **Superseded the same day.** This ADR solved cost but not the actual requirement. The stakeholder needs the app *hosted* — friends using it without their laptop running — which local inference cannot provide. ADR 0010 moves transcription to Groq's free hosted tier, which is free *and* hosted. Kept because the reasoning about whisper.cpp not requiring Python is still correct and still informs ADR 0002, and because a reversal is worth more on the record than erased.
 
 ## Context
 
