@@ -5,6 +5,8 @@ export { toSegments } from './to-segments.js'
 export { classify } from './classify.js'
 export {
   CHUNK_TARGET_MS,
+  MIN_TAIL_MS,
+  SINGLE_CHUNK_LIMIT_MS,
   missingChunks,
   planChunks,
   stitchChunks,

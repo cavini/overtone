@@ -16,7 +16,7 @@ export const CHUNK_TARGET_MS = 20 * 60_000
  * A twenty-second final chunk costs a round trip, a row, and a stitching seam
  * for almost no audio.
  */
-const MIN_TAIL_MS = 60_000
+export const MIN_TAIL_MS = 60_000
 
 /**
  * Decides where to split an episode.
@@ -31,6 +31,15 @@ const MIN_TAIL_MS = 60_000
  * the nearest silence first, because a cut through the middle of a word
  * produces two garbage fragments and corrupts the counts at the join.
  */
+/**
+ * The longest episode that still fits in a single chunk.
+ *
+ * Until the browser can split audio, this is the longest file the app can
+ * take at all — a longer one has to be cut before it is sent, and cutting it
+ * by byte range would corrupt both halves.
+ */
+export const SINGLE_CHUNK_LIMIT_MS = CHUNK_TARGET_MS + MIN_TAIL_MS
+
 export function planChunks(durationMs: number): AudioChunk[] {
   if (durationMs <= 0) return []
 

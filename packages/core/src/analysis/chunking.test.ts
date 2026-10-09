@@ -3,10 +3,12 @@ import { describe, expect, it } from 'vitest'
 import type { TimedWord } from '../domain/timed-word.js'
 import {
   CHUNK_TARGET_MS,
+  SINGLE_CHUNK_LIMIT_MS,
   missingChunks,
   planChunks,
   stitchChunks,
 } from './chunking.js'
+import { HOURLY_ALLOWANCE_MS } from './pacing.js'
 
 const minutes = (n: number) => n * 60_000
 
@@ -222,5 +224,25 @@ describe('missingChunks', () => {
       { index: 0, offsetMs: 0, words: [] },
       { index: 99, offsetMs: 0, words: [] },
     ])).toEqual([])
+  })
+})
+
+// US-043 · ADR 0020
+describe('SINGLE_CHUNK_LIMIT_MS', () => {
+  it('is the longest episode that plans to one chunk', () => {
+    expect(planChunks(SINGLE_CHUNK_LIMIT_MS)).toHaveLength(1)
+    expect(planChunks(SINGLE_CHUNK_LIMIT_MS + 1)).toHaveLength(2)
+  })
+
+  // Until the browser can split audio, a longer file cannot be handled at
+  // all: the whole of it would be sent as every chunk, transcribing the
+  // episode once per chunk and spending the day's allowance several times
+  // over for a transcript that repeats itself.
+  it('is well inside the hourly balance, so one chunk is never refused for its length', () => {
+    expect(SINGLE_CHUNK_LIMIT_MS).toBeLessThan(HOURLY_ALLOWANCE_MS)
+  })
+
+  it("is shorter than one of this show's episodes, which is why splitting is M1's job", () => {
+    expect(SINGLE_CHUNK_LIMIT_MS).toBeLessThan(100 * 60_000)
   })
 })
