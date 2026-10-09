@@ -6,6 +6,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { CHUNK_TARGET_MS, DAILY_ALLOWANCE_MS, HOURLY_ALLOWANCE_MS } from '../analysis/index.js'
 import type { AllowanceState } from '../domain/allowance.js'
+import type { ObservedAllowance } from '../domain/observed-allowance.js'
 import type { ChunkTranscript } from '../domain/audio-chunk.js'
 import type { EpisodeStatus } from '../domain/episode.js'
 import type { Topic } from '../domain/topic.js'
@@ -31,6 +32,7 @@ const harness = (
     transcribed?: readonly number[]
     allowance?: Partial<AllowanceState>
     failTranscription?: boolean
+    observed?: ObservedAllowance
   } = {},
 ) => {
   const stored = new Map<number, ChunkTranscript>()
@@ -46,6 +48,7 @@ const harness = (
   const failures: EpisodeFailure[] = []
   const saved: StoredAnalysis[] = []
   const recorded: number[] = []
+  const observations: Array<ObservedAllowance | undefined> = []
   const order: string[] = []
 
   const transcribe = vi.fn((request: { audioUrl: string }) => {
@@ -55,6 +58,7 @@ const harness = (
     const index = Number(request.audioUrl.split('-').at(-1))
     return Promise.resolve({
       ok: true as const,
+      ...(options.observed === undefined ? {} : { observedAllowance: options.observed }),
       transcript: {
         ...transcriptFromText(SPOKEN[index] ?? 'olá'),
         provider: 'groq',
@@ -65,6 +69,7 @@ const harness = (
 
   return {
     transcribe,
+    observations,
     statuses,
     failures,
     saved,
@@ -87,14 +92,15 @@ const harness = (
       allowance: {
         read: () =>
           Promise.resolve({
-            hourlyUsedMs: 0,
+            remainingAudioMs: HOURLY_ALLOWANCE_MS,
+            asOfMs: NOW,
             dailyUsedMs: 0,
-            hourResetsAt: NOW + 3_600_000,
             dayResetsAt: NOW + 86_400_000,
             ...options.allowance,
           }),
-        record: (ms: number) => {
+        record: (ms: number, observed?: ObservedAllowance) => {
           recorded.push(ms)
+          observations.push(observed)
           order.push('record-allowance')
           return Promise.resolve()
         },
@@ -166,7 +172,7 @@ describe('advanceEpisode', () => {
 
   describe('waiting on the allowance', () => {
     it('holds when the hour is spent, and stays in transcribing', async () => {
-      const h = harness({ allowance: { hourlyUsedMs: HOURLY_ALLOWANCE_MS } })
+      const h = harness({ allowance: { remainingAudioMs: 0 } })
       const outcome = await advance(h)
 
       expect(outcome).toMatchObject({
@@ -178,11 +184,11 @@ describe('advanceEpisode', () => {
     })
 
     it('says how long to wait', async () => {
-      const h = harness({
-        allowance: { hourlyUsedMs: HOURLY_ALLOWANCE_MS, hourResetsAt: NOW + 420_000 },
-      })
+      // A 20-minute chunk against an empty bucket: ten minutes of refill,
+      // not an hour of waiting for a window to turn (ADR 0021).
+      const h = harness({ allowance: { remainingAudioMs: 0 } })
       const outcome = await advance(h)
-      expect(outcome).toMatchObject({ retryAfterMs: 420_000 })
+      expect(outcome).toMatchObject({ retryAfterMs: 600_000 })
     })
 
     it('reports the day when the day is what is spent', async () => {
@@ -272,6 +278,32 @@ describe('advanceEpisode', () => {
       const h = harness({ failTranscription: true })
       await advance(h)
       expect(h.recorded).toEqual([])
+    })
+  })
+
+  // ADR 0021. The provider reports its own balance on every response, which
+  // is ground truth about a number we otherwise only estimate.
+  describe('what the provider said about the allowance', () => {
+    const OBSERVED = {
+      remainingAudioMs: 5_473_000,
+      limitAudioMs: HOURLY_ALLOWANCE_MS,
+      refillsFullyInMs: 863_500,
+    }
+
+    it('is handed to the store along with the spend', async () => {
+      const h = harness({ observed: OBSERVED })
+      await advance(h)
+
+      expect(h.observations).toEqual([OBSERVED])
+    })
+
+    // Absent headers must reach the store as absent, so it falls back to its
+    // own arithmetic rather than recording a balance nobody reported.
+    it('is absent when the provider said nothing', async () => {
+      const h = harness()
+      await advance(h)
+
+      expect(h.observations).toEqual([undefined])
     })
   })
 

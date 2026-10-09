@@ -129,7 +129,10 @@ export async function advanceEpisode(
       offsetMs: uploaded.startMs,
       words: transcribed.transcript.words,
     })
-    await allowance.record(uploaded.endMs - uploaded.startMs)
+    // Hand the provider's own reading straight through. It is ground truth
+    // about a balance we otherwise only estimate, and it costs nothing
+    // (ADR 0021).
+    await allowance.record(uploaded.endMs - uploaded.startMs, transcribed.observedAllowance)
 
     return {
       state: 'transcribed',
