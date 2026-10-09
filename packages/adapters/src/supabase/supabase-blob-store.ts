@@ -101,6 +101,31 @@ export class SupabaseBlobStore implements BlobStore {
     return signed.startsWith('http') ? signed : `${this.storage}${signed.startsWith('/') ? '' : '/'}${signed}`
   }
 
+  async uploadUrl(key: string, ttlSeconds: number): Promise<string> {
+    // Supabase signs uploads for keys that do not exist yet, which is what
+    // makes this the browser's way in: it gets permission for exactly one
+    // object, for a few minutes, and never sees a storage key.
+    const response = await this.fetch(
+      `${this.storage}/object/upload/sign/${this.objectPath(key)}`,
+      {
+        method: 'POST',
+        headers: this.headers({ 'content-type': 'application/json' }),
+        body: JSON.stringify({ expiresIn: ttlSeconds }),
+      },
+    )
+
+    if (!response.ok) throw await this.failureFrom(response, `sign an upload for ${key}`)
+
+    const payload = (await response.json()) as { url?: string }
+    if (payload.url === undefined || payload.url.length === 0) {
+      throw new Error(`supabase storage: no upload url came back for ${key}`)
+    }
+
+    return payload.url.startsWith('http')
+      ? payload.url
+      : `${this.storage}${payload.url.startsWith('/') ? '' : '/'}${payload.url}`
+  }
+
   async remove(keys: readonly string[]): Promise<void> {
     // Nothing to ask for, so nothing is asked. Supabase treats an empty list
     // as a bad request.

@@ -153,6 +153,64 @@ describe('SupabaseBlobStore', () => {
     })
   })
 
+  describe('uploadUrl', () => {
+    const signsUpload = (url: string) =>
+      url.includes('/object/upload/sign/')
+        ? json({ url: '/object/upload/sign/episode-audio/k.wav?token=up' })
+        : new Response('', { status: 200 })
+
+    it('asks for an upload that expires', async () => {
+      await storeThat(signsUpload).uploadUrl('k.wav', 900)
+
+      expect(calls[0]?.url).toBe(`${STORAGE}/object/upload/sign/episode-audio/k.wav`)
+      expect(JSON.parse(String(calls[0]?.body))).toEqual({ expiresIn: 900 })
+    })
+
+    it('makes the relative path it gets back absolute', async () => {
+      const url = await storeThat(signsUpload).uploadUrl('k.wav', 600)
+
+      expect(url).toBe(`${STORAGE}/object/upload/sign/episode-audio/k.wav?token=up`)
+    })
+
+    it('copes with the path missing its leading slash', async () => {
+      const store = storeThat(() => json({ url: 'object/upload/sign/episode-audio/k.wav?t=1' }))
+
+      expect(await store.uploadUrl('k.wav', 600)).toBe(
+        `${STORAGE}/object/upload/sign/episode-audio/k.wav?t=1`,
+      )
+    })
+
+    it('leaves an already absolute url alone', async () => {
+      const store = storeThat(() => json({ url: 'https://cdn.example/up?t=2' }))
+
+      expect(await store.uploadUrl('k.wav', 600)).toBe('https://cdn.example/up?t=2')
+    })
+
+    // The browser has no other way in. A failure here must say so, not hand
+    // back something that fails later in a place with no context.
+    it('says when the service would not sign it', async () => {
+      const store = storeThat(() => new Response('denied', { status: 403 }))
+
+      await expect(store.uploadUrl('k.wav', 600)).rejects.toThrow(
+        /could not sign an upload for k\.wav \(403\)/u,
+      )
+    })
+
+    it.each([{}, { url: '' }])('refuses an answer with no url in it (%o)', async (body) => {
+      const store = storeThat(() => json(body))
+
+      await expect(store.uploadUrl('k.wav', 600)).rejects.toThrow(/no upload url/u)
+    })
+
+    it('escapes each segment of the key', async () => {
+      await storeThat(signsUpload).uploadUrl('episodes/ep 12/chunk 0.wav', 600)
+
+      expect(calls[0]?.url).toBe(
+        `${STORAGE}/object/upload/sign/episode-audio/episodes/ep%2012/chunk%200.wav`,
+      )
+    })
+  })
+
   describe('remove', () => {
     it('names the objects to delete', async () => {
       await storeThat(signed).remove(['a.opus', 'b.opus'])

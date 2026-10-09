@@ -32,6 +32,7 @@ if (projectUrl === undefined || secretKey === undefined) {
   const prefix = `contract/${process.pid}`
   const written = [
     'one.opus', 'two.opus', 'a.opus', 'b.opus', 'gone.opus', 'x.opus', 'y.opus',
+    'direct.opus', 'new.opus', 'p.opus', 'q.opus',
   ].map((name) => `${prefix}/${name}`)
 
   describeBlobStore('SupabaseBlobStore', () =>
@@ -42,6 +43,18 @@ if (projectUrl === undefined || secretKey === undefined) {
         if (!response.ok) throw new Error(`signed url gave ${response.status}`)
 
         return new Uint8Array(await response.arrayBuffer())
+      },
+      write: async (url: string, body: Uint8Array, contentType: string) => {
+        // Exactly what the browser does: PUT the bytes at the signed URL,
+        // carrying no credential of its own.
+        const response = await fetch(url, {
+          method: 'PUT',
+          headers: { 'content-type': contentType },
+          body: body.slice(),
+        })
+        if (!response.ok) {
+          throw new Error(`upload url gave ${response.status} ${await response.text()}`)
+        }
       },
       prefix,
       // Leaving audio behind would eat a 1 GB tier an object at a time.
