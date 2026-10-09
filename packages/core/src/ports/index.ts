@@ -23,3 +23,4 @@ export type {
   TranscriptionProvider,
   TranscriptionRequest,
 } from './transcription-provider.js'
+export type { BlobStore } from './blob-store.js'
