@@ -15,3 +15,10 @@ export {
   type ProcessEpisodeOutcome,
   type ProcessEpisodeRequest,
 } from './process-episode.js'
+export {
+  advanceEpisode,
+  type AdvanceEpisodeDependencies,
+  type AdvanceEpisodeOutcome,
+  type AdvanceEpisodeRequest,
+  type UploadedChunk,
+} from './advance-episode.js'
