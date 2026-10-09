@@ -13,3 +13,4 @@ export {
   type ProviderUnderTest,
 } from './transcription-provider.contract.js'
 export { describeAllowanceStore, type AllowanceStoreUnderTest } from './allowance-store.contract.js'
+export { describeChunkStore, type ChunkStoreUnderTest } from './chunk-store.contract.js'
