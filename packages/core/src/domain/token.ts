@@ -41,7 +41,14 @@ export type TokenClass = 'word' | 'stopword' | 'filler'
  * it can over-group. `surface` means nothing was found and the word stands
  * for itself — a visible gap, which is strictly better than a silent merge.
  */
-export type LemmaSource = 'dictionary' | 'stemmer' | 'surface'
+/**
+ * Which tier produced a lemma, in descending order of confidence.
+ *
+ * `override` sits above `dictionary`: it is a correction made by hand after
+ * seeing the dictionary get a word wrong in a real episode, so it is the one
+ * tier that has been checked against actual speech.
+ */
+export type LemmaSource = 'override' | 'dictionary' | 'stemmer' | 'surface'
 
 /** What annotation adds to a token. */
 export interface Annotation {
