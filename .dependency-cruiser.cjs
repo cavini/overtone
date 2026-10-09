@@ -162,7 +162,7 @@ module.exports = {
           '(^|/)\\.[^/]+\\.(js|cjs|mjs|ts)$',
           '(^|/)tsconfig\\.json$',
           // Config files are read by their tool, not imported by source.
-          '(^|/)(vitest|vite)\\.config\\.ts$',
+          '(^|/)(vitest|vite)\\.(integration\\.)?config\\.ts$',
         ],
       },
       to: {},
