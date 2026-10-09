@@ -181,3 +181,56 @@ describe('GroqTranscriptionProvider', () => {
     })
   })
 })
+
+// ADR 0021
+describe('the allowance it reports', () => {
+  const LIMIT_HEADERS = {
+    'content-type': 'application/json',
+    'x-ratelimit-limit-audio-seconds': '7200',
+    'x-ratelimit-remaining-audio-seconds': '6300',
+    'x-ratelimit-reset-audio-seconds': '7m30s',
+  }
+
+  const respond = (response: Response) =>
+    provider((async () => response) as unknown as typeof globalThis.fetch)
+
+  it('passes on what the provider said', async () => {
+    const outcome = await respond(
+      new Response(JSON.stringify(RESPONSE), { status: 200, headers: LIMIT_HEADERS }),
+    ).transcribe({ audioUrl: KNOWN, language: 'pt' })
+
+    expect(outcome.observedAllowance).toEqual({
+      limitAudioMs: 7_200_000,
+      remainingAudioMs: 6_300_000,
+      refillsFullyInMs: 450_000,
+    })
+  })
+
+  // The refusal that matters most is the one for being over the limit, and it
+  // carries the headers too. Dropping them there would throw away the only
+  // reading taken at the exact moment it became relevant.
+  it('passes it on when the provider refuses the audio', async () => {
+    const outcome = await respond(
+      new Response('{"error":{"message":"ASPH"}}', { status: 413, headers: LIMIT_HEADERS }),
+    ).transcribe({ audioUrl: KNOWN, language: 'pt' })
+
+    expect(outcome.ok).toBe(false)
+    expect(outcome.observedAllowance?.remainingAudioMs).toBe(6_300_000)
+  })
+
+  it('reports nothing when the provider sends no headers', async () => {
+    const outcome = await respond(ok(RESPONSE)).transcribe({ audioUrl: KNOWN, language: 'pt' })
+    expect(outcome.observedAllowance).toBeUndefined()
+  })
+
+  // Nothing to read when the request never arrived, and inventing a balance
+  // would be worse than admitting we do not know.
+  it('reports nothing when the request never got there', async () => {
+    const outcome = await provider(
+      (() => Promise.reject(new Error('offline'))) as unknown as typeof globalThis.fetch,
+    ).transcribe({ audioUrl: KNOWN, language: 'pt' })
+
+    expect(outcome.ok).toBe(false)
+    expect(outcome.observedAllowance).toBeUndefined()
+  })
+})

@@ -5,6 +5,7 @@ import type {
   TranscriptionProvider,
   TranscriptionRequest,
 } from '@overtone/core'
+import { readAllowance } from './rate-limit-headers.js'
 import { groqTranscriptionResponse } from './transcription-response.js'
 
 const ENDPOINT = 'https://api.groq.com/openai/v1/audio/transcriptions'
@@ -104,20 +105,26 @@ export class GroqTranscriptionProvider implements TranscriptionProvider {
       return { ok: false, failure: { code: 'PROVIDER_UNAVAILABLE' } }
     }
 
+    // Read before anything can go wrong with the body. This is the balance
+    // at the moment of the request, and it is reported on refusals too —
+    // including the one for being over the limit, where it matters most
+    // (ADR 0021).
+    const observedAllowance = readAllowance(response.headers)
+
     if (!response.ok) {
-      return { ok: false, failure: failureFor(response) }
+      return { ok: false, failure: failureFor(response), observedAllowance }
     }
 
     let payload: unknown
     try {
       payload = await response.json()
     } catch {
-      return { ok: false, failure: { code: 'PROVIDER_RESPONSE_INVALID' } }
+      return { ok: false, failure: { code: 'PROVIDER_RESPONSE_INVALID' }, observedAllowance }
     }
 
     const parsed = groqTranscriptionResponse.safeParse(payload)
     if (!parsed.success) {
-      return { ok: false, failure: { code: 'PROVIDER_RESPONSE_INVALID' } }
+      return { ok: false, failure: { code: 'PROVIDER_RESPONSE_INVALID' }, observedAllowance }
     }
 
     const words: TimedWord[] = parsed.data.words.map((word) => ({
@@ -130,6 +137,7 @@ export class GroqTranscriptionProvider implements TranscriptionProvider {
 
     return {
       ok: true,
+      observedAllowance,
       transcript: {
         provider: 'groq',
         providerModel: this.model,
