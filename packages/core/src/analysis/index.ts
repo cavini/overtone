@@ -1,6 +1,7 @@
 export { normalize } from './normalize.js'
 export { surfacesOf, tokenise } from './tokenise.js'
 export { tokeniseTimed } from './tokenise-timed.js'
+export { toSegments } from './to-segments.js'
 export { classify } from './classify.js'
 export { stem } from './stem.js'
 export { annotate } from './annotate.js'

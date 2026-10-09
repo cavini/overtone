@@ -41,3 +41,4 @@ export type {
   TopicCountInEpisode,
   TopicTrend,
 } from './series-overview.js'
+export type { SegmentWord, TranscriptSegment } from './transcript-segment.js'
