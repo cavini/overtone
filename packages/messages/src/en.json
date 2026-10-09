@@ -12,7 +12,7 @@
   "NO_SPEECH_DETECTED": "We found no speech in this audio.",
   "LEMMA_GROUPED_BY_STEMMER": "We grouped \"{term}\" by resemblance rather than from the dictionary. Worth a look.",
   "ALLOWANCE_REMAINING": "Room for about {whole_episodes_remaining, number} more episodes today, out of a {allowance_hours, number} hour allowance.",
-  "HOURLY_ALLOWANCE_EXHAUSTED": "This hour's allowance is spent — it's {allowance_hours, number} hours of audio per hour. Try again in {minutes_until_reset, number} minutes.",
+  "HOURLY_ALLOWANCE_EXHAUSTED": "This hour's allowance is spent — it's {allowance_hours, number} hours of audio per hour. Carrying on by itself in {minutes_until_reset, number} minutes.",
   "DAILY_ALLOWANCE_EXHAUSTED": "Today's allowance is spent — it's {allowance_hours, number} hours of audio per day. It comes back in {hours_until_reset, number} hours.",
   "STORAGE_FULL": "Out of room: storage is using {used_bytes, number, ::compact-short} of {limit_bytes, number, ::compact-short}, and this episode needs {needed_bytes, number, ::compact-short}. Delete the audio from older episodes — their statistics stay.",
   "TOPIC_NAME_TAKEN": "There's already a running joke called \"{name}\".",
