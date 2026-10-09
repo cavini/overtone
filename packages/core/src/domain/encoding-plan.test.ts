@@ -49,9 +49,24 @@ describe('planEncoding', () => {
   })
 
   it('leaves headroom under the hard service cap', () => {
-    // The service refuses at 25 MB. The budget sits below that so an
-    // estimate that runs a little over does not fail the upload.
     expect(UPLOAD_BUDGET_BYTES).toBeLessThan(25 * 1024 * 1024)
+  })
+
+  // Measured against a real 2 h 06 m episode: asked for 24 kbps, the encoder
+  // produced 24.9. A naive duration × bitrate underestimates by about 4%, and
+  // an optimistic estimate fails at the end of a long upload.
+  it('estimates above a naive duration times bitrate', () => {
+    const plan = planFor(minutes(126))
+    const naive = 126 * 60 * ((plan.bitrateKbps * 1000) / 8)
+    expect(plan.estimatedBytes).toBeGreaterThan(naive)
+  })
+
+  // The episode that produced the measurement. 22.58 MB in reality.
+  it('keeps a real two-hour-six-minute episode inside the cap', () => {
+    const plan = planFor(126 * 60_000 + 31_000)
+    expect(plan.bitrateKbps).toBe(24)
+    expect(plan.estimatedBytes).toBeLessThan(25 * 1024 * 1024)
+    expect(plan.estimatedBytes).toBeGreaterThan(22 * 1024 * 1024)
   })
 
   it('refuses an episode past the supported length, with the real number', () => {

@@ -13,11 +13,25 @@ const MS_PER_MINUTE = 60_000
 const BITS_PER_BYTE = 8
 
 /**
- * The service refuses anything over 25 MB. The budget sits below that so an
- * estimate that runs slightly long still uploads rather than failing at the
- * last step.
+ * The service refuses anything over 25 MB. The budget sits just below that;
+ * the honest overhead factor below does the work of keeping an estimate from
+ * running past the real cap, so this no longer needs to be conservative too.
+ * Two stacked safety margins only cost audio quality.
  */
-export const UPLOAD_BUDGET_BYTES = 23 * 1024 * 1024
+export const UPLOAD_BUDGET_BYTES = 24 * 1024 * 1024
+
+/**
+ * Encoders overshoot the bitrate they are asked for.
+ *
+ * Measured, not guessed: a 2 h 06 m episode asked for 24 kbps and came out at
+ * 24.9 kbps once the container and the encoder's own variability were counted —
+ * 4% over a naive `duration × bitrate`. Six percent leaves a little room
+ * beyond what was observed.
+ *
+ * Without this the estimate is quietly optimistic, which is the wrong
+ * direction: the failure it causes happens at the end of a long upload.
+ */
+const CONTAINER_OVERHEAD = 1.06
 
 /** 150 minutes, the supported episode length. */
 export const MAX_EPISODE_MS = 150 * MS_PER_MINUTE
@@ -51,7 +65,9 @@ export type EncodingOutcome =
   | { readonly ok: false; readonly failure: EncodingRefusal }
 
 const estimateBytes = (durationMs: number, bitrateKbps: number): number =>
-  Math.ceil((durationMs / 1000) * ((bitrateKbps * 1000) / BITS_PER_BYTE))
+  Math.ceil(
+    (durationMs / 1000) * ((bitrateKbps * 1000) / BITS_PER_BYTE) * CONTAINER_OVERHEAD,
+  )
 
 /**
  * Picks the best quality that still fits one upload.
