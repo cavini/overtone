@@ -1,75 +1,111 @@
 // The whole pipeline on real Brazilian Portuguese, with the real dictionary.
 //
-// Everything below the browser: a transcript in, counted terms and located
-// running jokes out. The transcription service is faked — the free allowance
-// is shared across every user of the app, so a test suite that spent it would
-// take the product down — but the Portuguese, the lemmas and the counting are
-// all real.
+// Everything below the browser: chunks in, counted terms and located running
+// jokes out. The transcription service is faked — the free allowance is shared
+// across every user of the app, so a test suite that spent it would take the
+// product down — but the Portuguese, the lemmas and the counting are all real.
 import { readFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { analyseEpisode, type Topic } from '@overtone/core'
-import { FakeTranscriptionProvider } from '@overtone/core/testing'
+import {
+  advanceEpisode,
+  type AdvanceEpisodeOutcome,
+  type StoredAnalysis,
+  type Topic,
+  type UploadedChunk,
+} from '@overtone/core'
+import {
+  FakeAllowanceStore,
+  FakeChunkStore,
+  FakeEpisodeStore,
+  FixedClock,
+  transcriptFromText,
+} from '@overtone/core/testing'
 import { beforeAll, describe, expect, it } from 'vitest'
 import { parseLemmaList } from '../lemmas/parse-lemma-list.js'
 import { QueryingLemmaRepository } from '../lemmas/querying-lemma-repository.js'
 
 const fixtures = resolve(dirname(fileURLToPath(import.meta.url)), '../../../../fixtures')
 
-const AUDIO = 'audio://episode-12'
+const EPISODE = 'episode-12'
 
-const HOTDOG: Topic = {
-  id: 'topic-hotdog',
-  name: 'Hotdog',
-  patterns: ['hotdog'],
-}
+const HOTDOG: Topic = { id: 'topic-hotdog', name: 'Hotdog', patterns: ['hotdog'] }
 const PIRAO: Topic = { id: 'topic-pirao', name: 'Pirão', patterns: ['pirão'] }
-const GRAVACAO: Topic = {
-  id: 'topic-gravacao',
-  name: 'Gravação',
-  patterns: ['gravação'],
-}
+const GRAVACAO: Topic = { id: 'topic-gravacao', name: 'Gravação', patterns: ['gravação'] }
 
-let analysis: Awaited<ReturnType<typeof analyseEpisode>>
+let analysis: StoredAnalysis
+let outcome: AdvanceEpisodeOutcome
+let statuses: readonly string[]
 
 beforeAll(async () => {
   const dictionary = new Map(
     parseLemmaList(readFileSync(`${fixtures}/lemmas-sample.tsv`, 'utf8')),
   )
-  const transcript = readFileSync(`${fixtures}/episode-transcript.txt`, 'utf8')
+  const spoken = readFileSync(`${fixtures}/episode-transcript.txt`, 'utf8')
+  const transcript = transcriptFromText(spoken)
 
-  analysis = await analyseEpisode(
-    // The whole vocabulary rather than the top 25, so assertions below can
-    // reach a term that was only said once.
-    { audioUrl: AUDIO, topics: [HOTDOG, PIRAO, GRAVACAO], topTermLimit: 500 },
-    {
-      transcription: FakeTranscriptionProvider.withText(AUDIO, transcript),
-      lemmas: new QueryingLemmaRepository((forms) =>
-        Promise.resolve(
-          forms.flatMap((form) => {
-            const lemma = dictionary.get(form)
-            return lemma === undefined ? [] : [{ form, lemma }]
-          }),
-        ),
-      ),
+  // One chunk: the fixture is short, and chunk count is not what this test is
+  // about. The chunk-boundary arithmetic has its own property test.
+  const chunks: UploadedChunk[] = [
+    { index: 0, startMs: 0, endMs: transcript.durationMs, audioUrl: 'audio://chunk-0' },
+  ]
+
+  const clock = new FixedClock()
+  const store = new FakeEpisodeStore()
+  const chunkStore = new FakeChunkStore()
+
+  const deps = {
+    transcription: {
+      transcribe: () =>
+        Promise.resolve({
+          ok: true as const,
+          transcript: { ...transcript, provider: 'fake', providerModel: 'fixture' },
+        }),
     },
-  )
+    lemmas: new QueryingLemmaRepository((forms) =>
+      Promise.resolve(
+        forms.flatMap((form) => {
+          const lemma = dictionary.get(form)
+          return lemma === undefined ? [] : [{ form, lemma }]
+        }),
+      ),
+    ),
+    chunks: chunkStore,
+    allowance: FakeAllowanceStore.fresh(clock.now()),
+    store,
+    clock,
+  }
+
+  const request = { episodeId: EPISODE, chunks, topics: [HOTDOG, PIRAO, GRAVACAO] }
+
+  // Step until it settles, the way a scheduled poke would.
+  let step = await advanceEpisode(request, deps)
+  for (let guard = 0; step.state === 'transcribed' && guard < 10; guard += 1) {
+    step = await advanceEpisode(request, deps)
+  }
+
+  outcome = step
+  statuses = store.statuses
+  const stored = store.latest
+  if (stored === undefined) throw new Error('nothing was stored')
+  analysis = stored
 })
 
-const result = () => {
-  if (!analysis.ok) throw new Error('expected an analysis')
-  return analysis.analysis
-}
-
-const term = (name: string) => result().topTerms.find((t) => t.term === name)
-const topic = (name: string) => result().topics.find((t) => t.topicName === name)
+const term = (name: string) => analysis.termCounts.find((t) => t.term === name)
+const mentionsOf = (topic: Topic) =>
+  analysis.mentions.filter((m) => m.topicId === topic.id)
 
 describe('the pipeline, end to end', () => {
-  it('produces an analysis', () => {
-    expect(analysis.ok).toBe(true)
+  it('reaches ready', () => {
+    expect(outcome).toEqual({ state: 'ready' })
+    expect(statuses.at(-1)).toBe('ready')
   })
 
-  // The payoff of the dictionary. Eight spellings of one verb, one term.
+  it('walks the statuses in order', () => {
+    expect(statuses).toEqual(['transcribing', 'analyzing', 'ready'])
+  })
+
+  // The payoff of the dictionary. Five spellings of one verb, one term.
   it('folds every form of falar into one term', () => {
     expect(term('falar')).toMatchObject({ count: 8, heuristic: false })
     expect(term('falar')?.surfaceForms).toEqual([
@@ -82,8 +118,9 @@ describe('the pipeline, end to end', () => {
   })
 
   it('leaves out stop words', () => {
+    const listed = analysis.termCounts.map((t) => t.term)
     for (const stopWord of ['o', 'a', 'de', 'que', 'ele', 'é', 'no']) {
-      expect(result().topTerms.map((t) => t.term)).not.toContain(stopWord)
+      expect(listed).not.toContain(stopWord)
     }
   })
 
@@ -95,27 +132,24 @@ describe('the pipeline, end to end', () => {
   })
 
   it('never merges two words that differ by an accent', () => {
-    const terms = result().topTerms.map((t) => t.term)
-    expect(terms).toContain('mês')
-    expect(terms).not.toContain('mes')
+    const listed = analysis.termCounts.map((t) => t.term)
+    expect(listed).toContain('mês')
+    expect(listed).not.toContain('mes')
   })
 
   describe('running jokes', () => {
-    // The stakeholder's own example, on real text: three spellings, one joke.
     it('counts hotdog across every spelling it was written in', () => {
-      expect(topic('Hotdog')?.count).toBe(4)
-      expect(topic('Hotdog')?.mentions.map((m) => m.matchedText)).toEqual([
+      expect(mentionsOf(HOTDOG).map((m) => m.matchedText)).toEqual([
         'hotdog', 'hotdog', 'hot dog', 'hot-dog',
       ])
     })
 
     it('counts a one-word joke', () => {
-      expect(topic('Pirão')?.count).toBe(2)
+      expect(mentionsOf(PIRAO)).toHaveLength(2)
     })
 
     it('finds a joke through its inflection', () => {
-      expect(topic('Gravação')?.count).toBe(2)
-      expect(topic('Gravação')?.mentions.map((m) => m.matchedText)).toEqual([
+      expect(mentionsOf(GRAVACAO).map((m) => m.matchedText)).toEqual([
         'gravações', 'gravações',
       ])
     })
@@ -123,32 +157,30 @@ describe('the pipeline, end to end', () => {
     // Every mention is playable. This is what makes a count arguable instead
     // of something to be taken on faith.
     it('locates every mention in the audio, in order', () => {
-      const mentions = topic('Hotdog')?.mentions ?? []
-      expect(mentions).not.toHaveLength(0)
+      const found = mentionsOf(HOTDOG)
+      expect(found).not.toHaveLength(0)
 
-      for (const mention of mentions) {
+      for (const mention of found) {
         expect(mention.endMs).toBeGreaterThan(mention.startMs)
-        expect(mention.endMs).toBeLessThanOrEqual(result().durationMs)
+        expect(mention.endMs).toBeLessThanOrEqual(analysis.insight.durationMs)
       }
 
-      const starts = mentions.map((m) => m.startMs)
+      const starts = found.map((m) => m.startMs)
       expect([...starts].sort((a, b) => a - b)).toEqual(starts)
-    })
-
-    it('ranks the jokes by how often they came up', () => {
-      expect(result().topics.map((t) => t.topicName)).toEqual([
-        'Hotdog', 'Gravação', 'Pirão',
-      ])
     })
   })
 
   it('conserves every token across the three classes', () => {
-    const { wordTokens, stopWordTokens, fillerTokens, totalTokens } = result()
+    const { wordTokens, stopWordTokens, fillerTokens, totalTokens } = analysis.insight
     expect(wordTokens + stopWordTokens + fillerTokens).toBe(totalTokens)
   })
 
   it('records the versions that produced these numbers', () => {
-    expect(result().pipelineVersion).toBeGreaterThan(0)
-    expect(result().vocabularyVersion).toBeGreaterThan(0)
+    expect(analysis.insight.pipelineVersion).toBeGreaterThan(0)
+    expect(analysis.transcript.vocabularyVersion).toBeGreaterThan(0)
+  })
+
+  it('keeps the provider payload so analysis can be re-run for free', () => {
+    expect(analysis.transcript.rawProviderPayload).toBeDefined()
   })
 })
