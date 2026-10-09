@@ -70,24 +70,34 @@ export class FakeChunkStore implements ChunkStore {
 export class FakeAllowanceStore implements AllowanceStore {
   readonly spent: number[] = []
 
-  constructor(private state: AllowanceState) {}
+  constructor(
+    private state: AllowanceState,
+    private readonly clock: Clock,
+  ) {}
 
-  static fresh(nowMs: number): FakeAllowanceStore {
-    return new FakeAllowanceStore({
-      remainingAudioMs: HOURLY_ALLOWANCE_MS,
-      asOfMs: nowMs,
-      dailyUsedMs: 0,
-      dayResetsAt: nowMs + 86_400_000,
-    })
+  static fresh(clock: Clock): FakeAllowanceStore {
+    const nowMs = clock.now()
+    return new FakeAllowanceStore(
+      {
+        remainingAudioMs: HOURLY_ALLOWANCE_MS,
+        asOfMs: nowMs,
+        dailyUsedMs: 0,
+        dayResetsAt: nowMs + 86_400_000,
+      },
+      clock,
+    )
   }
 
-  static exhausted(nowMs: number, window: 'hour' | 'day'): FakeAllowanceStore {
-    const fresh = FakeAllowanceStore.fresh(nowMs)
-    return new FakeAllowanceStore({
-      ...fresh.state,
-      remainingAudioMs: 0,
-      dailyUsedMs: window === 'day' ? DAILY_ALLOWANCE_MS : 0,
-    })
+  static exhausted(clock: Clock, window: 'hour' | 'day'): FakeAllowanceStore {
+    const fresh = FakeAllowanceStore.fresh(clock)
+    return new FakeAllowanceStore(
+      {
+        ...fresh.state,
+        remainingAudioMs: 0,
+        dailyUsedMs: window === 'day' ? DAILY_ALLOWANCE_MS : 0,
+      },
+      clock,
+    )
   }
 
   read(): Promise<AllowanceState> {
@@ -102,7 +112,10 @@ export class FakeAllowanceStore implements AllowanceStore {
       // from a balance that has also been refilling, so it drifts low.
       remainingAudioMs:
         observed?.remainingAudioMs ?? Math.max(0, this.state.remainingAudioMs - audioMs),
-      asOfMs: this.state.asOfMs,
+      // Restamped, because the balance is only true at an instant. Leaving
+      // the old stamp would let whoever reads this credit refill for the gap
+      // *before* the spend, handing back the audio just sent.
+      asOfMs: this.clock.now(),
       dailyUsedMs: this.state.dailyUsedMs + audioMs,
     }
     return Promise.resolve()

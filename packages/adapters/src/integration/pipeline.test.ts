@@ -71,7 +71,7 @@ beforeAll(async () => {
       ),
     ),
     chunks: chunkStore,
-    allowance: FakeAllowanceStore.fresh(clock.now()),
+    allowance: FakeAllowanceStore.fresh(clock),
     store,
     clock,
   }
