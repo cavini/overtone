@@ -1,3 +1,5 @@
+import type { ObservedAllowance } from '../domain/observed-allowance.js'
+
 /** One word, with the timing that lets a count link back to the audio. */
 export interface TranscribedWord {
   readonly text: string
@@ -48,12 +50,25 @@ export type TranscriptionFailure =
   | { readonly code: 'PROVIDER_RESPONSE_INVALID' }
 
 /**
+ * What the provider said about its own remaining allowance, if it said
+ * anything.
+ *
+ * Present on success and on failure alike, because the refusal that matters
+ * most — being over the limit — is a failure, and it reports the balance too
+ * (ADR 0021). Optional because a provider that stops reporting must not be
+ * mistaken for one reporting an empty bucket.
+ */
+interface WithObservedAllowance {
+  readonly observedAllowance?: ObservedAllowance | undefined
+}
+
+/**
  * Failure is part of the return type rather than an exception, so a caller
  * cannot forget that transcription is the one step that routinely fails.
  */
 export type TranscriptionOutcome =
-  | { readonly ok: true; readonly transcript: Transcript }
-  | { readonly ok: false; readonly failure: TranscriptionFailure }
+  | ({ readonly ok: true; readonly transcript: Transcript } & WithObservedAllowance)
+  | ({ readonly ok: false; readonly failure: TranscriptionFailure } & WithObservedAllowance)
 
 export interface TranscriptionRequest {
   /** Where the provider can fetch the audio. */
