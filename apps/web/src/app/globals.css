@@ -1,0 +1,91 @@
+@import 'tailwindcss';
+
+/*
+ * The palette comes from studio hardware rather than from the web: a dark
+ * console, and amber the colour a level meter goes. The neutrals carry a
+ * slight blue bias so they read as chosen rather than as default grey.
+ */
+@theme {
+  --font-display: var(--font-fraunces), Georgia, 'Times New Roman', serif;
+  --font-body: var(--font-plex-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-plex-mono), ui-monospace, 'SF Mono', monospace;
+
+  --color-ink: #0e1116;
+  --color-surface: #161b22;
+  --color-raised: #1f262e;
+  --color-line: #2b333d;
+  --color-body: #e6edf3;
+  --color-muted: #8b949e;
+  --color-signal: #f0a830;
+  --color-signal-dim: #a8741c;
+  --color-cool: #6cb6ff;
+  --color-warn: #e5774e;
+}
+
+:root {
+  /* Light is the default definition; dark overrides the same tokens below. */
+  --ground: #faf9f7;
+  --panel: #ffffff;
+  --edge: #e4e0d8;
+  --prose: #1a1d21;
+  --quiet: #5c6269;
+  --accent: #9a5f04;
+  --accent-quiet: #c98a2a;
+  --link: #10559a;
+  --alarm: #a63c17;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --ground: #0e1116;
+    --panel: #161b22;
+    --edge: #2b333d;
+    --prose: #e6edf3;
+    --quiet: #8b949e;
+    --accent: #f0a830;
+    --accent-quiet: #a8741c;
+    --link: #6cb6ff;
+    --alarm: #e5774e;
+  }
+}
+
+:root[data-theme='dark'] {
+  --ground: #0e1116;
+  --panel: #161b22;
+  --edge: #2b333d;
+  --prose: #e6edf3;
+  --quiet: #8b949e;
+  --accent: #f0a830;
+  --accent-quiet: #a8741c;
+  --link: #6cb6ff;
+  --alarm: #e5774e;
+}
+
+body {
+  /* Painted explicitly: a transparent body borrows whatever is behind it. */
+  background: var(--ground);
+  color: var(--prose);
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Counts line up in columns, so the digits have to be the same width. */
+.tabular {
+  font-variant-numeric: tabular-nums;
+  font-family: var(--font-mono);
+}
+
+/* Wide content scrolls inside itself; the page never scrolls sideways. */
+.scroller {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
