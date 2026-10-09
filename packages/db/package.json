@@ -13,11 +13,16 @@
     "test": "vitest",
     "test:unit": "vitest run --coverage",
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "generate": "drizzle-kit generate"
+    "generate": "drizzle-kit generate",
+    "migrate": "tsx src/migrate.mts",
+    "db:check": "drizzle-kit check",
+    "db:reset": "tsx src/reset.mts",
+    "db:inspect": "tsx src/inspect.mts"
   },
   "dependencies": {
     "@overtone/core": "workspace:*",
-    "drizzle-orm": "^0.45.4"
+    "drizzle-orm": "^0.45.4",
+    "postgres": "^3.4.9"
   },
   "devDependencies": {
     "@types/node": "^26.6.4",
