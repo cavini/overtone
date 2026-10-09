@@ -5,7 +5,8 @@
   "type": "module",
   "exports": {
     "./groq": "./src/groq/index.ts",
-    "./lemmas": "./src/lemmas/index.ts"
+    "./lemmas": "./src/lemmas/index.ts",
+    "./supabase": "./src/supabase/index.ts"
   },
   "scripts": {
     "test": "vitest",
