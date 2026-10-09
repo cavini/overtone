@@ -3,17 +3,31 @@
  * 825,000-pair dictionary in Postgres, the real analysis, written to and read
  * back from the live database.
  *
+ * The transcript is replayed chunk by chunk through the paced loop, because
+ * that is how an episode is actually transcribed (ADR 0020) — one chunk per
+ * step, waiting on the hourly allowance in between. The clock is the only
+ * thing faked: it jumps forward instead of sleeping, so a run that takes an
+ * hour in production takes a second here.
+ *
  *   pnpm --filter @overtone/db db:smoke -- <transcript.json>
  */
 import { existsSync, readFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { processEpisode, type Topic } from '@overtone/core'
+import {
+  advanceEpisode,
+  planChunks,
+  stitchChunks,
+  type Topic,
+  type UploadedChunk,
+} from '@overtone/core'
 import { drizzle } from 'drizzle-orm/postgres-js'
 import postgres from 'postgres'
 import { lemmaQuery } from './lemmas/lemma-query.js'
+import { DrizzleAllowanceStore } from './repositories/drizzle-allowance-store.js'
+import { DrizzleChunkStore } from './repositories/drizzle-chunk-store.js'
 import { DrizzleEpisodeStore } from './repositories/drizzle-episode-store.js'
-import { episodes, insights, mentions, series, seriesMembers, termCounts, topics, topicTerms, transcripts } from './schema.js'
+import { allowance, chunkTranscripts, episodes, insights, mentions, series, seriesMembers, termCounts, topics, topicTerms, transcripts } from './schema.js'
 import { eq } from 'drizzle-orm'
 
 const here = dirname(fileURLToPath(import.meta.url))
@@ -31,26 +45,55 @@ const USER = '00000000-0000-0000-0000-000000000001'
 const sql = postgres(process.env['DATABASE_URL'] ?? '', { max: 1, onnotice: () => {} })
 const db = drizzle(sql)
 
-/** Replays the real Groq response through the port, no network involved. */
+const durationMs = Math.round(groq.duration * 1000)
+const words = groq.words.map((w) => ({
+  text: w.word,
+  startMs: Math.round(w.start * 1000),
+  endMs: Math.round(w.end * 1000),
+}))
+
+// What the browser would have uploaded.
+const plan = planChunks(durationMs)
+const uploaded: UploadedChunk[] = plan.map((chunk) => ({
+  ...chunk,
+  audioUrl: `replayed://chunk/${chunk.index}`,
+}))
+
+/**
+ * Replays the real Groq response one chunk at a time, no network involved.
+ *
+ * Word timings come back **relative to the chunk**, which is what the real
+ * provider returns for a chunk file and what makes stitching load-bearing.
+ */
 const replay = {
-  transcribe: () =>
-    Promise.resolve({
+  transcribe: ({ audioUrl }: { audioUrl: string }) => {
+    const index = Number(audioUrl.split('/').at(-1))
+    const chunk = plan[index]
+    if (chunk === undefined) throw new Error(`no chunk ${index}`)
+
+    const mine = words.filter((w) => w.startMs >= chunk.startMs && w.startMs < chunk.endMs)
+    return Promise.resolve({
       ok: true as const,
       transcript: {
         provider: 'groq',
         providerModel: 'whisper-large-v3-turbo',
-        text: groq.text,
-        words: groq.words.map((w) => ({
-          text: w.word,
-          startMs: Math.round(w.start * 1000),
-          endMs: Math.round(w.end * 1000),
+        text: mine.map((w) => w.text).join(' '),
+        words: mine.map((w) => ({
+          text: w.text,
+          startMs: w.startMs - chunk.startMs,
+          endMs: w.endMs - chunk.startMs,
         })),
         language: 'pt',
-        durationMs: Math.round(groq.duration * 1000),
-        raw: groq,
+        durationMs: chunk.endMs - chunk.startMs,
+        raw: { replayedChunk: index },
       },
-    }),
+    })
+  },
 }
+
+// Jumps instead of sleeping. The one thing not real about this run.
+let nowMs = Date.parse('2026-10-09T09:00:00.000Z')
+const clock = { now: () => nowMs }
 
 try {
   // A clean series each run.
@@ -82,16 +125,62 @@ try {
     made.push({ id, name, patterns: [...patterns] })
   }
 
-  const outcome = await processEpisode(
-    { episodeId, audioUrl: 'replayed', topics: made },
-    {
-      transcription: replay,
-      lemmas: { lookup: async (forms) => new Map((await lemmaQuery(db)(forms)).map((r) => [r.form, r.lemma])) },
-      store: new DrizzleEpisodeStore(db),
-    },
-  )
+  // A clean allowance, so the pacing below is the episode's own.
+  await db.delete(allowance)
 
-  console.log(`\n  pipeline: ${outcome.ok ? 'ok' : `failed — ${JSON.stringify(outcome.failure)}`}`)
+  const deps = {
+    transcription: replay,
+    lemmas: { lookup: async (forms: readonly string[]) => new Map((await lemmaQuery(db)(forms)).map((r) => [r.form, r.lemma])) },
+    chunks: new DrizzleChunkStore(db),
+    allowance: new DrizzleAllowanceStore(db),
+    store: new DrizzleEpisodeStore(db),
+    clock,
+  }
+
+  const startedAt = nowMs
+  const mmssOf = (ms: number) => `${String(Math.floor(ms / 60000)).padStart(2, '0')}:${String(Math.floor((ms % 60000) / 1000)).padStart(2, '0')}`
+
+  console.log(`\n  ${plan.length} chunks over ${mmssOf(durationMs)} of audio\n`)
+
+  let steps = 0
+  let waits = 0
+  for (;;) {
+    if (++steps > plan.length * 4) throw new Error('paced loop did not finish')
+
+    const outcome = await advanceEpisode({ episodeId, chunks: uploaded, topics: made }, deps)
+
+    if (outcome.state === 'failed') {
+      console.log(`  failed — ${JSON.stringify(outcome.failure)}`)
+      break
+    }
+    if (outcome.state === 'ready') {
+      console.log('  stitched and analysed')
+      break
+    }
+    if (outcome.state === 'waiting') {
+      waits += 1
+      console.log(`    wait   ${Math.round(outcome.retryAfterMs / 60000)} min — ${outcome.reason}`)
+      // What a real deployment would sleep through.
+      nowMs += outcome.retryAfterMs
+      continue
+    }
+    console.log(`    chunk ${outcome.chunkIndex}  sent, ${outcome.remaining} to go`)
+  }
+
+  console.log(`\n  ${steps} steps, ${waits} wait${waits === 1 ? '' : 's'}, ${mmssOf(nowMs - startedAt)} of wall clock`)
+
+  // The highest-risk arithmetic in the repo: offsetting on stitch. It fails
+  // silently — counts stay plausible and point at the wrong moment — so the
+  // reassembled words are compared against the ones we started with.
+  const reassembled = stitchChunks(await deps.chunks.transcripts(episodeId))
+  const drift = reassembled.findIndex(
+    (w, i) => w.text !== words[i]?.text || w.startMs !== words[i]?.startMs,
+  )
+  console.log(
+    drift === -1
+      ? `  round trip: ${reassembled.length}/${words.length} words, timings exact`
+      : `  ROUND TRIP BROKEN at word ${drift}: ${JSON.stringify(reassembled[drift])} vs ${JSON.stringify(words[drift])}`,
+  )
 
   // Read everything back out of Postgres.
   const [ep] = await db.select({ status: episodes.status }).from(episodes).where(eq(episodes.id, episodeId))
@@ -100,10 +189,12 @@ try {
   const found = await db.select().from(mentions).where(eq(mentions.episodeId, episodeId))
   const [tr] = await db.select({ provider: transcripts.provider }).from(transcripts).where(eq(transcripts.episodeId, episodeId))
 
-  const mmss = (ms: number) => `${String(Math.floor(ms / 60000)).padStart(2, '0')}:${String(Math.floor((ms % 60000) / 1000)).padStart(2, '0')}`
+  const chunkRows = await db.select().from(chunkTranscripts).where(eq(chunkTranscripts.episodeId, episodeId))
+  const mmss = mmssOf
 
   console.log(`  status:   ${ep?.status}`)
   console.log(`  provider: ${tr?.provider}`)
+  console.log(`  chunks:   ${chunkRows.length} stored`)
   console.log(`  words:    ${ins?.totalTokens} total, ${ins?.wordTokens} countable, ${ins?.wordsPerMinute} wpm\n`)
 
   console.log('  RUNNING JOKES (read back from postgres)')
