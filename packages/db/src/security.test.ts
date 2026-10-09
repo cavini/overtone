@@ -40,6 +40,58 @@ const SERIES_SCOPED = [
   'transcripts', 'segments', 'insights', 'term_counts', 'mentions', 'queries',
 ]
 
+/**
+ * Column names as the database sees them, parsed out of the generated DDL.
+ *
+ * Not from the schema object: Drizzle's property names and its column names
+ * are allowed to differ, and that gap is exactly where the bug lived. A
+ * shared helper named a column `user_id` while the property was `ownerId`,
+ * every policy referenced `owner_id`, the whole thing typechecked, and the
+ * migration failed on the live database with `column "owner_id" does not
+ * exist`.
+ */
+const columnsByTable = new Map<string, Set<string>>()
+for (const block of sql.matchAll(/create table "(\w+)" \(([\s\S]*?)\n\);/g)) {
+  const table = block[1] ?? ''
+  const columns = new Set(
+    [...(block[2] ?? '').matchAll(/^\s*"(\w+)"\s+\w/gm)].map((m) => m[1] ?? ''),
+  )
+  columnsByTable.set(table, columns)
+}
+
+const everyColumn = new Set([...columnsByTable.values()].flatMap((set) => [...set]))
+
+describe('the policies only reference columns that exist', () => {
+  it('parsed the schema out of the migration', () => {
+    expect(columnsByTable.size).toBeGreaterThanOrEqual(13)
+    expect(everyColumn.has('owner_id')).toBe(true)
+  })
+
+  // `series_members.series_id`, `topics.series_id`, and so on.
+  it('resolves every qualified reference', () => {
+    const unknown: string[] = []
+
+    for (const [, table, column] of sql.matchAll(/\b(\w+)\.(\w+)\b/g)) {
+      const columns = columnsByTable.get(table ?? '')
+      if (columns === undefined) continue
+      if (!columns.has(column ?? '')) unknown.push(`${table}.${column}`)
+    }
+
+    expect(unknown).toEqual([])
+  })
+
+  // `using (owner_id = auth.uid())` — unqualified, and the form that broke.
+  it('resolves every bare column compared against auth.uid()', () => {
+    const unknown: string[] = []
+
+    for (const [, column] of sql.matchAll(/\b([a-z][a-z0-9_]*)\s*=\s*auth\.uid\(\)/g)) {
+      if (!everyColumn.has(column ?? '')) unknown.push(column ?? '')
+    }
+
+    expect(unknown).toEqual([])
+  })
+})
+
 describe('row-level security', () => {
   it('found the schema tables to check', () => {
     expect(tables.length).toBeGreaterThanOrEqual(13)
