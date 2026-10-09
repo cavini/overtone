@@ -17,7 +17,9 @@
     "migrate": "tsx src/migrate.mts",
     "db:check": "drizzle-kit check",
     "db:reset": "tsx src/reset.mts",
-    "db:inspect": "tsx src/inspect.mts"
+    "db:inspect": "tsx src/inspect.mts",
+    "db:load-lemmas": "tsx src/load-lemmas.mts",
+    "db:smoke": "tsx src/smoke.mts"
   },
   "dependencies": {
     "@overtone/core": "workspace:*",
