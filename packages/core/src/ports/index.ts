@@ -1,4 +1,12 @@
 export type {
+  EpisodeFailure,
+  EpisodeStore,
+  StoredAnalysis,
+  StoredInsight,
+  StoredMention,
+  StoredTranscript,
+} from './episode-store.js'
+export type {
   EpisodeSummary,
   SeriesRepository,
   TopicTally,
