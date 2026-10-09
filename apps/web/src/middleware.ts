@@ -6,9 +6,18 @@ import { GATE_COOKIE, matches, tokenFor } from './server/gate.js'
 
 const withLocale = createMiddleware(routing)
 
-/** Where the password is handed in. The only thing reachable without it. */
+/** Where the password is handed in. */
 const GATE_PAGE = '/entrar'
 const GATE_API = '/api/enter'
+
+/**
+ * The licence notice, open to everyone.
+ *
+ * ODbL asks for the dictionary's attribution to be reachable by anyone the
+ * work reaches (ADR 0019), and a notice you need a password to read is not
+ * reachable. It holds nothing of anybody's anyway.
+ */
+const CREDITS_PAGE = '/creditos'
 
 async function carriesTheCookie(request: NextRequest, password: string): Promise<boolean> {
   return matches(request.cookies.get(GATE_COOKIE)?.value, await tokenFor(password))
@@ -37,6 +46,7 @@ export default async function middleware(request: NextRequest): Promise<Response
   if (password === undefined || password.length === 0) return onward()
 
   if (pathname === GATE_API || pathname.endsWith(GATE_PAGE)) return onward()
+  if (pathname.endsWith(CREDITS_PAGE)) return onward()
 
   if (await carriesTheCookie(request, password)) return onward()
 
