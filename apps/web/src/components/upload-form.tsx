@@ -2,6 +2,8 @@
 
 import type { Locale } from '@overtone/messages'
 import { useRef, useState } from 'react'
+import { audioTypeOf, FILE_INPUT_ACCEPT } from '../audio/audio-type.js'
+import { measureDuration } from '../audio/measure-duration.js'
 import type { UiKey } from '../i18n/ui.js'
 import type { AnalysisView, OutcomeView } from '../presenter/episode-view.js'
 import { CountsTable, JokeList, StatStrip } from './counts-table.js'
@@ -11,41 +13,6 @@ type Labels = Record<UiKey, string>
 interface Result {
   readonly status: OutcomeView
   readonly analysis?: AnalysisView
-}
-
-/**
- * Reads how long the audio is, in the browser.
- *
- * The chunk plan needs the duration *before* anything is sent, and the server
- * would have to decode the file to learn it. The browser already has a
- * decoder, so it answers — which is also where the splitting will happen when
- * full-length episodes arrive (ADR 0020).
- */
-function measureDuration(file: File): Promise<number> {
-  return new Promise((resolve, reject) => {
-    const url = URL.createObjectURL(file)
-    const probe = new Audio()
-
-    const finish = (outcome: () => void) => {
-      URL.revokeObjectURL(url)
-      outcome()
-    }
-
-    probe.addEventListener('loadedmetadata', () => {
-      const seconds = probe.duration
-      finish(() =>
-        Number.isFinite(seconds) && seconds > 0
-          ? resolve(Math.round(seconds * 1000))
-          : reject(new Error('duration unknown')),
-      )
-    })
-    probe.addEventListener('error', () => {
-      finish(() => reject(new Error('audio unreadable')))
-    })
-
-    probe.preload = 'metadata'
-    probe.src = url
-  })
 }
 
 export function UploadForm({
@@ -67,10 +34,20 @@ export function UploadForm({
     setResult(undefined)
 
     try {
+      // Decided here, from the extension, and sent alongside — so the server
+      // stores the same type the duration was measured with, whatever this
+      // particular browser thinks the file is.
+      const contentType = audioTypeOf(file.name, file.type)
+      if (contentType === undefined) {
+        setError(labels.unsupportedFile)
+        return
+      }
+
       const body = new FormData()
       body.set('audio', file)
       body.set('locale', locale)
-      body.set('durationMs', String(await measureDuration(file)))
+      body.set('contentType', contentType)
+      body.set('durationMs', String(await measureDuration(file, contentType)))
 
       const response = await fetch('/api/episodes', { method: 'POST', body })
       const payload = (await response.json()) as Result & { error?: string }
@@ -81,7 +58,7 @@ export function UploadForm({
       }
       setResult(payload)
     } catch {
-      setError('UNEXPECTED')
+      setError(labels.couldNotRead)
     } finally {
       setBusy(false)
     }
@@ -110,7 +87,7 @@ export function UploadForm({
             ref={input}
             type="file"
             name="audio"
-            accept="audio/*"
+            accept={FILE_INPUT_ACCEPT}
             required
             disabled={busy}
             onChange={(event) => setFilename(event.target.files?.[0]?.name ?? '')}

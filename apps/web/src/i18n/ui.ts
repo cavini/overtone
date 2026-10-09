@@ -35,6 +35,8 @@ export const UI = {
     fillersPerMinute: 'Vícios por minuto',
     language: 'Idioma',
     nothingYet: 'Envie um episódio para ver os números.',
+    unsupportedFile: 'Esse tipo de arquivo não dá. Use mp3, m4a, ogg, opus, wav ou webm.',
+    couldNotRead: 'Não deu para ler esse áudio. O arquivo pode estar corrompido.',
   },
   en: {
     appName: 'Overtone',
@@ -61,6 +63,8 @@ export const UI = {
     fillersPerMinute: 'Fillers per minute',
     language: 'Language',
     nothingYet: 'Upload an episode to see the numbers.',
+    unsupportedFile: 'That file type will not work. Use mp3, m4a, ogg, opus, wav or webm.',
+    couldNotRead: 'We could not read that audio. The file may be corrupt.',
   },
 } as const satisfies Record<Locale, Record<string, string>>
 
