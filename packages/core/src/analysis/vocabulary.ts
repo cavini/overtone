@@ -3,7 +3,7 @@
  * so a count can always be traced to the vocabulary that produced it, and so
  * a change here is a visible reason for numbers to move.
  */
-export const VOCABULARY_VERSION = 1
+export const VOCABULARY_VERSION = 2
 
 /**
  * Brazilian Portuguese stop words.
