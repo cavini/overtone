@@ -29,6 +29,20 @@
       "when": 1791522239541,
       "tag": "0003_secure_chunk_tables",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1791523557865,
+      "tag": "0004_graceful_iron_man",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1791523558345,
+      "tag": "0005_watery_power_man",
+      "breakpoints": true
     }
   ]
 }

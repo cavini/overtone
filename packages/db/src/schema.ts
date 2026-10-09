@@ -191,10 +191,15 @@ export const chunkTranscripts = pgTable(
  * security — hence no policy below, which denies everyone else.
  */
 export const allowance = pgTable('allowance', {
+  // One account, one budget, one row.
   id: smallint('id').primaryKey().default(1),
-  hourlyUsedMs: bigint('hourly_used_ms', { mode: 'number' }).notNull().default(0),
+  // The hourly allowance is a bucket that refills continuously, so a balance
+  // is only true at an instant (ADR 0021, experiment 0003).
+  remainingAudioMs: bigint('remaining_audio_ms', { mode: 'number' }).notNull().default(0),
+  asOf: timestamp('as_of', { withTimezone: true }).notNull().defaultNow(),
+  // The daily cap is not reported by the provider, so it stays a tally
+  // against a window that turns over. The last modelled limit here.
   dailyUsedMs: bigint('daily_used_ms', { mode: 'number' }).notNull().default(0),
-  hourResetsAt: timestamp('hour_resets_at', { withTimezone: true }).notNull().defaultNow(),
   dayResetsAt: timestamp('day_resets_at', { withTimezone: true }).notNull().defaultNow(),
 })
 
