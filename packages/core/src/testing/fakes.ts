@@ -1,3 +1,4 @@
+import type { ObservedAllowance } from '../domain/observed-allowance.js'
 import type { AllowanceState } from '../domain/allowance.js'
 import type { ChunkTranscript } from '../domain/audio-chunk.js'
 import type { EpisodeStatus } from '../domain/episode.js'
@@ -73,9 +74,9 @@ export class FakeAllowanceStore implements AllowanceStore {
 
   static fresh(nowMs: number): FakeAllowanceStore {
     return new FakeAllowanceStore({
-      hourlyUsedMs: 0,
+      remainingAudioMs: HOURLY_ALLOWANCE_MS,
+      asOfMs: nowMs,
       dailyUsedMs: 0,
-      hourResetsAt: nowMs + 3_600_000,
       dayResetsAt: nowMs + 86_400_000,
     })
   }
@@ -84,7 +85,7 @@ export class FakeAllowanceStore implements AllowanceStore {
     const fresh = FakeAllowanceStore.fresh(nowMs)
     return new FakeAllowanceStore({
       ...fresh.state,
-      hourlyUsedMs: HOURLY_ALLOWANCE_MS,
+      remainingAudioMs: 0,
       dailyUsedMs: window === 'day' ? DAILY_ALLOWANCE_MS : 0,
     })
   }
@@ -93,11 +94,15 @@ export class FakeAllowanceStore implements AllowanceStore {
     return Promise.resolve(this.state)
   }
 
-  record(audioMs: number): Promise<void> {
+  record(audioMs: number, observed?: ObservedAllowance): Promise<void> {
     this.spent.push(audioMs)
     this.state = {
       ...this.state,
-      hourlyUsedMs: this.state.hourlyUsedMs + audioMs,
+      // The provider's reading wins when there is one. Ours is a subtraction
+      // from a balance that has also been refilling, so it drifts low.
+      remainingAudioMs:
+        observed?.remainingAudioMs ?? Math.max(0, this.state.remainingAudioMs - audioMs),
+      asOfMs: this.state.asOfMs,
       dailyUsedMs: this.state.dailyUsedMs + audioMs,
     }
     return Promise.resolve()
