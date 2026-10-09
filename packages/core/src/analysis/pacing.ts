@@ -1,3 +1,4 @@
+import type { AllowanceState } from '../domain/allowance.js'
 import type { AudioChunk } from '../domain/audio-chunk.js'
 
 /**
@@ -14,14 +15,6 @@ import type { AudioChunk } from '../domain/audio-chunk.js'
  */
 export const HOURLY_ALLOWANCE_MS = 7_200_000
 export const DAILY_ALLOWANCE_MS = 28_800_000
-
-/** What has been spent, and when each window turns over. */
-export interface AllowanceState {
-  readonly hourlyUsedMs: number
-  readonly dailyUsedMs: number
-  readonly hourResetsAt: number
-  readonly dayResetsAt: number
-}
 
 export type PacingDecision =
   | { readonly send: true; readonly chunk: AudioChunk }

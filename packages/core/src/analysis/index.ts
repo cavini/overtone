@@ -15,7 +15,6 @@ export {
   DAILY_ALLOWANCE_MS,
   HOURLY_ALLOWANCE_MS,
   nextChunkToSend,
-  type AllowanceState,
   type PacingDecision,
 } from './pacing.js'
 export { compareByCountThenLabel } from './ranking.js'

@@ -43,3 +43,4 @@ export type {
 } from './series-overview.js'
 export type { SegmentWord, TranscriptSegment } from './transcript-segment.js'
 export type { AudioChunk, ChunkTranscript } from './audio-chunk.js'
+export type { AllowanceState } from './allowance.js'

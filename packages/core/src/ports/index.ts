@@ -1,3 +1,6 @@
+export type { AllowanceStore } from './allowance-store.js'
+export type { ChunkStore } from './chunk-store.js'
+export type { Clock } from './clock.js'
 export type {
   EpisodeFailure,
   EpisodeStore,
