@@ -42,3 +42,4 @@ export type {
   TopicTrend,
 } from './series-overview.js'
 export type { SegmentWord, TranscriptSegment } from './transcript-segment.js'
+export type { AudioChunk, ChunkTranscript } from './audio-chunk.js'

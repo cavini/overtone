@@ -3,6 +3,12 @@ export { surfacesOf, tokenise } from './tokenise.js'
 export { tokeniseTimed } from './tokenise-timed.js'
 export { toSegments } from './to-segments.js'
 export { classify } from './classify.js'
+export {
+  CHUNK_TARGET_MS,
+  missingChunks,
+  planChunks,
+  stitchChunks,
+} from './chunking.js'
 export { stem } from './stem.js'
 export { annotate } from './annotate.js'
 export { compareByCountThenLabel } from './ranking.js'
