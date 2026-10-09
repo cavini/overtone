@@ -1,0 +1,63 @@
+// Guards the generated SQL, not the schema that generated it.
+import { readdirSync, readFileSync } from 'node:fs'
+import { dirname, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
+import { EPISODE_STATUSES, SERIES_ROLES } from '@overtone/core'
+import { describe, expect, it } from 'vitest'
+
+const migrationsDir = resolve(dirname(fileURLToPath(import.meta.url)), '../migrations')
+
+const sql = readdirSync(migrationsDir)
+  .filter((name) => name.endsWith('.sql'))
+  .sort()
+  .map((name) => readFileSync(resolve(migrationsDir, name), 'utf8'))
+  .join('\n')
+
+describe('the generated migrations', () => {
+  it('exist and are checked in', () => {
+    expect(sql.length).toBeGreaterThan(0)
+  })
+
+  // The bug this exists for: interpolating a value into a `sql` template
+  // produces a bind placeholder, which is right for a query and useless in
+  // DDL. A migration has no way to supply `$1`, so the whole thing fails to
+  // apply — and the schema it was generated from typechecks perfectly.
+  it('inlines every value instead of leaving a bind placeholder', () => {
+    expect(sql).not.toMatch(/\$\d/)
+  })
+
+  it('makes the database enforce the episode statuses, not just TypeScript', () => {
+    for (const status of EPISODE_STATUSES) {
+      expect(sql).toContain(`'${status}'`)
+    }
+    expect(sql).toMatch(/CONSTRAINT "episodes_status" CHECK/)
+  })
+
+  it('makes the database enforce the member roles', () => {
+    for (const role of SERIES_ROLES) {
+      expect(sql).toContain(`'${role}'`)
+    }
+    expect(sql).toMatch(/CONSTRAINT "series_members_role" CHECK/)
+  })
+
+  it('creates every table the application reads', () => {
+    for (const table of [
+      'series', 'series_members', 'topics', 'topic_terms', 'episodes',
+      'transcripts', 'segments', 'insights', 'term_counts', 'mentions',
+      'queries', 'lemmas', 'heartbeats',
+    ]) {
+      expect(sql).toContain(`CREATE TABLE "${table}"`)
+    }
+  })
+
+  // Deleting a series must take its episodes, transcripts and counts with it.
+  // "Delete my data" is a promise, and an orphaned row is a broken one.
+  it('cascades deletes from a series down to everything beneath it', () => {
+    const cascades = sql.match(/ON DELETE cascade/gi) ?? []
+    expect(cascades.length).toBeGreaterThanOrEqual(9)
+  })
+
+  it('indexes the lemma dictionary by the column it is looked up on', () => {
+    expect(sql).toMatch(/CREATE TABLE "lemmas"[\s\S]*?"form" text PRIMARY KEY/)
+  })
+})
