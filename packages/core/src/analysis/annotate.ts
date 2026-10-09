@@ -1,11 +1,15 @@
 import type { Annotated, LemmaLookup, LemmaSource, Token } from '../domain/token.js'
 import { classify } from './classify.js'
+import { COLLOQUIAL_LEMMAS } from './colloquial.js'
 import { stem } from './stem.js'
 
 /**
  * Attaches a lemma and a class to every token.
  *
- * Three tiers, in descending order of confidence. The dictionary is exact and
+ * Four tiers, in descending order of confidence. A short hand-written list
+ * comes first, for the handful of words where the dictionary is correct
+ * about Portuguese and wrong about people — `cara` is "dude", not
+ * "expensive". The dictionary is exact and
  * is the only thing that can tell `casas` (house) from `casar` (to marry) —
  * a stemmer folds both to `cas`. Failing that, the stemmer handles plurals of
  * words no dictionary will hold: names, slang, in-jokes, English borrowings.
@@ -22,12 +26,16 @@ export function annotate<T extends Token>(
   lemmas: LemmaLookup,
 ): Array<Annotated<T>> {
   return tokens.map((token) => {
+    const corrected = COLLOQUIAL_LEMMAS[token.surface]
     const fromDictionary = lemmas.get(token.surface)
 
     let lemma: string
     let lemmaSource: LemmaSource
 
-    if (fromDictionary !== undefined) {
+    if (corrected !== undefined) {
+      lemma = corrected
+      lemmaSource = 'override'
+    } else if (fromDictionary !== undefined) {
       lemma = fromDictionary
       lemmaSource = 'dictionary'
     } else {
