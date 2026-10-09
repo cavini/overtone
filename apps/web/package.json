@@ -15,8 +15,10 @@
     "@overtone/core": "workspace:*",
     "@overtone/db": "workspace:*",
     "@overtone/messages": "workspace:*",
+    "drizzle-orm": "^0.45.4",
     "next": "^15.5.4",
     "next-intl": "^4.3.12",
+    "postgres": "^3.4.7",
     "react": "^19.1.1",
     "react-dom": "^19.1.1"
   },
