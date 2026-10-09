@@ -1,6 +1,12 @@
-import type { AllowanceState, AllowanceStore } from '@overtone/core'
-import { eq, sql } from 'drizzle-orm'
-import type { PgColumn, PgDatabase, PgQueryResultHKT } from 'drizzle-orm/pg-core'
+import {
+  ALLOWANCE_REFILL_RATE,
+  HOURLY_ALLOWANCE_MS,
+  type AllowanceState,
+  type AllowanceStore,
+  type ObservedAllowance,
+} from '@overtone/core'
+import { eq, sql, type SQL } from 'drizzle-orm'
+import type { PgDatabase, PgQueryResultHKT } from 'drizzle-orm/pg-core'
 import { allowance } from '../schema.js'
 
 type Database = PgDatabase<PgQueryResultHKT, Record<string, unknown>>
@@ -8,17 +14,20 @@ type Database = PgDatabase<PgQueryResultHKT, Record<string, unknown>>
 /** There is one budget, so there is one row. */
 const SHARED_ROW = 1
 
-const HOUR_MS = 60 * 60_000
-const DAY_MS = 24 * HOUR_MS
+/** Refill per second of wall clock, in milliseconds of audio. */
+const REFILL_PER_SECOND = ALLOWANCE_REFILL_RATE * 1_000
 
 /**
  * The transcription allowance, counted in the database.
  *
- * The free tier counts seconds of audio against one account per hour and per
- * day (ADR 0020), so this is shared state: two people uploading at once are
- * spending the same budget. That makes every read-modify-write a lost-update
- * waiting to happen, which is why `record` is a single statement and the
- * addition is Postgres's, not ours.
+ * The free tier counts seconds of audio against one account (ADR 0020), so
+ * this is shared state: two people uploading at once are spending the same
+ * budget. That makes every read-modify-write a lost update waiting to happen,
+ * which is why `record` is a single statement and the arithmetic is
+ * Postgres's, not ours.
+ *
+ * And where the provider has told us its own balance, there is no arithmetic
+ * to do — we store what it said (ADR 0021).
  */
 export class DrizzleAllowanceStore implements AllowanceStore {
   constructor(private readonly db: Database) {}
@@ -31,54 +40,59 @@ export class DrizzleAllowanceStore implements AllowanceStore {
       .limit(1)
 
     // No row yet means nothing has ever been transcribed, which is a full
-    // allowance rather than a problem. The windows are placed in the future
-    // so nothing downstream reads the gap as a rollover it can spend twice.
+    // bucket rather than a problem.
     if (!row) {
-      const now = Date.now()
       return {
-        hourlyUsedMs: 0,
+        remainingAudioMs: HOURLY_ALLOWANCE_MS,
+        asOfMs: Date.now(),
         dailyUsedMs: 0,
-        hourResetsAt: now + HOUR_MS,
-        dayResetsAt: now + DAY_MS,
+        dayResetsAt: Date.now() + 86_400_000,
       }
     }
 
     return {
-      hourlyUsedMs: row.hourlyUsedMs,
+      remainingAudioMs: row.remainingAudioMs,
+      asOfMs: row.asOf.getTime(),
       dailyUsedMs: row.dailyUsedMs,
-      hourResetsAt: row.hourResetsAt.getTime(),
       dayResetsAt: row.dayResetsAt.getTime(),
     }
   }
 
-  async record(audioMs: number): Promise<void> {
-    // One statement, and the arithmetic belongs to the database.
-    //
-    // Each window either restarts at this spend, if its time has passed, or
-    // grows by it. Both branches are decided by `now()` — the database's
-    // clock — so two app instances whose clocks disagree by a second cannot
-    // disagree about whether the hour has turned.
-    const rolledOver = (resetsAt: PgColumn) => sql`${resetsAt} <= now()`
+  async record(spentAudioMs: number, observed?: ObservedAllowance): Promise<void> {
+    // One statement, and the arithmetic belongs to the database. Both
+    // branches are decided by `now()` — the database's clock — so two app
+    // instances whose clocks disagree cannot disagree about the balance.
+    const balance: SQL = observed
+      ? // Nothing to compute. The provider knows; we were guessing.
+        sql`${observed.remainingAudioMs}`
+      : // Credit the refill since the last reading, then debit what was sent.
+        // Without the refill the balance would drift ever lower and stall the
+        // pipeline on a budget that is actually full.
+        sql`greatest(0, least(
+          ${HOURLY_ALLOWANCE_MS},
+          ${allowance.remainingAudioMs}
+            + extract(epoch from (now() - ${allowance.asOf})) * ${REFILL_PER_SECOND}
+        ) - ${spentAudioMs})`
+
+    const dayRolledOver = sql`${allowance.dayResetsAt} <= now()`
 
     await this.db
       .insert(allowance)
       .values({
         id: SHARED_ROW,
-        hourlyUsedMs: audioMs,
-        dailyUsedMs: audioMs,
-        hourResetsAt: sql`now() + interval '1 hour'`,
+        remainingAudioMs: observed?.remainingAudioMs ?? HOURLY_ALLOWANCE_MS - spentAudioMs,
+        asOf: sql`now()`,
+        dailyUsedMs: spentAudioMs,
         dayResetsAt: sql`now() + interval '1 day'`,
       })
       .onConflictDoUpdate({
         target: allowance.id,
         set: {
-          hourlyUsedMs: sql`case when ${rolledOver(allowance.hourResetsAt)}
-            then ${audioMs} else ${allowance.hourlyUsedMs} + ${audioMs} end`,
-          dailyUsedMs: sql`case when ${rolledOver(allowance.dayResetsAt)}
-            then ${audioMs} else ${allowance.dailyUsedMs} + ${audioMs} end`,
-          hourResetsAt: sql`case when ${rolledOver(allowance.hourResetsAt)}
-            then now() + interval '1 hour' else ${allowance.hourResetsAt} end`,
-          dayResetsAt: sql`case when ${rolledOver(allowance.dayResetsAt)}
+          remainingAudioMs: balance,
+          asOf: sql`now()`,
+          dailyUsedMs: sql`case when ${dayRolledOver}
+            then ${spentAudioMs} else ${allowance.dailyUsedMs} + ${spentAudioMs} end`,
+          dayResetsAt: sql`case when ${dayRolledOver}
             then now() + interval '1 day' else ${allowance.dayResetsAt} end`,
         },
       })
