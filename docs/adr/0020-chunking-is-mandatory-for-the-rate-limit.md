@@ -19,7 +19,9 @@ Measured against a real episode — 2 h 06 m 31 s, the show's ordinary length:
 
 The request was refused for its **duration**, not its size. A single episode of this show is 391 seconds longer than the entire hourly allowance, so no amount of better encoding will ever get it through as one request.
 
-It is worse than a per-request ceiling. The *total* also exceeds one hour's budget, so one episode cannot be transcribed inside a single hour at all — it has to span two hourly windows.
+It is worse than a per-request ceiling. The *total* also exceeds a full balance, so an episode cannot go through on one balance however it is divided — some of it is always waiting on the allowance to come back.
+
+> This paragraph originally said the episode "has to span two hourly windows". There are no windows: the allowance is a bucket that refills continuously, so what the tail chunk waits for is refill, not a reset. See [experiment 0003](../experiments/0003-allowance-is-a-refilling-bucket.md) and [ADR 0021](0021-read-the-provider-s-allowance.md).
 
 ADR 0011 was right. It was right for a reason none of us had identified: the limit that binds is time, not bytes.
 
@@ -46,7 +48,9 @@ And the no-background-worker decision (ADR 0010) is strained. A paced queue span
 
 ## Consequences
 
-- **A weekly show still works comfortably**, provided nobody expects an episode ready in five minutes. At 20-minute chunks an episode is **7 pieces**, six of which fit in one hourly window, so the seventh waits — roughly **1.1 hours of wall-clock** per episode, almost all of it spent waiting on the allowance rather than on transcription.
+- **A weekly show works comfortably.** At 20-minute chunks an episode is **7 pieces**, six of which a full balance covers, so the seventh waits on refill — about **5–8 minutes of wall-clock** per episode.
+
+  > The figure above was originally *1.1 hours*, from assuming the hourly allowance was a counter zeroed on the hour. It is a bucket that refills continuously, so the wait is only as long as the tail chunk needs. Measured in [experiment 0003](../experiments/0003-allowance-is-a-refilling-bucket.md); the model is corrected in [ADR 0021](0021-read-the-provider-s-allowance.md). Chunking itself stands for exactly the reason given above.
 - Daily ceiling: 28 800 audio-seconds, so **three of this show's episodes per day**, not four. Backfilling the 219-episode archive is **462 audio-hours — about 58 days** of continuous processing, which settles the back-catalogue question on arithmetic alone.
 - The 25 MB file cap stops being a design constraint. It is checked, and the encoder keeps us well inside it, but it decides nothing.
 - **Reversal trigger:** Groq's Dev tier raises the allowance. If this show's episodes ever need to be ready promptly, that is the thing to buy — not a different provider, and not a cleverer encoder. The pacing stays either way, because an allowance that is merely larger is still finite.

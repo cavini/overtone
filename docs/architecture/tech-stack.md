@@ -59,8 +59,8 @@ The app is one deployable thing. You push to git; Vercel deploys it.
 |---|---|
 | As 16 kHz mono Opus | ~21 MB — fits the 25 MB cap, but we chunk anyway (ADR 0011) |
 | Audio-seconds consumed | 7 591 for a real 2 h 06 m episode — **391 s more than the whole hourly allowance**, so it must be chunked and paced (ADR 0020) |
-| So, throughput | **three episodes per day** — and one episode spans two hourly windows, so ~1.1 h of wall-clock each (ADR 0020) |
-| Transcription wall-clock | **~1.1 hours**, almost all of it waiting on the hourly allowance rather than transcribing (ADR 0020) |
+| So, throughput | **three episodes per day**, set by the 28 800-second daily cap (ADR 0020) |
+| Transcription wall-clock | **~5–8 minutes.** Six chunks drain a full balance, then the 391-second tail needs ~3 m 16 s of refill — the allowance is a bucket refilling at 2 audio-seconds per second, not a counter zeroed hourly (ADR 0021, measured in experiment 0003) |
 | Storage per episode | ~22 MB → **1 GB ≈ 37 episodes** |
 | Back catalogue, 219 episodes | 462 audio-hours ≈ **58 days** of continuous processing |
 

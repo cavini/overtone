@@ -73,7 +73,7 @@ The series starts empty and grows one episode at a time (Q16 resolved, R32). CEM
 | Metric | Target (est.) | Alarm |
 |---|---|---|
 | Episode success rate | ≥95% of uploads reach a readable result | any episode silently truncated, or a seam that lost a sentence |
-| Upload → result wall clock, 2-hour episode | <120 s including browser compression (~45 s of Groq work across ~5 parallel chunks) | >300 s — the Vercel request limit is in play |
+| Upload → result wall clock, 2-hour episode | **<10 min**, of which ~3 m 16 s is waiting for the allowance to refill and the rest is compression and seven paced transcription calls (ADR 0020, ADR 0021) | >15 min, or any single request near the 300 s Vercel ceiling |
 | Keyword recall on named bits (pt-BR) | ≥90% of bits truly said **in the published episode** are surfaced | <85%, or any bit the group insists was said and isn't counted |
 | Unmatched surface forms per bit | ≤3 forms the ASR produced that no alias catches | >3 on any bit — the alias list is behind the transcriber (R2, R27) |
 | Quote-timestamp spot check | 5 random quotes per new episode land where they claim | any mismatch — that is the stitching bug (R22), stop and fix |
