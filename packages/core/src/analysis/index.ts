@@ -11,6 +11,13 @@ export {
 } from './chunking.js'
 export { stem } from './stem.js'
 export { annotate } from './annotate.js'
+export {
+  DAILY_ALLOWANCE_MS,
+  HOURLY_ALLOWANCE_MS,
+  nextChunkToSend,
+  type AllowanceState,
+  type PacingDecision,
+} from './pacing.js'
 export { compareByCountThenLabel } from './ranking.js'
 export { findMentions } from './find-mentions.js'
 export { countTerms, type CountTermsOptions } from './count-terms.js'
