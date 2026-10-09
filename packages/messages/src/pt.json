@@ -4,7 +4,6 @@
   "EPISODE_TOO_LONG": "Este episódio tem {duration_minutes, number} minutos e o limite é {max_minutes, number}. Hoje ainda cabem {allowance_hours_today, number} horas de áudio — dá para dividir em dois.",
   "UPLOAD_COST_PREVIEW": "Este episódio vai usar {share_of_daily, number, percent} da cota de hoje, que é de {daily_allowance_hours, number} horas.",
   "UPLOAD_INTERRUPTED": "O envio foi interrompido. Nada foi perdido — é só tentar de novo.",
-
   "CHUNK_PROGRESS": "Transcrevendo parte {done, number} de {total, number}.",
   "CHUNK_FAILED": "A parte {chunk_index, number} de {chunk_count, number} falhou. As outras {succeeded_count, number} foram transcritas, então não precisa enviar de novo.",
   "CHUNK_TIMEOUT": "A parte {chunk_index, number} passou de {timeout_seconds, number} segundos e foi interrompida.",
@@ -12,12 +11,10 @@
   "AUDIO_IS_SAFE": "Seu áudio está guardado. Nada foi perdido.",
   "NO_SPEECH_DETECTED": "Não encontramos fala neste áudio.",
   "LEMMA_GROUPED_BY_STEMMER": "Agrupamos \"{term}\" por semelhança, não pelo dicionário. Vale conferir se faz sentido.",
-
   "ALLOWANCE_REMAINING": "Ainda cabem cerca de {whole_episodes_remaining, number} episódios hoje, de uma cota de {allowance_hours, number} horas.",
   "HOURLY_ALLOWANCE_EXHAUSTED": "A cota desta hora acabou — são {allowance_hours, number} horas de áudio por hora. Tente de novo em {minutes_until_reset, number} minutos.",
   "DAILY_ALLOWANCE_EXHAUSTED": "A cota de hoje acabou — são {allowance_hours, number} horas de áudio por dia. Ela volta em {hours_until_reset, number} horas.",
   "STORAGE_FULL": "Não há espaço: o armazenamento usa {used_bytes, number, ::compact-short} de {limit_bytes, number, ::compact-short}, e este episódio precisa de {needed_bytes, number, ::compact-short}. Apague o áudio de episódios antigos — as estatísticas continuam lá.",
-
   "TOPIC_NAME_TAKEN": "Já existe uma piada chamada \"{name}\".",
   "TOPIC_NEEDS_A_TERM": "Escreva pelo menos uma palavra ou expressão para contar.",
   "TERM_TOO_MANY_WORDS": "Esta expressão tem {word_count, number} palavras e o limite é {max_words, number}.",
@@ -25,30 +22,27 @@
   "LIBRARY_TOPIC_LIMIT": "Você pode acompanhar até {max_topics, number} piadas por série.",
   "ALIAS_SUGGESTED_WRITTEN_VARIANT": "A transcrição costuma escrever \"{term}\" como \"{alias}\". Quer contar as duas?",
   "TOPIC_APPLY_SKIPPED_NO_TRANSCRIPT": "O episódio {episode_number, number} ficou de fora porque ainda está em {status}.",
-
   "EPISODE_NUMBER_TAKEN": "Já existe um episódio {number, number}.",
   "EPISODE_TITLE_REQUIRED": "Dê um título ao episódio.",
   "EPISODES_STILL_PROCESSING": "{processing_count, number} episódios ainda estão sendo processados, então estes números vão mudar.",
   "DELETE_EPISODE_CONFIRMATION": "Apagar \"{title}\" de vez? O áudio, a transcrição e as contagens vão embora.",
-
   "LIBRARY_EMPTY": "Nenhum episódio ainda. Arraste um arquivo de até {max_minutes, number} minutos — aceitamos {accepted}.",
   "NO_TOPICS_YET": "Nenhuma piada sendo contada. Comece por uma que vocês repetem sempre, tipo \"{suggested_term}\".",
   "TOPIC_NO_EPISODES_YET": "Ainda não há episódios para contar esta piada.",
   "SERIES_FIRST_EPISODE": "Este é o primeiro episódio da série. A comparação entre episódios aparece a partir do segundo.",
   "SERIES_NEEDS_SECOND_EPISODE": "Com um episódio só não há o que comparar. Suba o próximo e esta tela ganha vida.",
   "TREND_NEEDS_MORE_EPISODES": "São {episode_count, number} episódios e a tendência precisa de pelo menos {minimum, number}.",
-
   "COUNTS_DESCRIBE_PUBLISHED_EDIT": "As contagens são do episódio publicado, não da gravação crua — o que foi cortado na edição não entra.",
   "ANALYSIS_ALWAYS_PTBR": "A análise é sempre em português do Brasil. Mudar o idioma aqui muda só a interface, nunca um número.",
   "TRANSCRIPT_QUALITY_POOR": "A qualidade da transcrição ficou em {quality_score, number} de 100, abaixo de {threshold, number}. Trate estas contagens com desconfiança.",
   "AUDIO_MAY_NOT_BE_PTBR": "Este áudio pode não estar em português — detectamos {detected_language}, com qualidade {quality_score, number} de 100.",
   "SHARE_LINK_DISCLOSURE": "Quem tiver o link vê as contagens e as citações deste episódio, sem precisar entrar. A transcrição completa não aparece.",
   "SHARE_LINK_NOT_FOUND": "Este link não existe mais.",
-
   "STATUS_UPLOADED": "Enviado",
   "STATUS_TRANSCRIBING": "Transcrevendo",
   "STATUS_ANALYZING": "Analisando",
   "STATUS_READY": "Pronto",
   "STATUS_FAILED": "Falhou",
-  "STATUS_DELETING": "Apagando"
+  "STATUS_DELETING": "Apagando",
+  "ANALYSIS_NOT_SAVED": "A transcrição ficou pronta, mas os números não foram salvos. O áudio está seguro — tente de novo."
 }

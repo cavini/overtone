@@ -54,6 +54,7 @@ export const MESSAGE_PARAMS = {
   TRANSCRIPTION_SERVICE_UNAVAILABLE: { chunk_index: 'number', attempts: 'number' },
   AUDIO_IS_SAFE: {},
   NO_SPEECH_DETECTED: {},
+  ANALYSIS_NOT_SAVED: {},
   LEMMA_GROUPED_BY_STEMMER: { term: 'string' },
 
   // Allowance and storage

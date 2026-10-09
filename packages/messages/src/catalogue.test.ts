@@ -19,7 +19,7 @@ describe('message codes', () => {
   })
 
   it('matches the count the backlog commits to', () => {
-    expect(MESSAGE_CODES).toHaveLength(45)
+    expect(MESSAGE_CODES).toHaveLength(46)
   })
 
   it('names every code in SCREAMING_SNAKE_CASE', () => {
