@@ -60,7 +60,7 @@ The app is one deployable thing. You push to git; Vercel deploys it.
 | As 16 kHz mono Opus | ~21 MB — fits the 25 MB cap, but we chunk anyway (ADR 0011) |
 | Audio-seconds consumed | 7 591 for a real 2 h 06 m episode — **391 s more than the whole hourly allowance**, so it must be chunked and paced (ADR 0020) |
 | So, throughput | **three episodes per day** — and one episode spans two hourly windows, so ~1.1 h of wall-clock each (ADR 0020) |
-| Transcription wall-clock | tens of seconds, with chunks running in parallel |
+| Transcription wall-clock | **~1.1 hours**, almost all of it waiting on the hourly allowance rather than transcribing (ADR 0020) |
 | Storage per episode | ~22 MB → **1 GB ≈ 37 episodes** |
 | Back catalogue, 219 episodes | 462 audio-hours ≈ **58 days** of continuous processing |
 
@@ -76,9 +76,11 @@ Two gotchas worth knowing up front: a free Supabase project **pauses after 7 idl
 
 Whisper downsamples everything to 16 kHz mono anyway, so anything above that is wasted bytes. At 16 kHz mono **Opus** (Groq accepts `ogg`/`webm`), a 2-hour episode is ~21 MB — under the cap. But we chunk regardless:
 
-**The browser decodes the episode, splits it into ~20–25 minute pieces on silence boundaries, encodes each to Opus, and uploads them separately. The server transcribes the chunks in parallel and stitches the word timestamps with offsets.**
+**The browser decodes the episode, splits it into ~20–25 minute pieces on silence boundaries, encodes each to Opus, and uploads them separately. The server transcribes them one at a time, pacing against the remaining hourly allowance, and stitches the word timestamps with offsets.**
 
-Chunking is not a workaround for the size cap — it is what keeps the **no-worker** architecture viable. Four chunks in parallel finish in roughly the time of the slowest, so the whole pipeline stays inside Vercel's 300 s. A single serial 2-hour request might not, and we would be forced to build a queue. It also means one failed chunk costs one chunk, not two hours against a daily cap of four episodes.
+Chunking is not a workaround for the size cap. The size cap does not bind at all: a real 2 h 06 m episode encodes to 22.58 MB against a 25 MB limit. **The hourly allowance binds** — 7 200 audio-seconds per hour, against an episode of 7 591 — so the episode cannot pass as one request however small the file is, and cannot even be finished inside a single hour.
+
+That also rules out running the chunks in parallel, which was the original reason for chunking. The allowance is spent in seconds of *audio*, so six chunks at once spend the same 7 591 seconds as one file did and fail together. They have to be paced. One failed chunk then costs one chunk rather than the whole episode, which is the consolation.
 
 Splitting **on silence** is the correctness-critical part: a cut through the middle of a word produces two garbage fragments and corrupts the counts at the join. And the timestamp offsetting is the highest-risk code in the repo — an off-by-one doesn't crash, it silently points every subsequent count at the wrong moment. Property tests compare a chunked transcript against a single-pass transcript of the same audio.
 
