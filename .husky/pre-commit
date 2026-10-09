@@ -1,0 +1,7 @@
+# Types only — fast enough to run on every commit.
+#
+# CONTRIBUTING promises that `main` is always green and that commits land on
+# green. A promise nothing checks is a promise that gets broken by a shell
+# script with its steps in the wrong order, which is exactly how a red commit
+# got in once already.
+pnpm typecheck

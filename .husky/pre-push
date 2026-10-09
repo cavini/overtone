@@ -1,0 +1,2 @@
+# Everything CI runs, before it leaves the machine.
+pnpm verify
