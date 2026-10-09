@@ -1,0 +1,32 @@
+# What not to upload when deploying.
+#
+# Separate from .gitignore on purpose: Vercel did not honour it, and sent a
+# 116 MB podcast episode from `audio/` — which is both pointless and over the
+# 100 MB per-file limit, so the deploy failed outright.
+#
+# Everything here is either generated, enormous, or local-only. The build
+# needs the workspace manifests and the TypeScript source, and nothing else.
+
+node_modules
+.git
+
+# Built output. Vercel builds it itself; uploading ours would be stale.
+.next
+**/.next
+**/dist
+**/coverage
+
+# Real episodes, for local experiments. Hundreds of megabytes.
+/audio
+
+# The 825,000-pair lemma dictionary, loaded into Postgres by hand.
+/packages/db/data
+
+# Local only.
+.env*.local
+.vercel
+.claude
+CLAUDE.md
+
+# Not needed to build or run.
+/docs

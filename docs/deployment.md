@@ -16,10 +16,17 @@ GitHub (main)  ──push──▶  Vercel  ──▶  https://<project>.vercel.
 Every push to `main` deploys. `main` is therefore always green and always
 shippable — that is the whole reason for the pre-push hook.
 
-Vercel builds from the repo root using `vercel.json`: install at the
-workspace root, then `pnpm --filter @overtone/web build`. The app is not
-built in isolation because it imports the workspace packages as TypeScript
-source rather than as published output.
+The project's **Root Directory** is `apps/web`. That one setting is what
+makes a pnpm workspace work: Vercel finds `next` in the app's own
+`package.json`, installs from the workspace root above it so `workspace:*`
+dependencies resolve, and builds in the app directory. Deploying from the
+repo root instead fails with *"No Next.js version detected"*, because the
+root `package.json` has no `next` in it and never should.
+
+`.vercelignore` is not optional. Vercel does **not** honour `.gitignore`
+here, and without it the deploy uploads `audio/` — a 116 MB episode that is
+both pointless and over the 100 MB per-file limit, so the whole deploy
+fails. With it the upload is about 1 MB.
 
 ## Environment
 
