@@ -1,6 +1,7 @@
 import {
   advanceEpisode,
   CHUNK_TARGET_MS,
+  DAILY_ALLOWANCE_MS,
   planChunks,
   type AdvanceEpisodeOutcome,
   type EpisodeAnalysis,
@@ -18,6 +19,7 @@ import {
   transcripts,
 } from '@overtone/db/schema'
 import { and, eq } from 'drizzle-orm'
+import { DrizzleAllowanceStore } from '@overtone/db/repositories'
 import { blobStore, database, pipelineDependencies } from './wiring.js'
 
 /**
@@ -47,6 +49,19 @@ const EXTENSION_FOR: Readonly<Record<string, string>> = {
  */
 const M0_OWNER = '00000000-0000-0000-0000-0000000000m0'.replace('m0', '0a')
 const M0_SERIES_TITLE = 'Overtone'
+
+/**
+ * Audio still affordable today, in hours.
+ *
+ * For telling someone how much room is left rather than only that they are
+ * out of it. The daily cap is the one limit the provider does not report, so
+ * it comes from our own tally (ADR 0021).
+ */
+export async function remainingDailyHours(): Promise<number> {
+  const { dailyUsedMs } = await new DrizzleAllowanceStore(database()).read()
+
+  return Math.max(0, Math.round(((DAILY_ALLOWANCE_MS - dailyUsedMs) / 3_600_000) * 10) / 10)
+}
 
 export interface AnalysedUpload {
   readonly episodeId: string
@@ -121,10 +136,19 @@ export async function analyseUpload(
   const episodeId = created?.id ?? ''
   const blobs = blobStore()
 
-  // One chunk per planned boundary. In M0 the browser uploads a single file
-  // and anything under the chunk target is one piece; the plan is still what
-  // decides, so nothing here changes when the browser starts splitting.
+  // One chunk per planned boundary. For now that is always exactly one — the
+  // plan is still what decides, so nothing here changes when the browser
+  // learns to split.
   const plan = planChunks(durationMs)
+
+  // The invariant this function is built on. The caller checks it and
+  // answers properly; this is here so the mistake cannot be made quietly by
+  // some future caller that does not.
+  if (plan.length > 1) {
+    throw new Error(
+      `episode needs ${plan.length} chunks and the browser cannot split audio yet`,
+    )
+  }
   // The key's extension follows the stored type, so what Supabase serves and
   // what the provider is told to expect cannot drift apart.
   const extension = EXTENSION_FOR[contentType] ?? 'bin'
