@@ -19,7 +19,8 @@
     "db:reset": "tsx src/reset.mts",
     "db:inspect": "tsx src/inspect.mts",
     "db:load-lemmas": "tsx src/load-lemmas.mts",
-    "db:smoke": "tsx src/smoke.mts"
+    "db:smoke": "tsx src/smoke.mts",
+    "test:integration": "vitest run -c vitest.integration.config.ts"
   },
   "dependencies": {
     "@overtone/core": "workspace:*",

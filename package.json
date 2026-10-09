@@ -8,6 +8,7 @@
   "scripts": {
     "test": "pnpm -r --parallel test",
     "test:unit": "pnpm -r test:unit",
+    "test:integration": "pnpm -r --if-present test:integration",
     "typecheck": "pnpm -r typecheck",
     "verify": "pnpm typecheck && pnpm lint:deps && pnpm test:unit",
     "lint:deps": "depcruise packages --config .dependency-cruiser.cjs",

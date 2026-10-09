@@ -3,6 +3,9 @@ import { defineConfig } from 'vitest/config'
 export default defineConfig({
   test: {
     include: ['src/**/*.test.ts'],
+    // `*.live.test.ts` needs a real database, so it is not a unit test and
+    // must not run in `verify`. See `vitest.integration.config.ts`.
+    exclude: ['src/**/*.live.test.ts'],
     environment: 'node',
     coverage: {
       provider: 'v8',
