@@ -150,6 +150,54 @@ export const episodes = pgTable(
   ],
 )
 
+/**
+ * One chunk's transcript, stored the moment it arrives.
+ *
+ * An episode of this show is longer than the hourly allowance, so
+ * transcription spans hours and process lifetimes (ADR 0020). Each chunk is
+ * paid for out of a budget of three episodes a day, which makes losing one
+ * the mistake most worth designing against — so it is durable immediately,
+ * before the spend is even recorded.
+ *
+ * `offsetMs` is where the chunk actually began, not where the plan said it
+ * would: the encoder moves each boundary to the nearest silence, and stitching
+ * must use the real offset or every timestamp after the join points at the
+ * wrong moment.
+ */
+export const chunkTranscripts = pgTable(
+  'chunk_transcripts',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    episodeId: uuid('episode_id')
+      .notNull()
+      .references(() => episodes.id, { onDelete: 'cascade' }),
+    index: integer('index').notNull(),
+    offsetMs: integer('offset_ms').notNull(),
+    /** `[{ text, startMs, endMs }, …]`, relative to the chunk. */
+    words: jsonb('words').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [unique('chunk_transcripts_episode_index').on(table.episodeId, table.index)],
+)
+
+/**
+ * The transcription allowance, as one shared row.
+ *
+ * Shared, not per-user and not per-episode: the free tier counts seconds of
+ * audio against one account, so two people uploading at once spend the same
+ * budget. A single row by construction, like `heartbeats`.
+ *
+ * Written only by the server, which holds a key that bypasses row-level
+ * security — hence no policy below, which denies everyone else.
+ */
+export const allowance = pgTable('allowance', {
+  id: smallint('id').primaryKey().default(1),
+  hourlyUsedMs: bigint('hourly_used_ms', { mode: 'number' }).notNull().default(0),
+  dailyUsedMs: bigint('daily_used_ms', { mode: 'number' }).notNull().default(0),
+  hourResetsAt: timestamp('hour_resets_at', { withTimezone: true }).notNull().defaultNow(),
+  dayResetsAt: timestamp('day_resets_at', { withTimezone: true }).notNull().defaultNow(),
+})
+
 export const transcripts = pgTable('transcripts', {
   id: uuid('id').primaryKey().defaultRandom(),
   episodeId: uuid('episode_id')
