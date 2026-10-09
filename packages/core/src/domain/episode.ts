@@ -41,7 +41,8 @@ export interface EpisodeSummary {
   readonly id: string
   readonly number: number
   readonly title: string
-  readonly recordedOn: string
+  /** Null until someone says when it was recorded. */
+  readonly recordedOn: string | null
   readonly status: EpisodeStatus
   readonly durationMs: number
   readonly wordTokens: number
