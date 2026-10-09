@@ -28,7 +28,9 @@ blob-report/
 .storage/
 
 # downloaded episodes - tens of MB each
-audio/
+# Episode audio, at the repo root only — `audio/` also matched
+# `apps/web/src/audio`, which is source.
+/audio/
 
 # fetched dictionary data - 17 MB, see scripts/fetch-lemmas.mjs
 packages/db/data/
