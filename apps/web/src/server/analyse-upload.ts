@@ -1,6 +1,5 @@
 import {
   advanceEpisode,
-  CHUNK_TARGET_MS,
   DAILY_ALLOWANCE_MS,
   planChunks,
   type AdvanceEpisodeOutcome,
@@ -30,15 +29,6 @@ import { blobStore, database, pipelineDependencies } from './wiring.js'
  */
 const AUDIO_URL_TTL_SECONDS = 15 * 60
 
-/** Names the object after what it actually is. */
-const EXTENSION_FOR: Readonly<Record<string, string>> = {
-  'audio/mpeg': 'mp3',
-  'audio/mp4': 'm4a',
-  'audio/ogg': 'ogg',
-  'audio/wav': 'wav',
-  'audio/webm': 'webm',
-  'audio/flac': 'flac',
-}
 
 /**
  * The series everything lands in until there is sign-in.
@@ -61,13 +51,6 @@ export async function remainingDailyHours(): Promise<number> {
   const { dailyUsedMs } = await new DrizzleAllowanceStore(database()).read()
 
   return Math.max(0, Math.round(((DAILY_ALLOWANCE_MS - dailyUsedMs) / 3_600_000) * 10) / 10)
-}
-
-export interface AnalysedUpload {
-  readonly episodeId: string
-  readonly outcome: AdvanceEpisodeOutcome
-  readonly analysis?: EpisodeAnalysis
-  readonly chunkCount: number
 }
 
 /** The shared library, created the first time anything is uploaded. */
@@ -100,24 +83,28 @@ async function nextEpisodeNumber(seriesId: string): Promise<number> {
   return rows.reduce((highest, row) => Math.max(highest, row.number), 0) + 1
 }
 
+const chunkKey = (episodeId: string, index: number): string =>
+  `episodes/${episodeId}/chunk-${index}.wav`
+
+export interface StartedEpisode {
+  readonly episodeId: string
+  readonly chunks: ReadonlyArray<{
+    readonly index: number
+    readonly startMs: number
+    readonly endMs: number
+    readonly uploadUrl: string
+  }>
+}
+
 /**
- * Takes an uploaded file as far as the allowance lets it.
+ * Creates the episode and tells the browser where to put each piece.
  *
- * The audio is stored first and transcribed second, because a paced chunk is
- * fetched by the provider later — possibly minutes later, from another
- * process (ADR 0020). It has to be somewhere durable before anything asks for
- * it, and the signed URL is minted per attempt rather than stored.
- *
- * The loop runs until the pipeline says to wait. Waiting is where this
- * returns, not where it sleeps: a serverless function has 300 seconds and the
- * allowance can ask for minutes, so the caller comes back instead.
+ * The audio never passes through here. A serverless function accepts about
+ * 4.5 MB of body and an episode is a hundred times that, so the bytes go
+ * from the browser straight to storage and this hands out one short-lived
+ * permission per chunk.
  */
-export async function analyseUpload(
-  audio: Uint8Array,
-  contentType: string,
-  durationMs: number,
-  title: string,
-): Promise<AnalysedUpload> {
+export async function startEpisode(durationMs: number, title: string): Promise<StartedEpisode> {
   const seriesId = await sharedSeriesId()
   const [created] = await database()
     .insert(episodes)
@@ -125,74 +112,78 @@ export async function analyseUpload(
       seriesId,
       number: await nextEpisodeNumber(seriesId),
       title,
-      // What the browser measured and what it sent. Both are needed before
-      // transcription: the duration decides the chunk plan, and the size is
-      // what the storage ceiling is spent on.
+      // Stored now because every later step re-derives the chunk plan from
+      // it, and the plan has to come out the same every time.
       durationMs,
-      byteSize: audio.byteLength,
     })
     .returning({ id: episodes.id })
 
   const episodeId = created?.id ?? ''
   const blobs = blobStore()
 
-  // One chunk per planned boundary. For now that is always exactly one — the
-  // plan is still what decides, so nothing here changes when the browser
-  // learns to split.
-  const plan = planChunks(durationMs)
+  const chunks = await Promise.all(
+    planChunks(durationMs).map(async (chunk) => ({
+      ...chunk,
+      uploadUrl: await blobs.uploadUrl(chunkKey(episodeId, chunk.index), AUDIO_URL_TTL_SECONDS),
+    })),
+  )
 
-  // The invariant this function is built on. The caller checks it and
-  // answers properly; this is here so the mistake cannot be made quietly by
-  // some future caller that does not.
-  if (plan.length > 1) {
-    throw new Error(
-      `episode needs ${plan.length} chunks and the browser cannot split audio yet`,
-    )
-  }
-  // The key's extension follows the stored type, so what Supabase serves and
-  // what the provider is told to expect cannot drift apart.
-  const extension = EXTENSION_FOR[contentType] ?? 'bin'
-  const uploaded: UploadedChunk[] = []
+  return { episodeId, chunks }
+}
 
-  for (const piece of plan) {
-    const key = `episodes/${episodeId}/chunk-${piece.index}.${extension}`
-    // The whole file for a single-chunk episode. Slicing audio by byte range
-    // would corrupt it — splitting is the encoder's job, in the browser.
-    await blobs.put(key, audio, contentType)
-    uploaded.push({ ...piece, audioUrl: await blobs.readUrl(key, AUDIO_URL_TTL_SECONDS) })
-  }
+export interface AdvancedEpisode {
+  readonly outcome: AdvanceEpisodeOutcome
+  readonly analysis?: EpisodeAnalysis
+  readonly chunkCount: number
+}
 
-  const deps = pipelineDependencies()
-  let outcome: AdvanceEpisodeOutcome = { state: 'ready' }
+/**
+ * Carries the episode forward by one chunk, then returns.
+ *
+ * One step per request because the work genuinely spans more time than a
+ * function gets: an episode is longer than a full hourly balance, so part of
+ * it is always waiting for the allowance to refill (ADR 0020). The caller
+ * comes back rather than the function sleeping.
+ */
+export async function advanceOnce(episodeId: string): Promise<AdvancedEpisode> {
+  const db = database()
+  const [episode] = await db
+    .select({ durationMs: episodes.durationMs })
+    .from(episodes)
+    .where(eq(episodes.id, episodeId))
 
-  // Bounded: one step per chunk, plus room for the step that finds them all
-  // done. A runaway loop here would burn the day's allowance.
-  for (let step = 0; step <= plan.length; step += 1) {
-    outcome = await advanceEpisode({ episodeId, chunks: uploaded, topics: [] }, deps)
+  if (episode === undefined) throw new Error(`no episode ${episodeId}`)
 
-    if (outcome.state === 'ready' || outcome.state === 'failed') break
-    // Not slept through — the caller is told to come back.
-    if (outcome.state === 'waiting') break
-  }
+  const blobs = blobStore()
+  const plan = planChunks(episode.durationMs)
 
-  if (outcome.state !== 'ready') {
-    return { episodeId, outcome, chunkCount: plan.length }
-  }
+  // Signed fresh each time rather than stored. A read URL lasts minutes and
+  // the work lasts hours, so a stored one would be expired by the time the
+  // last chunk is reached.
+  const uploaded: UploadedChunk[] = await Promise.all(
+    plan.map(async (chunk) => ({
+      ...chunk,
+      audioUrl: await blobs.readUrl(chunkKey(episodeId, chunk.index), AUDIO_URL_TTL_SECONDS),
+    })),
+  )
+
+  const outcome = await advanceEpisode(
+    { episodeId, chunks: uploaded, topics: [] },
+    pipelineDependencies(),
+  )
+
+  if (outcome.state !== 'ready') return { outcome, chunkCount: plan.length }
 
   // The audio has done its job: the provider's payload is what re-derivation
   // reads, and 1 GB of storage is the ceiling that arrives first.
-  await blobs.remove(uploaded.map((chunk) => keyOf(episodeId, chunk, extension)))
+  await blobs.remove(plan.map((chunk) => chunkKey(episodeId, chunk.index)))
 
   return {
-    episodeId,
     outcome,
-    analysis: await readAnalysis(episodeId, durationMs),
+    analysis: await readAnalysis(episodeId, episode.durationMs),
     chunkCount: plan.length,
   }
 }
-
-const keyOf = (episodeId: string, chunk: UploadedChunk, extension: string): string =>
-  `episodes/${episodeId}/chunk-${chunk.index}.${extension}`
 
 /** Reads back what the pipeline stored, which is what the page renders. */
 async function readAnalysis(episodeId: string, durationMs: number): Promise<EpisodeAnalysis> {
@@ -245,4 +236,3 @@ async function readAnalysis(episodeId: string, durationMs: number): Promise<Epis
   }
 }
 
-export { CHUNK_TARGET_MS }
