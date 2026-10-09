@@ -4,6 +4,7 @@ import type { Locale } from '@overtone/messages'
 import { useRef, useState } from 'react'
 import { audioTypeOf, FILE_INPUT_ACCEPT } from '../audio/audio-type.js'
 import { measureDuration } from '../audio/measure-duration.js'
+import { splitAndUpload, type ChunkTarget } from '../audio/split-and-upload.js'
 import type { UiKey } from '../i18n/ui.js'
 import type { AnalysisView, OutcomeView } from '../presenter/episode-view.js'
 import { CountsTable, JokeList, StatStrip } from './counts-table.js'
@@ -13,6 +14,31 @@ type Labels = Record<UiKey, string>
 interface Result {
   readonly status: OutcomeView
   readonly analysis?: AnalysisView
+}
+
+/** Never sleep longer than this in one go, so the page keeps saying something. */
+const MAX_SLEEP_MS = 30_000
+
+const sleep = (ms: number): Promise<void> =>
+  new Promise((resume) => {
+    setTimeout(resume, Math.min(ms, MAX_SLEEP_MS))
+  })
+
+/**
+ * Reads a response that is supposed to be JSON.
+ *
+ * A platform error — a body too large, a function that timed out — comes
+ * back as HTML or plain text, and `response.json()` throws on it. Left
+ * unhandled that surfaced as "the file may be corrupt", which sent everyone
+ * looking at the audio instead of at the request.
+ */
+async function readJson(response: Response): Promise<Record<string, unknown>> {
+  const text = await response.text()
+  try {
+    return JSON.parse(text) as Record<string, unknown>
+  } catch {
+    throw new Error(`${response.status} ${text.slice(0, 120)}`)
+  }
 }
 
 export function UploadForm({
@@ -25,6 +51,7 @@ export function UploadForm({
   const input = useRef<HTMLInputElement>(null)
   const [filename, setFilename] = useState('')
   const [busy, setBusy] = useState(false)
+  const [step, setStep] = useState('')
   const [error, setError] = useState('')
   const [result, setResult] = useState<Result | undefined>(undefined)
 
@@ -32,35 +59,76 @@ export function UploadForm({
     setBusy(true)
     setError('')
     setResult(undefined)
+    setStep(labels.preparing)
 
     try {
-      // Decided here, from the extension, and sent alongside — so the server
-      // stores the same type the duration was measured with, whatever this
-      // particular browser thinks the file is.
       const contentType = audioTypeOf(file.name, file.type)
       if (contentType === undefined) {
         setError(labels.unsupportedFile)
         return
       }
 
-      const body = new FormData()
-      body.set('audio', file)
-      body.set('locale', locale)
-      body.set('contentType', contentType)
-      body.set('durationMs', String(await measureDuration(file, contentType)))
+      const durationMs = await measureDuration(file, contentType)
 
-      const response = await fetch('/api/episodes', { method: 'POST', body })
-      const payload = (await response.json()) as Result & { error?: string }
+      // Only numbers cross the wire here. The audio goes straight to storage
+      // from the browser, because the server cannot accept a file this size.
+      const startResponse = await fetch('/api/episodes/start', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          durationMs,
+          locale,
+          title: file.name.replace(/\.[^.]+$/u, ''),
+        }),
+      })
 
-      if (!response.ok || payload.error !== undefined) {
-        setError(payload.error ?? 'UNEXPECTED')
+      const started = await readJson(startResponse)
+      if (!startResponse.ok || started['error'] !== undefined) {
+        setError(String(started['error'] ?? 'UNEXPECTED'))
         return
       }
-      setResult(payload)
-    } catch {
-      setError(labels.couldNotRead)
+
+      const chunks = started['chunks'] as ChunkTarget[]
+      const episodeId = String(started['episodeId'])
+
+      await splitAndUpload(file, chunks, ({ done, total }) => {
+        setStep(`${labels.sendingPart} ${done} / ${total}`)
+      })
+
+      setStep(labels.transcribing)
+
+      // One chunk a step, coming back rather than waiting. An episode is
+      // longer than a full hourly balance, so some of it always waits for
+      // the allowance to refill.
+      for (;;) {
+        const response = await fetch('/api/episodes/advance', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ episodeId, locale }),
+        })
+
+        const payload = await readJson(response)
+        if (!response.ok || payload['error'] !== undefined) {
+          setError(String(payload['error'] ?? 'UNEXPECTED'))
+          return
+        }
+
+        const status = payload['status'] as OutcomeView
+        const analysis = payload['analysis'] as AnalysisView | undefined
+        setResult(analysis === undefined ? { status } : { status, analysis })
+        setStep(status.notice ?? labels.transcribing)
+
+        if (status.done) return
+
+        const waitMs = Number(payload['retryAfterMs'] ?? 0)
+        if (waitMs > MAX_SLEEP_MS) setStep(`${labels.tooLongToWait} ${status.notice ?? ''}`)
+        await sleep(waitMs)
+      }
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : labels.couldNotRead)
     } finally {
       setBusy(false)
+      setStep('')
     }
   }
 
@@ -104,8 +172,8 @@ export function UploadForm({
           </button>
         </div>
 
-        <p className="mt-2 text-xs" style={{ color: 'var(--quiet)' }}>
-          {filename === '' ? labels.noFile : filename}
+        <p className="mt-2 text-xs" style={{ color: 'var(--quiet)' }} aria-live="polite">
+          {busy && step !== '' ? step : filename === '' ? labels.noFile : filename}
         </p>
       </form>
 
