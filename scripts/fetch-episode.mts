@@ -10,11 +10,9 @@
  * Downloads land in ./audio, which is gitignored: a two-hour episode is tens
  * of megabytes and has no business in git history.
  */
-import { createWriteStream } from 'node:fs'
+import { spawn } from 'node:child_process'
 import { mkdir, stat } from 'node:fs/promises'
 import { resolve } from 'node:path'
-import { Readable } from 'node:stream'
-import { pipeline } from 'node:stream/promises'
 
 const [feedUrl, wanted] = process.argv.slice(2)
 
@@ -98,18 +96,31 @@ const outPath = resolve(outDir, `${safeTitle}.${extension}`)
 
 await mkdir(outDir, { recursive: true })
 console.log(`  downloading "${episode.title}"`)
-console.log(`  from ${episode.url.slice(0, 80)}…`)
 
-const audio = await fetch(episode.url, {
-  headers: { 'user-agent': 'overtone/0.1 (podcast analytics, personal use)' },
+/**
+ * Downloaded with `curl` rather than `fetch`.
+ *
+ * Not a preference. Captivate's CDN answers `fetch` with a 404 and `curl`
+ * with the redirect it should — identical URL, identical method, and no
+ * combination of user-agent, accept or accept-encoding headers changes it,
+ * so the difference is below the header layer. Podcast hosts sit behind CDNs
+ * that do this sort of thing, and `curl` ships with macOS, follows
+ * redirects, resumes, and shows progress.
+ *
+ * The feed itself is fetched normally; only the media download needs this.
+ */
+await new Promise<void>((done, fail) => {
+  const curl = spawn(
+    'curl',
+    ['--location', '--fail', '--retry', '3', '--continue-at', '-', '--progress-bar',
+     '--output', outPath, episode.url],
+    { stdio: ['ignore', 'inherit', 'inherit'] },
+  )
+  curl.on('error', fail)
+  curl.on('close', (code) =>
+    code === 0 ? done() : fail(new Error(`curl exited ${String(code)}`)),
+  )
 })
-
-if (!audio.ok || audio.body === null) {
-  console.error(`  download failed: ${audio.status} ${audio.statusText}`)
-  process.exit(1)
-}
-
-await pipeline(Readable.fromWeb(audio.body), createWriteStream(outPath))
 
 const { size } = await stat(outPath)
 console.log(`\n  saved ${megabytes(size)} to ${outPath}`)
