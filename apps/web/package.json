@@ -1,0 +1,32 @@
+{
+  "name": "@overtone/web",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test:unit": "vitest run --coverage"
+  },
+  "dependencies": {
+    "@overtone/adapters": "workspace:*",
+    "@overtone/core": "workspace:*",
+    "@overtone/db": "workspace:*",
+    "@overtone/messages": "workspace:*",
+    "next": "^15.5.4",
+    "next-intl": "^4.3.12",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.1.14",
+    "@types/node": "^22.18.1",
+    "@types/react": "^19.1.11",
+    "@types/react-dom": "^19.1.7",
+    "@vitest/coverage-v8": "^5.0.3",
+    "tailwindcss": "^4.1.14",
+    "vitest": "^5.0.3"
+  }
+}
