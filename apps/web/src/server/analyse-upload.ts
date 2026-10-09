@@ -28,6 +28,16 @@ import { blobStore, database, pipelineDependencies } from './wiring.js'
  */
 const AUDIO_URL_TTL_SECONDS = 15 * 60
 
+/** Names the object after what it actually is. */
+const EXTENSION_FOR: Readonly<Record<string, string>> = {
+  'audio/mpeg': 'mp3',
+  'audio/mp4': 'm4a',
+  'audio/ogg': 'ogg',
+  'audio/wav': 'wav',
+  'audio/webm': 'webm',
+  'audio/flac': 'flac',
+}
+
 /**
  * The series everything lands in until there is sign-in.
  *
@@ -115,7 +125,9 @@ export async function analyseUpload(
   // and anything under the chunk target is one piece; the plan is still what
   // decides, so nothing here changes when the browser starts splitting.
   const plan = planChunks(durationMs)
-  const extension = contentType.includes('mpeg') ? 'mp3' : 'opus'
+  // The key's extension follows the stored type, so what Supabase serves and
+  // what the provider is told to expect cannot drift apart.
+  const extension = EXTENSION_FOR[contentType] ?? 'bin'
   const uploaded: UploadedChunk[] = []
 
   for (const piece of plan) {

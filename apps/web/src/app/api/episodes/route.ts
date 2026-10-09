@@ -1,4 +1,5 @@
 import { DEFAULT_LOCALE, LOCALES, renderMessage, type Locale } from '@overtone/messages'
+import { audioTypeOf } from '../../../audio/audio-type.js'
 import { analyseUpload } from '../../../server/analyse-upload.js'
 import { presentAnalysis, presentOutcome } from '../../../presenter/episode-view.js'
 
@@ -12,12 +13,6 @@ export const runtime = 'nodejs'
  * exactly why waiting returns to the caller instead of sleeping (ADR 0020).
  */
 export const maxDuration = 300
-
-/** What Whisper will take, and what the bucket is configured to accept. */
-const ACCEPTED = new Set([
-  'audio/mpeg', 'audio/mp4', 'audio/m4a', 'audio/x-m4a',
-  'audio/ogg', 'audio/opus', 'audio/webm', 'audio/wav', 'audio/x-wav',
-])
 
 const MAX_BYTES = 25 * 1024 * 1024
 
@@ -40,11 +35,14 @@ export async function POST(request: Request): Promise<Response> {
     return bad(locale, 'UNREADABLE_AUDIO', { filename: '' })
   }
 
-  const extension = file.name.split('.').pop() ?? ''
-  if (!ACCEPTED.has(file.type)) {
+  // Decided from the extension, never from what the browser claims. Chrome
+  // reports `application/octet-stream` for an .m4a picked from disk, and
+  // trusting it rejected real episodes as unsupported.
+  const contentType = audioTypeOf(file.name, String(form.get('contentType') ?? file.type))
+  if (contentType === undefined) {
     return bad(locale, 'UNSUPPORTED_FORMAT', {
-      extension,
-      accepted_formats: ['mp3', 'm4a', 'ogg', 'opus', 'wav'],
+      extension: file.name.split('.').pop() ?? '',
+      accepted_formats: ['mp3', 'm4a', 'ogg', 'opus', 'wav', 'webm'],
     })
   }
 
@@ -66,7 +64,7 @@ export async function POST(request: Request): Promise<Response> {
   const title = file.name.replace(/\.[^.]+$/u, '')
 
   try {
-    const result = await analyseUpload(audio, file.type, durationMs, title)
+    const result = await analyseUpload(audio, contentType, durationMs, title)
 
     // Presented here rather than in the browser, so the one place that turns
     // codes into sentences stays on the server (ADR 0017).
