@@ -6,6 +6,9 @@ export interface TranscribedWord {
 }
 
 export interface Transcript {
+  /** Who produced this, stored so a count can be traced to its source. */
+  readonly provider: string
+  readonly providerModel: string
   readonly text: string
   readonly words: readonly TranscribedWord[]
   readonly language: string

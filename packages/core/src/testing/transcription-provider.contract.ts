@@ -80,6 +80,20 @@ export function describeTranscriptionProvider(
       expect(outcome.transcript.durationMs).toBeGreaterThanOrEqual(lastWord?.endMs ?? 0)
     })
 
+    // A count must be traceable to what produced it, which means knowing
+    // which service and which model said these were the words.
+    it('names the provider and the model it used', async () => {
+      const { provider, knownAudioUrl } = await create()
+      const outcome = await provider.transcribe({
+        audioUrl: knownAudioUrl,
+        language: 'pt',
+      })
+
+      if (!outcome.ok) throw new Error('expected a transcript')
+      expect(outcome.transcript.provider.length).toBeGreaterThan(0)
+      expect(outcome.transcript.providerModel.length).toBeGreaterThan(0)
+    })
+
     it('returns non-empty text', async () => {
       const { provider, knownAudioUrl } = await create()
       const outcome = await provider.transcribe({

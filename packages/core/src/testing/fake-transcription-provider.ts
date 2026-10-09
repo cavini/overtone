@@ -32,6 +32,8 @@ export function transcriptFromText(
   const lastWord = words.at(-1)
 
   return {
+    provider: 'fake',
+    providerModel: 'fixture',
     text: spellings.join(' '),
     words,
     language: 'pt',

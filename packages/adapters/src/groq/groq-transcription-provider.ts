@@ -131,6 +131,8 @@ export class GroqTranscriptionProvider implements TranscriptionProvider {
     return {
       ok: true,
       transcript: {
+        provider: 'groq',
+        providerModel: this.model,
         text: parsed.data.text,
         words,
         language: request.language,
