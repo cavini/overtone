@@ -80,7 +80,12 @@ export class DrizzleAllowanceStore implements AllowanceStore {
       .insert(allowance)
       .values({
         id: SHARED_ROW,
-        remainingAudioMs: observed?.remainingAudioMs ?? HOURLY_ALLOWANCE_MS - spentAudioMs,
+        // Clamped, because a spend can exceed a full bucket: the provider
+        // refuses it, but the refusal still has to leave a sane balance
+        // behind. Not clamped *upward* against our own constant — if the
+        // provider raises its limit, its figure is the authority (ADR 0021).
+        remainingAudioMs:
+          observed?.remainingAudioMs ?? Math.max(0, HOURLY_ALLOWANCE_MS - spentAudioMs),
         asOf: sql`now()`,
         dailyUsedMs: spentAudioMs,
         dayResetsAt: sql`now() + interval '1 day'`,
