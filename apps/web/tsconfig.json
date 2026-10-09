@@ -10,8 +10,12 @@
     "moduleResolution": "bundler",
     "noEmit": true,
     "allowJs": true,
+    // Next adds these itself on every build; written down so the file stops
+    // being rewritten under us.
+    "incremental": true,
     "plugins": [{ "name": "next" }],
     "paths": { "@/*": ["./src/*"] }
   },
-  "include": ["src", "next-env.d.ts", ".next/types/**/*.ts", "*.ts", "*.mjs"]
+  "include": ["src", "next-env.d.ts", ".next/types/**/*.ts", "*.ts", "*.mjs"],
+  "exclude": ["node_modules"]
 }
