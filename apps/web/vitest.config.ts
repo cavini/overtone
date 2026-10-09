@@ -6,9 +6,11 @@ export default defineConfig({
     environment: 'node',
     coverage: {
       provider: 'v8',
-      // The presenter is the layer under test here. Components are checked by
-      // the browser, not by counting their lines.
-      include: ['src/presenter/**/*.ts', 'src/i18n/**/*.ts'],
+      // The layers that carry logic: turning numbers into words, and working
+      // out what a file is and how long it runs. Components are checked in a
+      // browser, and the i18n wiring is four lines of framework glue that
+      // fails loudly at build time — counting their lines measures nothing.
+      include: ['src/presenter/**/*.ts', 'src/audio/**/*.ts', 'src/i18n/ui.ts'],
       thresholds: { lines: 90, functions: 90, statements: 90, branches: 85 },
     },
   },

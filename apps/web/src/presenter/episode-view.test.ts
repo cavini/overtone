@@ -154,6 +154,62 @@ describe('presentOutcome', () => {
     expect(view.notice).toContain('7')
   })
 
+  // Every way the pipeline can stop has to come out as something a person
+  // can read, in their language. A code with no mapping would reach the page
+  // as a bare identifier.
+  describe('each failure the pipeline can report', () => {
+    const FAILURES = [
+      { code: 'AUDIO_UNREADABLE' },
+      { code: 'AUDIO_NOT_FOUND' },
+      { code: 'PROVIDER_UNAVAILABLE' },
+      { code: 'PROVIDER_RESPONSE_INVALID' },
+      { code: 'ALLOWANCE_EXHAUSTED', retryAfterMs: 195_500 },
+      { code: 'ANALYSIS_NOT_STORED' },
+    ] as const
+
+    it.each(FAILURES)('says something readable about $code', (failure) => {
+      const view = presentOutcome({ state: 'failed', failure }, 'en', {
+        filename: 'ep-12.m4a',
+        chunkCount: 7,
+      })
+
+      expect(view.statusLabel).toBe('Failed')
+      expect(view.notice).toBeTruthy()
+      // A code that fell through to itself, rather than being translated.
+      expect(view.notice).not.toBe(failure.code)
+      expect(view.notice).not.toMatch(/\{/u)
+    })
+
+    it.each(FAILURES)('says it in Portuguese too, differently ($code)', (failure) => {
+      const pt = presentOutcome({ state: 'failed', failure }, 'pt').notice
+      const en = presentOutcome({ state: 'failed', failure }, 'en').notice
+
+      expect(pt).toBeTruthy()
+      expect(pt).not.toBe(en)
+    })
+
+    it('names the file that could not be read', () => {
+      const view = presentOutcome(
+        { state: 'failed', failure: { code: 'AUDIO_UNREADABLE' } },
+        'en',
+        { filename: 'ep-12.m4a' },
+      )
+
+      expect(view.notice).toContain('ep-12.m4a')
+    })
+
+    // Being refused for the allowance is a wait, even when it arrives as a
+    // failure — so it says how long, in minutes.
+    it('turns a refusal for the allowance into a time to come back', () => {
+      const view = presentOutcome(
+        { state: 'failed', failure: { code: 'ALLOWANCE_EXHAUSTED', retryAfterMs: 195_500 } },
+        'en',
+      )
+
+      expect(view.notice).toContain('4 minutes')
+    })
+  })
+
   it('reports a failure with the reason the pipeline gave', () => {
     const view = presentOutcome(
       { state: 'failed', failure: { code: 'PROVIDER_UNAVAILABLE' } },
