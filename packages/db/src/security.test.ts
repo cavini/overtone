@@ -38,6 +38,7 @@ const tables = Object.values(schema)
 const SERIES_SCOPED = [
   'series', 'series_members', 'topics', 'topic_terms', 'episodes',
   'transcripts', 'segments', 'insights', 'term_counts', 'mentions', 'queries',
+  'chunk_transcripts',
 ]
 
 /**
@@ -139,11 +140,12 @@ describe('row-level security', () => {
     expect(sql).toMatch(/create policy "[^"]*lemmas[^"]*" on "lemmas"\s*\n\s*for select/)
   })
 
-  // RLS on with no policy is deny-all, which is what the keep-alive table
-  // wants: only the service key touches it.
-  it('leaves the heartbeat table with no policy at all', () => {
-    expect(sql).toContain('alter table "heartbeats" enable row level security')
-    expect(sql).not.toMatch(/create policy "[^"]+" on "heartbeats"/)
+  // RLS on with no policy is deny-all. Two tables want exactly that: the
+  // keep-alive ping and the shared allowance counter. Neither holds anybody's
+  // data, and only the server touches them.
+  it.each(['heartbeats', 'allowance'])('leaves %s with no policy at all', (table) => {
+    expect(sql).toContain(`alter table "${table}" enable row level security`)
+    expect(sql).not.toMatch(new RegExp(`create policy "[^"]+" on "${table}"`))
   })
 
   // An anonymous visitor cannot be asked which episode they may see, and a
