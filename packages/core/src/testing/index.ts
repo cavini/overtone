@@ -12,3 +12,4 @@ export {
   describeTranscriptionProvider,
   type ProviderUnderTest,
 } from './transcription-provider.contract.js'
+export { describeAllowanceStore, type AllowanceStoreUnderTest } from './allowance-store.contract.js'
