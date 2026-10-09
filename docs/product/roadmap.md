@@ -64,6 +64,8 @@ Not an increment; a gate. Ten minutes of one real episode through the actual Gro
 
 ### M0 — Walking skeleton, bilingual from the first string · 2 weekends (est., was 1)
 
+> **Status: the exit criteria are met locally, except (5) — it is not deployed yet.** A real 15-minute slice of the show, uploaded through the browser, comes back in about 25 seconds with 2 687 words, 432 distinct terms and a count table, in either language. Several things M0 called *crude on purpose* were not built crudely, because the engine was finished first: lemmatisation, chunking, compression and persistence are all real. What is still missing is the public URL and accounts.
+
 > Open the live Vercel URL → drop in a 3-minute clip → about ten seconds later, read a real transcript and a real count table — then flip the interface to English and read the same numbers.
 
 | | |
@@ -75,6 +77,7 @@ Not an increment; a gate. Ten minutes of one real episode through the actual Gro
 | **Exit** | (1) A 3-min clip of the real show uploaded from a phone browser returns a table in <30 s. (2) Term counts for a committed **pt-BR** fixture match a hand-counted expectation exactly, asserted in CI. (3) A diacritics test pins `e`/`é` and `por`/`pôr` as **distinct** tokens and fails if normalisation strips accents. (4) One e2e smoke drives the real upload path against the fake provider. (5) It is reachable at the production URL by someone who is not the engineer. (6) **Both locales load, the switcher works, and a CI check fails on any user-facing literal outside a catalogue** — including a catalogue-parity check that fails when a key exists in one language and not the other. (7) **`1234` renders `1.234` in pt-BR and `1,234` in English**, asserted by test (R30). (8) **The same fixture analysed with the UI set to English produces identical counts** to pt-BR, asserted by test — the pipeline never reads the request locale (R31). |
 | **Deferred** | Accounts, persistence, chunking, compression, lemmatisation, watchlists, series view, sharing. Most *copy* is also deferred — the mechanism is the deliverable, not a finished translation of a product that does not exist yet. |
 | **Stop here?** | Thin but real: a word readout of a short clip nobody had before. Nobody would miss it. |
+| **What it cost** | Two bugs that only appeared when the thing was actually used in a browser, neither of which any test would have caught: Chrome reports `application/octet-stream` for an `.m4a` picked from disk, so the route rejected real episodes as unsupported; and a media element that cannot load fires *no* event at all, so measuring the duration hung forever rather than failing. Both are fixed and both now have tests. |
 
 ### M1 — Sign in, library, full-length episodes · 3 weekends (est.)
 
