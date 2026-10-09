@@ -135,6 +135,15 @@ export interface AdvancedEpisode {
   readonly outcome: AdvanceEpisodeOutcome
   readonly analysis?: EpisodeAnalysis
   readonly chunkCount: number
+  /**
+   * Chunks finished so far.
+   *
+   * Reported on every step, including the ones that only wait. Without it a
+   * page waiting on the allowance has nothing to show but a countdown that
+   * restarts each time a chunk lands — which reads as a loop rather than as
+   * progress, and was exactly how it read.
+   */
+  readonly chunksDone: number
 }
 
 /**
@@ -172,7 +181,9 @@ export async function advanceOnce(episodeId: string): Promise<AdvancedEpisode> {
     pipelineDependencies(),
   )
 
-  if (outcome.state !== 'ready') return { outcome, chunkCount: plan.length }
+  const chunksDone = (await pipelineDependencies().chunks.transcribedIndexes(episodeId)).length
+
+  if (outcome.state !== 'ready') return { outcome, chunkCount: plan.length, chunksDone }
 
   // The audio has done its job: the provider's payload is what re-derivation
   // reads, and 1 GB of storage is the ceiling that arrives first.
@@ -182,6 +193,7 @@ export async function advanceOnce(episodeId: string): Promise<AdvancedEpisode> {
     outcome,
     analysis: await readAnalysis(episodeId, episode.durationMs),
     chunkCount: plan.length,
+    chunksDone,
   }
 }
 

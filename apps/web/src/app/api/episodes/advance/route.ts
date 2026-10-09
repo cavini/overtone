@@ -39,6 +39,8 @@ export async function POST(request: Request): Promise<Response> {
       analysis: result.analysis ? presentAnalysis(result.analysis, locale) : undefined,
       // How long to wait before coming back, when it said to wait.
       retryAfterMs: result.outcome.state === 'waiting' ? result.outcome.retryAfterMs : 0,
+      chunksDone: result.chunksDone,
+      chunkCount: result.chunkCount,
     })
   } catch (error) {
     console.error('could not advance episode', error)
