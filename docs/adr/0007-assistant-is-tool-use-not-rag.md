@@ -1,6 +1,6 @@
 # ADR 0007 — The AI assistant is tool use over our analytics API, not RAG
 
-**Date:** 2026-10-07 · **Status:** accepted (design committed now, implementation deferred)
+**Date:** 2026-10-07 · **Status:** accepted (design committed now, implementation deferred) · **Amended by:** ADR 0010 (the model), ADR 0015 (no speaker filter)
 
 ## Context
 The deferred feature is a chatbot answering questions like *"how many times did they ever discuss hotdogs?"* across the whole library. The default 2020s answer is retrieval-augmented generation: chunk the transcripts, embed them, retrieve top-k, let the model answer.
@@ -8,11 +8,12 @@ The deferred feature is a chatbot answering questions like *"how many times did 
 **RAG cannot answer this question.** Top-k retrieval returns a sample, so the model counts the sample and reports a number that is confidently, invisibly wrong. For a product whose entire promise is an accurate count, a plausible wrong number is the worst possible failure — worse than an error, because nobody notices it.
 
 ## Decision
-The assistant is a tool-using agent over the analytics functions the UI already uses. Claude does language; SQL does arithmetic.
+The assistant is a tool-using agent over the analytics functions the UI already uses. **The model does language; SQL does arithmetic.**
 
-The product-side domain model names the mechanism precisely (decision D11, "one count engine, two front-ends"): a **`Query`** is a first-class stored object — `{ terms | topics, recordingFilter, dateRange, speakerFilter, groupBy, metric }`. The dashboard builds one per view. The assistant's entire job is *natural language → `Query`*, plus prose over the segments that come back. It never computes a number itself. Epic E10 in the backlog builds this `Query` foundation during the MVP, which is what makes the assistant cheap later.
+The product-side domain model names the mechanism precisely (decision D11, "one count engine, two front-ends"): a **`Query`** is a first-class stored object — `{ terms | topics, episodeFilter, dateRange, groupBy, metric }`. (The original form carried a `speakerFilter`; ADR 0015 removed the speaker dimension from the product, so it is gone.) The dashboard builds one per view. The assistant's entire job is *natural language → `Query`*, plus prose over the segments that come back. It never computes a number itself. Epic E10 in the backlog builds this `Query` foundation during the MVP, which is what makes the assistant cheap later.
 
-- Model `claude-opus-5`, `thinking: {type: "adaptive"}`, `output_config: {effort: "medium"}`.
+- **Model: whatever is free.** ADR 0010 committed the whole product to running at zero marginal cost, and this is the one feature that could have broken that. It survives because of the decision above: the model never computes a number, only translates a question into a `Query` and narrates the answer. That is structured extraction, not reasoning — well within a small model's reach. One of Groq's free models is the default; a hosted paid API is a drop-in if quality ever demands it.
+- The same decision that made the assistant *correct* is what keeps it *free*. Had this been RAG, a frontier model would have been the minimum just to have a chance of counting right.
 - The loop is the Anthropic SDK's Tool Runner (`client.beta.messages.tool_runner` with `betaZodTool`), so our existing Zod contracts become the tool schemas directly.
 - Tools: `count_mentions`, `compare_terms`, `search_segments`, `list_recordings`, `speaker_breakdown`, `trend_over_time` — each one compiles its arguments into a `Query` and runs it through the same engine the dashboard uses. No tool contains its own SQL.
 - Citations are capped transcript retrieval (≤20 segments) used **only** to quote; never to count.
