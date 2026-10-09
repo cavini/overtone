@@ -1,20 +1,30 @@
 /**
  * Where an episode is in the pipeline.
  *
+ * Declared as runtime data with the type derived from it, so the database's
+ * column constraint and the application's type come from the same list and
+ * cannot drift apart.
+ *
  * These six strings are the contract. They are stored values that tests
  * assert literally — the words a reader sees come from the message catalogue,
  * so `uploaded` reads as *Enviado* or *Uploaded* depending on the reader.
  * Never store the label, and never branch on it.
  */
-export type EpisodeStatus =
-  | 'uploaded'
-  | 'transcribing'
-  | 'analyzing'
-  | 'ready'
-  | 'failed'
-  | 'deleting'
+export const EPISODE_STATUSES = [
+  'uploaded',
+  'transcribing',
+  'analyzing',
+  'ready',
+  'failed',
+  'deleting',
+] as const
+
+export type EpisodeStatus = (typeof EPISODE_STATUSES)[number]
 
 /** Still working. Not finished, but not broken either. */
+export const SERIES_ROLES = ['owner', 'host'] as const
+export type SeriesRole = (typeof SERIES_ROLES)[number]
+
 export const IN_FLIGHT_STATUSES: ReadonlySet<EpisodeStatus> = new Set([
   'uploaded',
   'transcribing',

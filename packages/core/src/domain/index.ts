@@ -26,8 +26,11 @@ export {
 } from './encoding-plan.js'
 export type { Mention } from './mention.js'
 export {
+  EPISODE_STATUSES,
   IN_FLIGHT_STATUSES,
+  SERIES_ROLES,
   type EpisodeStatus,
+  type SeriesRole,
   type EpisodeSummary,
   type TopicTally,
 } from './episode.js'
