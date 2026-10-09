@@ -8,6 +8,7 @@ import { splitAndUpload, type ChunkTarget } from '../audio/split-and-upload.js'
 import type { UiKey } from '../i18n/ui.js'
 import type { AnalysisView, OutcomeView } from '../presenter/episode-view.js'
 import { CountsTable, JokeList, StatStrip } from './counts-table.js'
+import { ProgressPanel, type Progress } from './progress-panel.js'
 
 type Labels = Record<UiKey, string>
 
@@ -51,7 +52,7 @@ export function UploadForm({
   const input = useRef<HTMLInputElement>(null)
   const [filename, setFilename] = useState('')
   const [busy, setBusy] = useState(false)
-  const [step, setStep] = useState('')
+  const [progress, setProgress] = useState<Progress | undefined>(undefined)
   const [error, setError] = useState('')
   const [result, setResult] = useState<Result | undefined>(undefined)
 
@@ -59,7 +60,7 @@ export function UploadForm({
     setBusy(true)
     setError('')
     setResult(undefined)
-    setStep(labels.preparing)
+    setProgress({ headline: labels.preparing, done: 0, total: 0 })
 
     try {
       const contentType = audioTypeOf(file.name, file.type)
@@ -92,10 +93,10 @@ export function UploadForm({
       const episodeId = String(started['episodeId'])
 
       await splitAndUpload(file, chunks, ({ done, total }) => {
-        setStep(`${labels.sendingPart} ${done} / ${total}`)
+        setProgress({ headline: `${labels.sendingPart} ${done + 1} / ${total}`, done, total })
       })
 
-      setStep(labels.transcribing)
+      setProgress({ headline: labels.transcribing, done: 0, total: chunks.length })
 
       // One chunk a step, coming back rather than waiting. An episode is
       // longer than a full hourly balance, so some of it always waits for
@@ -116,19 +117,33 @@ export function UploadForm({
         const status = payload['status'] as OutcomeView
         const analysis = payload['analysis'] as AnalysisView | undefined
         setResult(analysis === undefined ? { status } : { status, analysis })
-        setStep(status.notice ?? labels.transcribing)
 
-        if (status.done) return
+        if (status.done) {
+          setProgress(undefined)
+          return
+        }
 
         const waitMs = Number(payload['retryAfterMs'] ?? 0)
-        if (waitMs > MAX_SLEEP_MS) setStep(`${labels.tooLongToWait} ${status.notice ?? ''}`)
+        const done = Number(payload['chunksDone'] ?? 0)
+        const total = Number(payload['chunkCount'] ?? chunks.length)
+
+        // The count is the part that moves. The countdown restarts every
+        // time a chunk lands, so on its own it looks like a loop.
+        setProgress({
+          headline: waitMs > 0 ? labels.waitingForAllowance : labels.transcribing,
+          done,
+          total,
+          ...(waitMs > 0 ? { nextAttemptAt: Date.now() + waitMs } : {}),
+          ...(status.notice === undefined ? {} : { notice: status.notice }),
+        })
+
         await sleep(waitMs)
       }
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : labels.couldNotRead)
     } finally {
       setBusy(false)
-      setStep('')
+      setProgress(undefined)
     }
   }
 
@@ -172,10 +187,12 @@ export function UploadForm({
           </button>
         </div>
 
-        <p className="mt-2 text-xs" style={{ color: 'var(--quiet)' }} aria-live="polite">
-          {busy && step !== '' ? step : filename === '' ? labels.noFile : filename}
+        <p className="mt-2 text-xs" style={{ color: 'var(--quiet)' }}>
+          {filename === '' ? labels.noFile : filename}
         </p>
       </form>
+
+      {progress ? <ProgressPanel progress={progress} labels={labels} /> : null}
 
       {error !== '' ? (
         <p
