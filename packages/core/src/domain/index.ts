@@ -44,3 +44,5 @@ export type {
 export type { SegmentWord, TranscriptSegment } from './transcript-segment.js'
 export type { AudioChunk, ChunkTranscript } from './audio-chunk.js'
 export type { AllowanceState } from './allowance.js'
+export type { ObservedAllowance } from './observed-allowance.js'
+export { ALLOWANCE_REFILL_RATE } from './observed-allowance.js'
