@@ -46,8 +46,8 @@ And the no-background-worker decision (ADR 0010) is strained. A paced queue span
 
 ## Consequences
 
-- **A weekly show still works comfortably**, provided nobody expects an episode to be ready in five minutes.
-- Daily ceiling: 28 800 audio-seconds, so **three of this show's episodes per day**, not four. Backfilling a 219-episode archive is not two weeks; at 2 h 06 m each it is around **sixteen days of continuous processing**.
+- **A weekly show still works comfortably**, provided nobody expects an episode ready in five minutes. At 20-minute chunks an episode is **7 pieces**, six of which fit in one hourly window, so the seventh waits — roughly **1.1 hours of wall-clock** per episode, almost all of it spent waiting on the allowance rather than on transcription.
+- Daily ceiling: 28 800 audio-seconds, so **three of this show's episodes per day**, not four. Backfilling the 219-episode archive is **462 audio-hours — about 58 days** of continuous processing, which settles the back-catalogue question on arithmetic alone.
 - The 25 MB file cap stops being a design constraint. It is checked, and the encoder keeps us well inside it, but it decides nothing.
 - **Reversal trigger:** Groq's Dev tier raises the allowance. If this show's episodes ever need to be ready promptly, that is the thing to buy — not a different provider, and not a cleverer encoder. The pacing stays either way, because an allowance that is merely larger is still finite.
 

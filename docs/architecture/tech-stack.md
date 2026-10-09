@@ -58,11 +58,11 @@ The app is one deployable thing. You push to git; Vercel deploys it.
 | | A 2-hour episode |
 |---|---|
 | As 16 kHz mono Opus | ~21 MB — fits the 25 MB cap, but we chunk anyway (ADR 0011) |
-| Audio-seconds consumed | 7 200 — **the entire hourly allowance** |
-| So, throughput | **one episode per hour, four per day** |
+| Audio-seconds consumed | 7 591 for a real 2 h 06 m episode — **391 s more than the whole hourly allowance**, so it must be chunked and paced (ADR 0020) |
+| So, throughput | **three episodes per day** — and one episode spans two hourly windows, so ~1.1 h of wall-clock each (ADR 0020) |
 | Transcription wall-clock | tens of seconds, with chunks running in parallel |
 | Storage per episode | ~22 MB → **1 GB ≈ 37 episodes** |
-| Back catalogue of 50 episodes | 100 audio-hours ≈ **two weeks** of backfilling |
+| Back catalogue, 219 episodes | 462 audio-hours ≈ **58 days** of continuous processing |
 
 A weekly show is comfortable. **Storage is the ceiling that arrives first**, not money, not compute, not rate limits.
 

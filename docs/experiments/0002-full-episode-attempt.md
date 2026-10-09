@@ -84,8 +84,8 @@ wants a list of expected terms written down **before** the transcript is read.
 ## What changed as a result
 
 1. **ADR 0020** — chunking reinstated and paced. The daily ceiling is three of
-   this show's episodes, not four, and a 219-episode archive is roughly
-   sixteen days of continuous processing rather than two weeks.
+   this show's episodes, not four, and the 219-episode archive is 462
+   audio-hours — about 58 days of continuous processing.
 2. **The size estimate now includes measured encoder overhead.**
 3. **Episode downloads use `curl`.** The podcast host's CDN answers Node's
    `fetch` with a 404 and `curl` with the redirect it should — same URL, same
