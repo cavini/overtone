@@ -41,6 +41,13 @@ export const UI = {
     passwordHint: 'A senha que vocês combinaram. Ela segura a cota de transcrição.',
     enterButton: 'Entrar',
     wrongPassword: 'Senha errada.',
+    credits: 'Créditos e licenças',
+    creditsHeading: 'Créditos e licenças',
+    dictionaryHeading: 'Dicionário de lemas',
+    dictionaryWhy: 'É o que faz o Overtone saber que falar, falei, falando e falou são a mesma palavra — e que casa e casar não são. Nenhum stemmer separa essas duas.',
+    dictionaryTerms: 'A licença exige este aviso e que a lista, e qualquer versão modificada que publicarmos, continue sob ODbL. Ela não impõe nada ao código do Overtone.',
+    transcriptionHeading: 'Transcrição',
+    transcriptionCredit: 'Transcrição pelo Whisper large-v3-turbo, rodando na Groq. O áudio é sempre tratado como português do Brasil.',
   },
   en: {
     appName: 'Overtone',
@@ -73,6 +80,13 @@ export const UI = {
     passwordHint: 'The one your group agreed on. It is what protects the transcription allowance.',
     enterButton: 'Enter',
     wrongPassword: 'Wrong password.',
+    credits: 'Credits and licences',
+    creditsHeading: 'Credits and licences',
+    dictionaryHeading: 'Lemma dictionary',
+    dictionaryWhy: 'It is what lets Overtone know that falar, falei, falando and falou are the same word — and that casa and casar are not. No stemmer can tell those apart.',
+    dictionaryTerms: 'The licence requires this notice, and that the list and any modified version we publish stay under ODbL. It places no condition on Overtone\u2019s own code.',
+    transcriptionHeading: 'Transcription',
+    transcriptionCredit: 'Transcribed by Whisper large-v3-turbo running on Groq. The audio is always treated as Brazilian Portuguese.',
   },
 } as const satisfies Record<Locale, Record<string, string>>
 

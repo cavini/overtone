@@ -3,6 +3,7 @@ import { hasLocale } from 'next-intl'
 import { setRequestLocale } from 'next-intl/server'
 import { notFound } from 'next/navigation'
 import { LocaleSwitcher } from '../../components/locale-switcher.js'
+import { Link } from '../../i18n/navigation.js'
 import { UploadForm } from '../../components/upload-form.js'
 import { routing } from '../../i18n/routing.js'
 import { UI } from '../../i18n/ui.js'
@@ -41,6 +42,13 @@ export default async function HomePage({
       <footer className="mt-14 border-t pt-5 text-xs" style={{ borderColor: 'var(--edge)', color: 'var(--quiet)' }}>
         <p>{renderMessage(locale, 'COUNTS_DESCRIBE_PUBLISHED_EDIT', {})}</p>
         <p className="mt-1">{renderMessage(locale, 'ANALYSIS_ALWAYS_PTBR', {})}</p>
+        {/* ODbL asks for the dictionary's notice to be reachable by anyone
+            using the app, not just anyone reading the repository. */}
+        <p className="mt-3">
+          <Link href="/creditos" className="underline" style={{ color: 'var(--link)' }}>
+            {labels.credits}
+          </Link>
+        </p>
       </footer>
     </main>
   )
