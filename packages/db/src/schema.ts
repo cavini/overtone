@@ -55,7 +55,10 @@ const inList = (column: AnyPgColumn, values: readonly string[]) => {
 
 export const series = pgTable('series', {
   id: uuid('id').primaryKey().defaultRandom(),
-  ownerId: authUserId(),
+  // Named explicitly rather than through the `authUserId` helper, which calls
+  // its column `user_id`. The owner of a series and a member of one are
+  // different things, and a shared helper quietly made them the same column.
+  ownerId: uuid('owner_id').notNull(),
   title: text('title').notNull(),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 })
