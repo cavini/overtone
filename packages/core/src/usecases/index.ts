@@ -9,3 +9,9 @@ export {
   type GetSeriesOverviewDependencies,
   type GetSeriesOverviewRequest,
 } from './get-series-overview.js'
+export {
+  processEpisode,
+  type ProcessEpisodeDependencies,
+  type ProcessEpisodeOutcome,
+  type ProcessEpisodeRequest,
+} from './process-episode.js'
