@@ -14,7 +14,14 @@ import {
  * Any Drizzle Postgres database. Left generic so the same repository runs
  * against the real driver and against the proxy the tests use.
  */
-type Database = PgDatabase<PgQueryResultHKT, Record<string, never>>
+/**
+ * Any Drizzle Postgres database, whichever driver built it.
+ *
+ * The schema parameter is left open deliberately: the real driver and the
+ * proxy the tests use declare it differently, and pinning it to one would
+ * make the repository untestable without a live connection.
+ */
+type Database = PgDatabase<PgQueryResultHKT, Record<string, unknown>>
 
 /**
  * Reads a series for one person.
