@@ -127,6 +127,22 @@ module.exports = {
       },
     },
     {
+      name: 'adapters-do-not-depend-on-each-other',
+      comment:
+        'Adapters all sit in the same ring, so one reaching for another is ' +
+        'sideways rather than inward. They should meet in the use cases, or ' +
+        'share a type through the domain — not couple directly.',
+      severity: 'error',
+      from: { path: '^packages/(adapters|db)/src' },
+      to: {
+        path: [
+          '^packages/(adapters|db)/src',
+          '(^|node_modules/)@overtone/(adapters|db)($|/)',
+        ],
+        pathNot: '^packages/(adapters|db)/src',
+      },
+    },
+    {
       name: 'no-circular',
       comment:
         'A cycle means two modules are really one, and neither can be ' +
