@@ -1,7 +1,8 @@
 import type { BlobStore } from '../ports/blob-store.js'
 
-/** The scheme the fake's URLs use, so a test can tell one apart. */
+/** The schemes the fake's URLs use, so a test can tell one apart. */
 const SCHEME = 'fake-blob:'
+const UPLOAD_SCHEME = 'fake-blob-upload:'
 
 /**
  * A blob store that keeps bytes in memory.
@@ -29,12 +30,25 @@ export class FakeBlobStore implements BlobStore {
     return Promise.resolve(`${SCHEME}${key}?expires_in=${ttlSeconds}`)
   }
 
+  uploadUrl(key: string, ttlSeconds: number): Promise<string> {
+    // Signed for a key that does not exist yet — that is the whole point of
+    // an upload URL, and the opposite of `readUrl`.
+    return Promise.resolve(`${UPLOAD_SCHEME}${key}?expires_in=${ttlSeconds}`)
+  }
+
   remove(keys: readonly string[]): Promise<void> {
     for (const key of keys) {
       this.contents.delete(key)
       this.contentTypes.delete(key)
     }
     return Promise.resolve()
+  }
+
+  /** Accepts an upload sent to one of this store's own upload URLs. */
+  write(url: string, bytes: Uint8Array, contentType: string): Promise<void> {
+    const key = url.slice(UPLOAD_SCHEME.length).split('?')[0] ?? ''
+
+    return this.put(key, bytes, contentType)
   }
 
   /** Resolves one of this store's own URLs. */

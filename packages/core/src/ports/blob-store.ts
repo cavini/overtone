@@ -31,6 +31,16 @@ export interface BlobStore {
    */
   readUrl(key: string, ttlSeconds: number): Promise<string>
   /**
+   * A URL the **browser** can upload one object to, directly.
+   *
+   * Not a convenience. A serverless function accepts about 4.5 MB of request
+   * body, and an episode of this show is a hundred times that — uploading
+   * through the server is not slow, it is impossible. The bytes have to go
+   * from the browser to storage without passing through us, and a signed URL
+   * is how that happens without putting a storage key in a browser.
+   */
+  uploadUrl(key: string, ttlSeconds: number): Promise<string>
+  /**
    * Frees the space. Succeeds for keys that are already gone, so cleanup can
    * be retried without first checking what it managed last time.
    */

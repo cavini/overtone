@@ -15,6 +15,14 @@ export interface BlobStoreUnderTest {
   read(url: string): Promise<Uint8Array>
   /** A key prefix nothing else is using. */
   readonly prefix: string
+  /**
+   * Sends bytes to an upload URL the store handed out, as a browser would.
+   *
+   * Supplied by the harness for the same reason `read` is: what has to match
+   * across implementations is that the URL accepts the bytes, not how they
+   * get there.
+   */
+  write(url: string, bytes: Uint8Array, contentType: string): Promise<void>
   teardown?(): Promise<void>
 }
 
@@ -79,6 +87,37 @@ export function describeBlobStore(
     it('refuses to sign a key that is not there', async () => {
       await withStore(async (subject, key) => {
         await expect(subject.store.readUrl(key('missing.opus'), 600)).rejects.toThrow()
+      })
+    })
+
+    // The whole reason this method exists: the bytes must be able to reach
+    // storage without passing through a server that cannot hold them.
+    it('takes an upload sent straight to the url it hands out', async () => {
+      await withStore(async (subject, key) => {
+        const url = await subject.store.uploadUrl(key('direct.opus'), 600)
+        await subject.write(url, bytes(0x11, 0x22, 0x33), OPUS)
+
+        const back = await subject.store.readUrl(key('direct.opus'), 600)
+        expect(await subject.read(back)).toEqual(bytes(0x11, 0x22, 0x33))
+      })
+    })
+
+    // The opposite of `readUrl`, which must refuse a key that is not there.
+    // Nothing has been uploaded yet — that is the point of an upload URL.
+    it('signs an upload for a key that does not exist yet', async () => {
+      await withStore(async (subject, key) => {
+        const url = await subject.store.uploadUrl(key('new.opus'), 600)
+
+        expect(url.length).toBeGreaterThan(0)
+      })
+    })
+
+    it('signs a different url per key', async () => {
+      await withStore(async (subject, key) => {
+        const first = await subject.store.uploadUrl(key('p.opus'), 600)
+        const second = await subject.store.uploadUrl(key('q.opus'), 600)
+
+        expect(first).not.toBe(second)
       })
     })
 

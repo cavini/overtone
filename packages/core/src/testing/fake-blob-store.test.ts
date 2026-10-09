@@ -8,6 +8,8 @@ describeBlobStore('FakeBlobStore', () => {
   return Promise.resolve({
     store,
     read: (url: string) => store.read(url),
+    write: (url: string, bytes: Uint8Array, contentType: string) =>
+      store.write(url, bytes, contentType),
     prefix: 'episodes/fake',
   })
 })
