@@ -5,6 +5,7 @@
 // does as much as it is allowed to and reports what happens next.
 import { describe, expect, it, vi } from 'vitest'
 import { CHUNK_TARGET_MS, DAILY_ALLOWANCE_MS, HOURLY_ALLOWANCE_MS } from '../analysis/index.js'
+import { ALLOWANCE_REFILL_RATE } from '../domain/observed-allowance.js'
 import type { AllowanceState } from '../domain/allowance.js'
 import type { ObservedAllowance } from '../domain/observed-allowance.js'
 import type { ChunkTranscript } from '../domain/audio-chunk.js'
@@ -184,11 +185,17 @@ describe('advanceEpisode', () => {
     })
 
     it('says how long to wait', async () => {
-      // A 20-minute chunk against an empty bucket: ten minutes of refill,
-      // not an hour of waiting for a window to turn (ADR 0021).
+      // One chunk against an empty bucket is exactly that chunk's worth of
+      // refill — minutes, not an hour of waiting for a window to turn
+      // (ADR 0021). Derived from the chunk size rather than written down,
+      // because the number moves whenever the chunk does and the
+      // relationship is what matters.
       const h = harness({ allowance: { remainingAudioMs: 0 } })
       const outcome = await advance(h)
-      expect(outcome).toMatchObject({ retryAfterMs: 600_000 })
+
+      expect(outcome).toMatchObject({
+        retryAfterMs: CHUNK_TARGET_MS / ALLOWANCE_REFILL_RATE,
+      })
     })
 
     it('reports the day when the day is what is spent', async () => {

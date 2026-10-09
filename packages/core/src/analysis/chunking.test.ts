@@ -31,8 +31,27 @@ describe('planChunks', () => {
     }
   })
 
-  it('numbers the chunks in order from zero', () => {
-    expect(planChunks(REAL_EPISODE).map((c) => c.index)).toEqual([0, 1, 2, 3, 4, 5, 6])
+  // The property, not the count. Stitching walks these in order and adds
+  // each offset in turn, so a gap or a repeat puts every later timestamp
+  // somewhere else. The number of chunks moves whenever the target does;
+  // that they run 0, 1, 2 … with nothing missing must not.
+  it('numbers the chunks in order from zero, with no gaps', () => {
+    const indexes = planChunks(REAL_EPISODE).map((chunk) => chunk.index)
+
+    expect(indexes).toEqual(indexes.map((_, position) => position))
+  })
+
+  // The invariant the count was standing in for, and a better one: the
+  // chunks tile the episode exactly. A gap loses audio, an overlap counts
+  // it twice, and both look fine until someone reads the transcript.
+  it('covers the whole episode exactly once', () => {
+    const plan = planChunks(REAL_EPISODE)
+
+    expect(plan[0]?.startMs).toBe(0)
+    expect(plan.at(-1)?.endMs).toBe(REAL_EPISODE)
+    for (const [position, chunk] of plan.entries()) {
+      if (position > 0) expect(chunk.startMs).toBe(plan[position - 1]?.endMs)
+    }
   })
 
   // The constraint that forced chunking back into the design: the free tier

@@ -2,13 +2,22 @@ import type { AudioChunk, ChunkTranscript } from '../domain/audio-chunk.js'
 import type { TimedWord } from '../domain/timed-word.js'
 
 /**
- * Twenty minutes.
+ * Twelve minutes.
  *
- * Far inside the hourly allowance, so a single chunk can never be refused for
- * its duration, and long enough that a two-hour episode is seven requests
- * rather than forty.
+ * Two ceilings decide this, and the lower one wins:
+ *
+ * - **Duration.** A chunk must be far inside the 7 200-second hourly balance
+ *   so it can never be refused for its length (ADR 0020). Twenty minutes
+ *   cleared that comfortably.
+ * - **Size.** The browser sends uncompressed 16 kHz mono audio, which runs at
+ *   32 KB a second against a 25 MB file cap. That caps a chunk at about
+ *   thirteen minutes, whatever the allowance allows.
+ *
+ * So twelve, with headroom on both. It was twenty while the splitting was
+ * still hypothetical; actually building it turned a theoretical limit into
+ * an arithmetic one.
  */
-export const CHUNK_TARGET_MS = 20 * 60_000
+export const CHUNK_TARGET_MS = 12 * 60_000
 
 /**
  * A remainder shorter than this is folded into the chunk before it.
