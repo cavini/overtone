@@ -25,3 +25,16 @@ export {
   type EncodingRefusal,
 } from './encoding-plan.js'
 export type { Mention } from './mention.js'
+export {
+  IN_FLIGHT_STATUSES,
+  type EpisodeStatus,
+  type EpisodeSummary,
+  type TopicTally,
+} from './episode.js'
+export type {
+  SeriesOverview,
+  SeriesState,
+  SeriesTopicTrend,
+  TopicCountInEpisode,
+  TopicTrend,
+} from './series-overview.js'
