@@ -121,6 +121,49 @@ export function describeBlobStore(
       })
     })
 
+    /*
+     * How audio belonging to nothing is found at all. An interrupted upload
+     * leaves chunks the database never hears about again, so the only way
+     * back to them is through the bucket itself.
+     */
+    it('lists what is stored under a prefix', async () => {
+      await withStore(async (subject, key) => {
+        await subject.store.put(key('one.opus'), bytes(1), OPUS)
+        await subject.store.put(key('two.opus'), bytes(2), OPUS)
+
+        const listed = await subject.store.list(key(''))
+
+        expect(listed).toContain(key('one.opus'))
+        expect(listed).toContain(key('two.opus'))
+      })
+    })
+
+    it('lists nothing under a prefix holding nothing', async () => {
+      await withStore(async (subject, key) => {
+        expect(await subject.store.list(key('nothing-here/'))).toEqual([])
+      })
+    })
+
+    // A sweep works out what to delete from what it is shown, so a listing
+    // that reached past its prefix would be a sweep reaching past it too.
+    it('lists only what is under the prefix it was given', async () => {
+      await withStore(async (subject, key) => {
+        await subject.store.put(key('inside/one.opus'), bytes(1), OPUS)
+        await subject.store.put(key('outside.opus'), bytes(2), OPUS)
+
+        expect(await subject.store.list(key('inside/'))).toEqual([key('inside/one.opus')])
+      })
+    })
+
+    it('stops listing what has been removed', async () => {
+      await withStore(async (subject, key) => {
+        await subject.store.put(key('brief.opus'), bytes(1), OPUS)
+        await subject.store.remove([key('brief.opus')])
+
+        expect(await subject.store.list(key(''))).not.toContain(key('brief.opus'))
+      })
+    })
+
     it('frees the space', async () => {
       await withStore(async (subject, key) => {
         await subject.store.put(key('gone.opus'), bytes(9), OPUS)

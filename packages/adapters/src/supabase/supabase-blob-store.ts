@@ -28,6 +28,15 @@ interface SignedUrlResponse {
  * the JS client, for the same reason the Groq adapter does: the seam that
  * makes it testable is the one the test needs, and the client would hide it.
  */
+/**
+ * How many entries one listing asks for.
+ *
+ * The bucket holds about forty-five episodes at a time on this tier, so one
+ * page is always enough — the bound is there so a runaway cannot pull an
+ * unbounded response into memory.
+ */
+const LIST_PAGE = 1_000
+
 export class SupabaseBlobStore implements BlobStore {
   private readonly storage: string
   private readonly bucket: string
@@ -140,5 +149,48 @@ export class SupabaseBlobStore implements BlobStore {
     // A key already gone is the outcome cleanup wanted, so it is not an
     // error. Supabase reports it as success with nothing deleted anyway.
     if (!response.ok) throw await this.failureFrom(response, 'remove objects')
+  }
+
+  /**
+   * Every key under a prefix, walking into folders.
+   *
+   * The listing endpoint returns one level at a time: an entry with no
+   * `id` is a folder rather than an object, and the only way past it is to
+   * ask again underneath. A sweep that stopped at the top level would find
+   * the folder an abandoned episode left and none of the audio inside it.
+   */
+  async list(prefix: string): Promise<readonly string[]> {
+    const found: string[] = []
+    const atOrUnder = [prefix]
+
+    while (atOrUnder.length > 0) {
+      const at = atOrUnder.pop() ?? ''
+
+      const response = await this.fetch(`${this.storage}/object/list/${encodeURIComponent(this.bucket)}`, {
+        method: 'POST',
+        headers: this.headers({ 'content-type': 'application/json' }),
+        // A trailing slash is how the API is told to look *inside* rather
+        // than for something named that.
+        body: JSON.stringify({ prefix: at.replace(/\/+$/u, ''), limit: LIST_PAGE }),
+      })
+
+      if (!response.ok) throw await this.failureFrom(response, 'list objects')
+
+      const entries = (await response.json()) as readonly {
+        readonly name?: unknown
+        readonly id?: unknown
+      }[]
+
+      for (const entry of entries) {
+        if (typeof entry.name !== 'string' || entry.name.length === 0) continue
+
+        const key = at.length === 0 ? entry.name : `${at.replace(/\/+$/u, '')}/${entry.name}`
+        // `id` is null for a folder. Objects have one.
+        if (entry.id === null || entry.id === undefined) atOrUnder.push(`${key}/`)
+        else found.push(key)
+      }
+    }
+
+    return found
   }
 }

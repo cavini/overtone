@@ -44,6 +44,16 @@ export class FakeBlobStore implements BlobStore {
     return Promise.resolve()
   }
 
+  /**
+   * Every key under a prefix.
+   *
+   * Flat, because this holds whole keys rather than folders — which is the
+   * same answer the real store gives once it has walked into them.
+   */
+  list(prefix: string): Promise<readonly string[]> {
+    return Promise.resolve([...this.contents.keys()].filter((key) => key.startsWith(prefix)))
+  }
+
   /** Accepts an upload sent to one of this store's own upload URLs. */
   write(url: string, bytes: Uint8Array, contentType: string): Promise<void> {
     const key = url.slice(UPLOAD_SCHEME.length).split('?')[0] ?? ''
