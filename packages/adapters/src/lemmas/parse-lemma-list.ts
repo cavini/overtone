@@ -1,10 +1,10 @@
-import { normalize, stem } from '@overtone/core'
+import { languagePack, normalize, type AudioLanguage } from '@overtone/core'
 
 const BYTE_ORDER_MARK = '\uFEFF'
 const HAS_LETTER = /\p{L}/u
 
 /**
- * Reads the published Portuguese lemma list into form→lemma pairs.
+ * Reads a published lemma list into form→lemma pairs.
  *
  * The file is one pair per line, tab-separated, **lemma first**. Reading it
  * the other way round would map every word to an inflection of itself and
@@ -20,7 +20,15 @@ const HAS_LETTER = /\p{L}/u
  * endings and a little junk in it; one bad row should cost one word, not the
  * whole dictionary.
  */
-export function parseLemmaList(text: string): Array<[form: string, lemma: string]> {
+export function parseLemmaList(
+  text: string,
+  language: AudioLanguage,
+): Array<[form: string, lemma: string]> {
+  // Pruning is only sound against the stemmer that will actually run at
+  // lookup time. Judged by the Portuguese one, `news` looks like a row worth
+  // keeping — it cuts to `new` — when the English stemmer leaves it alone and
+  // the row is redundant.
+  const { stem } = languagePack(language)
   const pairs: Array<[string, string]> = []
   const seen = new Set<string>()
   const lemmas = new Set<string>()

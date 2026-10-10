@@ -1,4 +1,4 @@
-import type { LemmaLookup, LemmaRepository } from '@overtone/core'
+import type { AudioLanguage, LemmaLookup, LemmaRepository } from '@overtone/core'
 
 export interface LemmaRow {
   readonly form: string
@@ -12,7 +12,10 @@ export interface LemmaRow {
  * driven without one — and so whichever client the app ends up using stays
  * the app's business.
  */
-export type LemmaQuery = (forms: readonly string[]) => Promise<readonly LemmaRow[]>
+export type LemmaQuery = (
+  forms: readonly string[],
+  language: AudioLanguage,
+) => Promise<readonly LemmaRow[]>
 
 /**
  * A two-hour episode has a few thousand distinct words, so this is normally
@@ -38,7 +41,7 @@ export const LOOKUP_BATCH_SIZE = 5_000
 export class QueryingLemmaRepository implements LemmaRepository {
   constructor(private readonly query: LemmaQuery) {}
 
-  async lookup(forms: readonly string[]): Promise<LemmaLookup> {
+  async lookup(forms: readonly string[], language: AudioLanguage): Promise<LemmaLookup> {
     const wanted = new Set(forms)
     if (wanted.size === 0) return new Map()
 
@@ -48,7 +51,7 @@ export class QueryingLemmaRepository implements LemmaRepository {
     for (let start = 0; start < distinct.length; start += LOOKUP_BATCH_SIZE) {
       const batch = distinct.slice(start, start + LOOKUP_BATCH_SIZE)
 
-      for (const row of await this.query(batch)) {
+      for (const row of await this.query(batch, language)) {
         // Only what was asked for. A repository that trusted the result set
         // would let a stray row change a count.
         if (wanted.has(row.form)) found.set(row.form, row.lemma)
