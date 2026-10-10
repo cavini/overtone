@@ -44,7 +44,7 @@ const AUDIO_URL_TTL_SECONDS = 15 * 60
  * roadmap). It is a fixed id rather than a lookup by title so that restarting
  * the app does not quietly start a second library.
  */
-const M0_OWNER = '00000000-0000-0000-0000-0000000000m0'.replace('m0', '0a')
+export const M0_OWNER = '00000000-0000-0000-0000-0000000000m0'.replace('m0', '0a')
 const M0_SERIES_TITLE = 'Overtone'
 
 /**

@@ -5,6 +5,7 @@ import { useState } from 'react'
 import type { UiKey } from '../i18n/ui.js'
 import { LibraryPanel } from './library-panel.js'
 import { SearchPanel } from './search-panel.js'
+import { SeriesPanel } from './series-panel.js'
 import { TranscriptView } from './transcript-view.js'
 import { UploadForm } from './upload-form.js'
 
@@ -64,6 +65,12 @@ export function Workspace({
           setReloadToken((token) => token + 1)
         }}
       />
+
+      {/*
+       * Above the tools, because it is the thing to read rather than the
+       * thing to operate: how the show is going, before how to search it.
+       */}
+      <SeriesPanel locale={locale} labels={labels} reloadToken={reloadToken} />
 
       <SearchPanel
         labels={labels}
