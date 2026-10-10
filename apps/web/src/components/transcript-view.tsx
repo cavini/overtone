@@ -72,10 +72,15 @@ export function TranscriptView({
   const bodyId = useId()
   const reduced = usePrefersReducedMotion()
 
-  // Open while there is still something coming, because that is the whole
-  // point of it — asking someone to click before they can read while they
-  // wait is asking them to find it first.
-  const [open, setOpen] = useState(live)
+  /*
+   * Open, always.
+   *
+   * It used to open only while transcription was still running, which meant
+   * that for every episode already finished — which is most of them, most
+   * of the time — the transcript was a button somebody had to find. The
+   * words are the thing this product is for. They do not go behind a click.
+   */
+  const [open, setOpen] = useState(true)
   const [parts, setParts] = useState<readonly TranscriptPart[]>([])
   const [revealed, setRevealed] = useState(0)
 
@@ -89,7 +94,19 @@ export function TranscriptView({
   const following = useRef(true)
 
   const total = totalChars(parts)
-  const typing = live && !reduced
+  /*
+   * Typed out whether or not transcription is still running.
+   *
+   * This used to animate only a live episode, on the reasoning that the
+   * reveal signals progress. In practice a short file finishes in seconds
+   * and a reopened page is never live, so the effect essentially never ran
+   * — the transcript simply appeared, all at once, which is the one thing
+   * it was built not to do.
+   *
+   * Reduced motion still turns it off, and the reveal paces off the backlog
+   * so a long transcript fills quickly rather than crawling.
+   */
+  const typing = !reduced
   const caughtUp = revealed >= total
 
   // A second upload reuses this component with a different episode. Without
