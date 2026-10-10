@@ -1,5 +1,6 @@
 import type { AdvanceEpisodeDependencies } from '@overtone/core'
 import { GroqTranscriptionProvider } from '@overtone/adapters/groq'
+import { RssEpisodeDirectory } from '@overtone/adapters/feed'
 import { SupabaseBlobStore } from '@overtone/adapters/supabase'
 import { lemmaQuery } from '@overtone/db/lemmas'
 import {
@@ -41,6 +42,22 @@ let db: PostgresJsDatabase | undefined
 export function database(): PostgresJsDatabase {
   db ??= drizzle(postgres(required('DATABASE_URL'), { prepare: false, max: 3 }))
   return db
+}
+
+/**
+ * The show's own feed, when one is configured.
+ *
+ * A private feed URL carries its token in the path, so it is as sensitive
+ * as a password: it lives in the environment, never in the repository, and
+ * never reaches the browser.
+ *
+ * Absent is an ordinary state — a series with no feed simply keeps the
+ * titles read from its filenames.
+ */
+export function episodeDirectory(feedUrl?: string | null): RssEpisodeDirectory | undefined {
+  const url = feedUrl ?? process.env['OVERTONE_FEED_URL']
+
+  return url === undefined || url.length === 0 ? undefined : new RssEpisodeDirectory({ feedUrl: url })
 }
 
 export function blobStore(): SupabaseBlobStore {
