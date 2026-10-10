@@ -1,7 +1,7 @@
 'use client'
 
 import type { Locale } from '@overtone/messages'
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { audioTypeOf, FILE_INPUT_ACCEPT } from '../audio/audio-type.js'
 import { measureDuration } from '../audio/measure-duration.js'
 import { splitAndUpload, type ChunkTarget } from '../audio/split-and-upload.js'
@@ -50,6 +50,7 @@ export function UploadForm({
   readonly labels: Labels
 }) {
   const input = useRef<HTMLInputElement>(null)
+  const resumed = useRef(false)
   const [filename, setFilename] = useState('')
   const [busy, setBusy] = useState(false)
   const [progress, setProgress] = useState<Progress | undefined>(undefined)
@@ -97,10 +98,23 @@ export function UploadForm({
       })
 
       setProgress({ headline: labels.transcribing, done: 0, total: chunks.length })
+      await driveToCompletion(episodeId, chunks.length)
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : labels.couldNotRead)
+    } finally {
+      setBusy(false)
+      setProgress(undefined)
+    }
+  }
 
-      // One chunk a step, coming back rather than waiting. An episode is
-      // longer than a full hourly balance, so some of it always waits for
-      // the allowance to refill.
+  /**
+   * Carries an episode to the end, one chunk a step.
+   *
+   * A function rather than a loop inside the upload, because finishing an
+   * episode and resuming one are the same work — and resuming is needed at
+   * all because the browser is what drives this and browsers get closed.
+   */
+  async function driveToCompletion(episodeId: string, chunkCount: number): Promise<void> {
       for (;;) {
         const response = await fetch('/api/episodes/advance', {
           method: 'POST',
@@ -125,7 +139,7 @@ export function UploadForm({
 
         const waitMs = Number(payload['retryAfterMs'] ?? 0)
         const done = Number(payload['chunksDone'] ?? 0)
-        const total = Number(payload['chunkCount'] ?? chunks.length)
+        const total = Number(payload['chunkCount'] ?? chunkCount)
 
         // The count is the part that moves. The countdown restarts every
         // time a chunk lands, so on its own it looks like a loop.
@@ -139,13 +153,49 @@ export function UploadForm({
 
         await sleep(waitMs)
       }
-    } catch (caught) {
-      setError(caught instanceof Error ? caught.message : labels.couldNotRead)
-    } finally {
-      setBusy(false)
-      setProgress(undefined)
-    }
   }
+
+  /*
+   * An episode left mid-transcription is picked up when the page opens.
+   *
+   * A full episode takes longer than a sitting, and the tab is the only
+   * thing moving it forward. Without this the audio sat uploaded and half
+   * transcribed with no way back to it but uploading the whole file again —
+   * which is what happened, and cost a second episode's worth of a daily
+   * budget that only holds three.
+   */
+  useEffect(() => {
+    if (resumed.current) return
+    resumed.current = true
+
+    void (async () => {
+      const response = await fetch('/api/episodes/pending').catch(() => undefined)
+      if (!response?.ok) return
+
+      const { episode } = (await response.json()) as {
+        episode: { episodeId: string; chunksDone: number; chunkCount: number } | null
+      }
+      if (episode === null) return
+
+      setBusy(true)
+      setProgress({
+        headline: labels.resuming,
+        done: episode.chunksDone,
+        total: episode.chunkCount,
+      })
+      try {
+        await driveToCompletion(episode.episodeId, episode.chunkCount)
+      } catch (caught) {
+        setError(caught instanceof Error ? caught.message : labels.couldNotRead)
+      } finally {
+        setBusy(false)
+        setProgress(undefined)
+      }
+    })()
+    // Once, on open. Re-running would start a second loop against the same
+    // episode and send every chunk twice.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   return (
     <>
