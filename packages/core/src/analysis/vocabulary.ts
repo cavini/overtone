@@ -1,9 +1,13 @@
 /**
- * Bumped whenever either list below changes. Stored alongside every analysis
- * so a count can always be traced to the vocabulary that produced it, and so
- * a change here is a visible reason for numbers to move.
+ * Bumped whenever any of the lists changes — the two below, or the English
+ * pair in `vocabulary-en.ts`. Stored alongside every analysis so a count can
+ * always be traced to the vocabulary that produced it, and so a change here
+ * is a visible reason for numbers to move.
+ *
+ * **3** — there is a second vocabulary now, and which one was used depends on
+ * the episode's language (ADR 0023). The Portuguese lists are untouched.
  */
-export const VOCABULARY_VERSION = 2
+export const VOCABULARY_VERSION = 3
 
 /**
  * Brazilian Portuguese stop words.

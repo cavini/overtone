@@ -6,5 +6,11 @@
  * Stored with every analysis so that a count can be traced to the code that
  * produced it, and so re-analysis knows what is stale. Forgetting to bump it
  * leaves old numbers sitting next to new ones with no way to tell them apart.
+ *
+ * **2** — the pipeline takes the episode's language (ADR 0023). Portuguese
+ * numbers are unchanged, and that is not a reason to leave this at 1: version
+ * 1 described one pipeline, and version 2 describes two that share a shape.
+ * A Portuguese episode and an English one both claiming version 1 would make
+ * the number meaningless in exactly the case it exists for.
  */
-export const PIPELINE_VERSION = 1
+export const PIPELINE_VERSION = 2
