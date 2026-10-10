@@ -1,13 +1,20 @@
+import { groupWords, stitchChunks } from '@overtone/core/analysis'
+import type { TimedWord } from '@overtone/core/domain'
+
 /**
- * One chunk of an episode, as something to read.
+ * One line of the transcript, as something to read and to seek to.
  *
- * Text, not timed words. The words carry a start and an end each, which is
- * what every count and every citation is built on — and is also four times
- * the bytes of the sentence they spell out. Nothing about reading needs them,
- * so they stop at the server.
+ * Text and a start, not timed words. The words carry a start and an end
+ * each, which is what every count and every citation is built on — and is
+ * also four times the bytes of the sentence they spell out. Reading needs
+ * one timestamp per line, not per word, so the rest stops at the server.
  */
-export interface TranscriptPart {
-  readonly index: number
+export interface TranscriptLine {
+  /** The chunk this came out of, and its place in that chunk. Together, a key. */
+  readonly chunk: number
+  readonly position: number
+  /** Where the line starts **in the episode**, which is what a search seeks to. */
+  readonly startMs: number
   readonly text: string
 }
 
@@ -21,39 +28,52 @@ export interface TranscriptPart {
  * on their screen would move megabytes a minute to say nothing happened.
  */
 export interface TranscriptSoFar {
-  readonly parts: readonly TranscriptPart[]
+  readonly lines: readonly TranscriptLine[]
   readonly nextFrom: number
 }
 
 /** A stored chunk, narrowed to the part reading needs. */
 interface TranscribedChunk {
   readonly index: number
-  readonly words: readonly { readonly text: string }[]
+  readonly offsetMs: number
+  readonly words: readonly TimedWord[]
 }
 
 /**
- * Reads the chunks an episode has, from where the reader left off.
+ * Reads the lines an episode has, from where the reader left off.
  *
  * Stops at the first missing index rather than skipping it. Chunks are paced
  * one at a time rather than fanned out, so they normally arrive in order —
  * but a transcript is read in sequence, and jumping a gap would quietly
  * present chunk three as what came after chunk one. Waiting costs one poll.
+ *
+ * Offsets through `stitchChunks` rather than adding `offsetMs` here. That
+ * arithmetic is the most dangerous in the repo — it fails silently, leaving
+ * every timestamp plausible and wrong — and it already has a round-trip
+ * property test. A second copy of it would not.
  */
-export function partsAfter(
+export function linesAfter(
   chunks: readonly TranscribedChunk[],
   from: number,
 ): TranscriptSoFar {
   const byIndex = new Map(chunks.map((chunk) => [chunk.index, chunk]))
-  const parts: TranscriptPart[] = []
+  const lines: TranscriptLine[] = []
 
   // The cursor comes off a query string, so it can be anything.
   let next = Math.max(0, Math.trunc(from))
 
   for (let chunk = byIndex.get(next); chunk !== undefined; chunk = byIndex.get(next)) {
-    // Joined with a space, the same way the stitched transcript is written.
-    parts.push({ index: next, text: chunk.words.map((word) => word.text).join(' ') })
+    const index = next
+    groupWords(stitchChunks([chunk])).forEach((group, position) => {
+      lines.push({
+        chunk: index,
+        position,
+        startMs: group.startMs,
+        text: group.words.map((word) => word.text).join(' '),
+      })
+    })
     next += 1
   }
 
-  return { parts, nextFrom: next }
+  return { lines, nextFrom: next }
 }

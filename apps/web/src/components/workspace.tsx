@@ -1,6 +1,5 @@
 'use client'
 
-import { CHUNK_TARGET_MS } from '@overtone/core'
 import type { Locale } from '@overtone/messages'
 import { useState } from 'react'
 import type { UiKey } from '../i18n/ui.js'
@@ -15,7 +14,7 @@ interface Showing {
   readonly episodeId: string
   readonly live: boolean
   /** Which part to scroll to, when arriving from a search result. */
-  readonly focusChunk?: number
+  readonly focusMs?: number
 }
 
 /**
@@ -72,16 +71,10 @@ export function Workspace({
           setShowing({
             episodeId,
             live: false,
-            /*
-             * Which part holds that moment.
-             *
-             * Derived from the chunk size rather than read from the part,
-             * because a part knows its index and its words but not where it
-             * sat in the episode. Exact for every chunk but the last, which
-             * absorbs a short remainder — landing one part early on the tail
-             * of an episode is a better failure than not landing at all.
-             */
-            focusChunk: Math.floor(startMs / CHUNK_TARGET_MS),
+            // The moment itself. The reader finds the line that was being
+            // said then; it knows where each of its lines starts and this
+            // does not.
+            focusMs: startMs,
           })
         }
       />
@@ -103,7 +96,7 @@ export function Workspace({
           episodeId={showing.episodeId}
           labels={labels}
           live={showing.live}
-          {...(showing.focusChunk === undefined ? {} : { focusChunk: showing.focusChunk })}
+          {...(showing.focusMs === undefined ? {} : { focusMs: showing.focusMs })}
         />
       ) : null}
     </>

@@ -5,7 +5,7 @@ import {
   REVEAL_TICK_MS,
   revealAfterTick,
   totalChars,
-  visibleParts,
+  visibleLines,
 } from './transcript-reveal.js'
 
 /** A twelve-minute chunk is roughly two thousand words. */
@@ -76,26 +76,26 @@ describe('totalChars', () => {
   })
 })
 
-describe('visibleParts', () => {
+describe('visibleLines', () => {
   const parts = [
     { index: 0, text: 'bom dia' },
     { index: 1, text: 'pirão' },
   ]
 
   it('shows nothing before anything is revealed', () => {
-    expect(visibleParts(parts, 0)).toEqual([])
+    expect(visibleLines(parts, 0)).toEqual([])
   })
 
   it('cuts the part being read where the reveal has got to', () => {
-    expect(visibleParts(parts, 3)).toEqual([{ index: 0, text: 'bom' }])
+    expect(visibleLines(parts, 3)).toEqual([{ index: 0, text: 'bom' }])
   })
 
   it('shows everything once the reveal has caught up', () => {
-    expect(visibleParts(parts, 12)).toEqual(parts)
+    expect(visibleLines(parts, 12)).toEqual(parts)
   })
 
   it('holds back the part the reveal has not reached', () => {
-    expect(visibleParts(parts, 9)).toEqual([
+    expect(visibleLines(parts, 9)).toEqual([
       { index: 0, text: 'bom dia' },
       { index: 1, text: 'pi' },
     ])
@@ -110,7 +110,7 @@ describe('visibleParts', () => {
    * typed should change.
    */
   it('hands back the parts already read untouched', () => {
-    const [first] = visibleParts(parts, 9)
+    const [first] = visibleLines(parts, 9)
 
     expect(first).toBe(parts[0])
   })
@@ -118,7 +118,7 @@ describe('visibleParts', () => {
   // Silence, or a stretch of music. An empty paragraph is a gap in the page
   // that nothing explains.
   it('leaves out a chunk that came back silent', () => {
-    expect(visibleParts([{ index: 0, text: '' }, { index: 1, text: 'depois' }], 4)).toEqual([
+    expect(visibleLines([{ index: 0, text: '' }, { index: 1, text: 'depois' }], 4)).toEqual([
       { index: 1, text: 'depo' },
     ])
   })
