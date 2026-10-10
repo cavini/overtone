@@ -75,6 +75,19 @@ body {
   font-family: var(--font-mono);
 }
 
+/*
+ * A column of blocks whose spacing is the column's to decide.
+ *
+ * Unlayered on purpose: it has to beat the `mt-*` utility on any block
+ * still carrying an opinion about how far it sits from a neighbour it
+ * cannot see. That is what left the upload form flush against the running
+ * jokes — one block in the stack had never been given the margin all the
+ * others copied.
+ */
+.stack > * {
+  margin-top: 0;
+}
+
 /* Wide content scrolls inside itself; the page never scrolls sideways. */
 .scroller {
   overflow-x: auto;

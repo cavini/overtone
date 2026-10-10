@@ -38,7 +38,7 @@ export function LanguageNotice({ labels }: { readonly labels: Labels }) {
   return (
     <aside
       role="status"
-      className="mt-4 flex items-start gap-3 rounded-lg border px-4 py-3 text-sm"
+      className="flex items-start gap-3 rounded-lg border px-4 py-3 text-sm"
       style={{ borderColor: 'var(--accent-quiet)', background: 'var(--panel)' }}
     >
       <span aria-hidden style={{ color: 'var(--accent)' }}>

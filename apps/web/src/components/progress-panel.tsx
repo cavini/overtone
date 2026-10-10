@@ -53,7 +53,7 @@ export function ProgressPanel({
 
   return (
     <section
-      className="mt-6 rounded-xl border p-5"
+      className="rounded-xl border p-5"
       style={{ borderColor: 'var(--edge)', background: 'var(--panel)' }}
       aria-live="polite"
     >

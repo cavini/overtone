@@ -4,6 +4,7 @@ import { useState } from 'react'
 import type { UiKey } from '../i18n/ui.js'
 import { timestamp } from '../presenter/episode-view.js'
 import { markedQuote } from '../presenter/marked-quote.js'
+import { Panel } from './panel.js'
 
 type Labels = Record<UiKey, string>
 
@@ -53,13 +54,7 @@ export function SearchPanel({
   }
 
   return (
-    <section
-      className="mt-6 rounded-xl border p-5"
-      style={{ borderColor: 'var(--edge)', background: 'var(--panel)' }}
-    >
-      <h2 className="text-xl" style={{ fontFamily: 'var(--font-display)' }}>
-        {labels.searchHeading}
-      </h2>
+    <Panel heading={labels.searchHeading}>
       <p className="mt-1 text-sm" style={{ color: 'var(--quiet)' }}>
         {labels.searchHint}
       </p>
@@ -147,6 +142,6 @@ export function SearchPanel({
           </ul>
         )
       ) : null}
-    </section>
+    </Panel>
   )
 }

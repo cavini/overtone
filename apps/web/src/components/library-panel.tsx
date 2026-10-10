@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import type { UiKey } from '../i18n/ui.js'
 import { timestamp } from '../presenter/episode-view.js'
 import { episodesMatching } from '../presenter/library-filter.js'
+import { Panel } from './panel.js'
 
 type Labels = Record<UiKey, string>
 
@@ -71,14 +72,7 @@ export function LibraryPanel({
   const shown = episodesMatching(episodes, typed)
 
   return (
-    <section
-      className="mt-6 rounded-xl border p-5"
-      style={{ borderColor: 'var(--edge)', background: 'var(--panel)' }}
-    >
-      <h2 className="text-xl" style={{ fontFamily: 'var(--font-display)' }}>
-        {labels.libraryHeading}
-      </h2>
-
+    <Panel heading={labels.libraryHeading}>
       {episodes.length === 0 ? (
         <p className="mt-2 text-sm" style={{ color: 'var(--quiet)' }}>
           {labels.libraryEmpty}
@@ -141,6 +135,6 @@ export function LibraryPanel({
           )}
         </>
       )}
-    </section>
+    </Panel>
   )
 }
