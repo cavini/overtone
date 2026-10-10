@@ -1,4 +1,4 @@
-import { DAILY_ALLOWANCE_MS, planChunks } from '@overtone/core'
+import { asAudioLanguage, DAILY_ALLOWANCE_MS, planChunks } from '@overtone/core'
 import {
   DEFAULT_LOCALE,
   LOCALES,
@@ -65,7 +65,16 @@ export async function POST(request: Request): Promise<Response> {
   }
 
   try {
-    const started = await startEpisode(durationMs, title)
+    /*
+     * The interface language chooses what the audio is transcribed as.
+     *
+     * It used to be fixed at Portuguese and the interface was explicitly
+     * forbidden from influencing it (ADR 0014), on the grounds that a count
+     * must not change because someone switched languages. That still holds
+     * for an episode already transcribed — this is recorded on the episode
+     * at upload and never revisited (ADR 0022).
+     */
+    const started = await startEpisode(durationMs, title, asAudioLanguage(locale))
 
     return Response.json({
       ...started,
