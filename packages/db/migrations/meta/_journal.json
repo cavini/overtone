@@ -50,6 +50,13 @@
       "when": 1791523558346,
       "tag": "0006_search_the_transcripts",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1791523558347,
+      "tag": "0007_episode_language",
+      "breakpoints": true
     }
   ]
 }
