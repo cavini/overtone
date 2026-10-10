@@ -5,9 +5,9 @@ import {
   type TopicDraft,
   type TopicProblem,
 } from '@overtone/core'
-import { topics, topicTerms } from '@overtone/db/schema'
-import { asc, eq } from 'drizzle-orm'
-import { sharedSeriesId } from './analyse-upload.js'
+import { series, topicTerms, topics } from '@overtone/db/schema'
+import { and, asc, eq } from 'drizzle-orm'
+import { NotYours, seriesFor } from './analyse-upload.js'
 import { database } from './wiring.js'
 
 /**
@@ -23,9 +23,19 @@ export interface StoredTopic extends Topic {
   readonly termCount: number
 }
 
-export async function listTopics(): Promise<StoredTopic[]> {
+export async function listTopics(userId: string): Promise<StoredTopic[]> {
+  return topicsOfSeries(await seriesFor(userId))
+}
+
+/**
+ * The running jokes of one library, by its id.
+ *
+ * Separate from `listTopics` because the scheduled transcription step has
+ * an episode and no signed-in user (ADR 0027) — it has to reach the topics
+ * through the episode's own series rather than through whoever is looking.
+ */
+export async function topicsOfSeries(seriesId: string): Promise<StoredTopic[]> {
   const db = database()
-  const seriesId = await sharedSeriesId()
 
   const rows = await db
     .select({ id: topics.id, name: topics.name, pattern: topicTerms.pattern })
@@ -59,9 +69,10 @@ export async function listTopics(): Promise<StoredTopic[]> {
  * request, not an exception.
  */
 export async function createTopic(
+  userId: string,
   draft: TopicDraft,
 ): Promise<{ topic: StoredTopic } | { problem: TopicProblem }> {
-  const existing = await listTopics()
+  const existing = await listTopics(userId)
   const problem = checkTopic(draft, existing)
   if (problem !== undefined) return { problem }
 
@@ -78,7 +89,7 @@ export async function createTopic(
   const db = database()
   const [created] = await db
     .insert(topics)
-    .values({ seriesId: await sharedSeriesId(), name: draft.name.trim() })
+    .values({ seriesId: await seriesFor(userId), name: draft.name.trim() })
     .returning({ id: topics.id })
 
   const id = created?.id ?? ''
@@ -94,7 +105,17 @@ export async function createTopic(
   }
 }
 
-export async function deleteTopic(id: string): Promise<void> {
+export async function deleteTopic(userId: string, id: string): Promise<void> {
+  // A topic id in a URL is not a permission either.
+  const [mine] = await database()
+    .select({ id: topics.id })
+    .from(topics)
+    .innerJoin(series, eq(series.id, topics.seriesId))
+    .where(and(eq(topics.id, id), eq(series.ownerId, userId)))
+    .limit(1)
+
+  if (mine === undefined) throw new NotYours()
+
   // The terms go with it: `topic_terms` cascades on the foreign key, and so
   // do any mentions already counted against it.
   await database().delete(topics).where(eq(topics.id, id))

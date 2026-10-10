@@ -1,3 +1,4 @@
+import { refusal, requireUser } from '../../../../server/session.js'
 import { recountFinished } from '../../../../server/analyse-upload.js'
 
 export const runtime = 'nodejs'
@@ -13,8 +14,11 @@ export const maxDuration = 300
  */
 export async function POST(): Promise<Response> {
   try {
-    return Response.json({ episodes: await recountFinished() })
+    return Response.json({ episodes: await recountFinished((await requireUser()).userId) })
   } catch (error) {
+    const denied = refusal(error)
+    if (denied !== undefined) return denied
+
     console.error('could not recount', error)
     return Response.json({ error: 'UNEXPECTED' }, { status: 500 })
   }

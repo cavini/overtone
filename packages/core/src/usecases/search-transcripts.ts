@@ -11,6 +11,8 @@ import type { TranscriptMatch, TranscriptSearch } from '../ports/transcript-sear
 const MATCH_LIMIT = 300
 
 export interface SearchTranscriptsRequest {
+  /** Whose library to look in. Never optional — see the port. */
+  readonly seriesId: string
   readonly query: string
 }
 
@@ -60,7 +62,7 @@ export async function searchTranscripts(
   // A blank query is not a question, so it is not asked.
   if (query.length === 0) return []
 
-  const matches = await deps.search.search(query, MATCH_LIMIT)
+  const matches = await deps.search.search(request.seriesId, query, MATCH_LIMIT)
 
   const byEpisode = new Map<string, TranscriptMatch[]>()
   for (const match of matches) {

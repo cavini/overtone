@@ -1,3 +1,5 @@
+import { mustOwnEpisode } from '../../../../server/analyse-upload.js'
+import { refusal, requireUser } from '../../../../server/session.js'
 import { transcriptSoFar } from '../../../../server/transcript-so-far.js'
 
 export const runtime = 'nodejs'
@@ -23,8 +25,14 @@ export async function GET(request: Request): Promise<Response> {
   }
 
   try {
+    // An episode id in a query string is not a permission.
+    await mustOwnEpisode((await requireUser()).userId, episodeId)
+
     return Response.json(await transcriptSoFar(episodeId, Number.isNaN(from) ? 0 : from))
   } catch (error) {
+    const denied = refusal(error)
+    if (denied !== undefined) return denied
+
     console.error('could not read the transcript so far', error)
     return Response.json({ error: 'UNEXPECTED' }, { status: 500 })
   }

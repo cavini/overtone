@@ -1,3 +1,4 @@
+import { refusal, requireUser } from '../../../../server/session.js'
 import { asAudioLanguage, DAILY_ALLOWANCE_MS, planChunks } from '@overtone/core'
 import {
   DEFAULT_LOCALE,
@@ -83,6 +84,7 @@ export async function POST(request: Request): Promise<Response> {
      * gave a library that read like a directory listing.
      */
     const started = await startEpisode(
+      (await requireUser()).userId,
       durationMs,
       title,
       asAudioLanguage(locale),
@@ -95,6 +97,9 @@ export async function POST(request: Request): Promise<Response> {
       chunkCount: planChunks(durationMs).length,
     })
   } catch (error) {
+    const denied = refusal(error)
+    if (denied !== undefined) return denied
+
     console.error('could not start episode', error)
     return Response.json({ error: 'UNEXPECTED' }, { status: 500 })
   }

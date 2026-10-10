@@ -1,6 +1,7 @@
 import { DEFAULT_LOCALE, LOCALES, type Locale } from '@overtone/messages'
 import { withAdvanceLease } from '../../../../server/advance-pending.js'
-import { advanceOnce } from '../../../../server/analyse-upload.js'
+import { advanceOnce, mustOwnEpisode } from '../../../../server/analyse-upload.js'
+import { refusal, requireUser } from '../../../../server/session.js'
 import { presentAnalysis, presentOutcome } from '../../../../presenter/episode-view.js'
 
 export const runtime = 'nodejs'
@@ -49,6 +50,9 @@ export async function POST(request: Request): Promise<Response> {
      * allowance, so two advances at once would transcribe the same chunk
      * twice and pay for it twice.
      */
+    // Checked before the lease and before a second of audio is spent.
+    await mustOwnEpisode((await requireUser()).userId, episodeId)
+
     const result = await withAdvanceLease(() => advanceOnce(episodeId))
 
     // The schedule has it. It is doing the same work this call would have
@@ -66,6 +70,9 @@ export async function POST(request: Request): Promise<Response> {
       chunkCount: result.chunkCount,
     })
   } catch (error) {
+    const denied = refusal(error)
+    if (denied !== undefined) return denied
+
     console.error('could not advance episode', error)
     return Response.json({ error: 'UNEXPECTED' }, { status: 500 })
   }

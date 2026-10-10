@@ -56,6 +56,7 @@ if (url === undefined || url.length === 0) {
 
   describe('DrizzleTranscriptSearch against real postgres', () => {
     let episodeId = ''
+    let seriesId = ''
 
     /** Only what this test seeded. The database is shared with real episodes. */
     const mine = <T extends { readonly episodeId: string }>(found: readonly T[]): T[] =>
@@ -68,7 +69,7 @@ if (url === undefined || url.length === 0) {
         .insert(series)
         .values({ ownerId: OWNER, title: 'Search' })
         .returning({ id: series.id })
-      const seriesId = created?.id ?? ''
+      seriesId = created?.id ?? ''
       await db.insert(seriesMembers).values({ seriesId, userId: OWNER, role: 'owner' })
 
       const [episode] = await db
@@ -107,7 +108,7 @@ if (url === undefined || url.length === 0) {
     })
 
     it('finds a word that was actually said', async () => {
-      const found = mine(await search.search('cachorro', 300))
+      const found = mine(await search.search(seriesId, 'cachorro', 300))
 
       expect(found).toHaveLength(4)
       expect(found[0]?.episodeNumber).toBeGreaterThan(0)
@@ -120,7 +121,7 @@ if (url === undefined || url.length === 0) {
      * what was said: `falar` is said as falei, falou, falando, falaram.
      */
     it('stems, so a search finds the other forms of the word', async () => {
-      const infinitive = mine(await search.search('falar', 300))
+      const infinitive = mine(await search.search(seriesId, 'falar', 300))
       const surfaces = new Set(
         infinitive.flatMap((match) => match.text.toLowerCase().match(/fal\w+/gu) ?? []),
       )
@@ -130,25 +131,25 @@ if (url === undefined || url.length === 0) {
     })
 
     it('finds nothing for something nobody said', async () => {
-      expect(await search.search('xilofonezinho', 20)).toEqual([])
+      expect(await search.search(seriesId, 'xilofonezinho', 20)).toEqual([])
     })
 
     // Someone will type one eventually, and `to_tsquery` would throw.
     it.each(['cachorro & gato', "o 'cachorro'", 'cachorro | <->'])(
       'survives query syntax typed by accident: %o',
       async (query) => {
-        await expect(search.search(query, 10)).resolves.toBeInstanceOf(Array)
+        await expect(search.search(seriesId, query, 10)).resolves.toBeInstanceOf(Array)
       },
     )
 
     it('respects the row limit', async () => {
-      expect((await search.search('que', 5)).length).toBeLessThanOrEqual(5)
+      expect((await search.search(seriesId, 'que', 5)).length).toBeLessThanOrEqual(5)
     })
 
     // End to end through the use case: scattered segments become the few
     // moments a person actually meant.
     it('collapses a conversation into one moment', async () => {
-      const moments = mine(await searchTranscripts({ query: 'cachorro' }, { search }))
+      const moments = mine(await searchTranscripts({ seriesId, query: 'cachorro' }, { search }))
 
       // Four segments said it: three inside a minute and a half, one ten
       // minutes later. That is two moments, not four results.

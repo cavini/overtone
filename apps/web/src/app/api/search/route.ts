@@ -1,3 +1,5 @@
+import { seriesFor } from '../../../server/analyse-upload.js'
+import { refusal, requireUser } from '../../../server/session.js'
 import { searchTranscripts } from '@overtone/core'
 import { DrizzleTranscriptSearch } from '@overtone/db/repositories'
 import { database } from '../../../server/wiring.js'
@@ -15,13 +17,19 @@ export async function GET(request: Request): Promise<Response> {
   const query = new URL(request.url).searchParams.get('q') ?? ''
 
   try {
+    // Only this person's library. Search reads every stored segment.
+    const seriesId = await seriesFor((await requireUser()).userId)
+
     const moments = await searchTranscripts(
-      { query },
+      { seriesId, query },
       { search: new DrizzleTranscriptSearch(database()) },
     )
 
     return Response.json({ moments })
   } catch (error) {
+    const denied = refusal(error)
+    if (denied !== undefined) return denied
+
     console.error('search failed', error)
     return Response.json({ error: 'UNEXPECTED' }, { status: 500 })
   }

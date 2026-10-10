@@ -1,3 +1,4 @@
+import { refusal, requireUser } from '../../../../server/session.js'
 import { pendingEpisode } from '../../../../server/analyse-upload.js'
 
 export const runtime = 'nodejs'
@@ -13,8 +14,11 @@ export const runtime = 'nodejs'
  */
 export async function GET(): Promise<Response> {
   try {
-    return Response.json({ episode: await pendingEpisode() })
+    return Response.json({ episode: await pendingEpisode((await requireUser()).userId) })
   } catch (error) {
+    const denied = refusal(error)
+    if (denied !== undefined) return denied
+
     console.error('could not look for a pending episode', error)
     return Response.json({ episode: null }, { status: 200 })
   }

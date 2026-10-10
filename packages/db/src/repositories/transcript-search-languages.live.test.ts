@@ -58,6 +58,7 @@ if (url === undefined || url.length === 0) {
   const search = new DrizzleTranscriptSearch(db)
 
   let episodeId = ''
+  let seriesId = ''
   let transcriptId = ''
 
   /**
@@ -87,7 +88,7 @@ if (url === undefined || url.length === 0) {
         .insert(series)
         .values({ ownerId: OWNER, title: 'Languages' })
         .returning({ id: series.id })
-      const seriesId = created?.id ?? ''
+      seriesId = created?.id ?? ''
       await db.insert(seriesMembers).values({ seriesId, userId: OWNER, role: 'owner' })
 
       const [episode] = await db
@@ -125,7 +126,7 @@ if (url === undefined || url.length === 0) {
     })
 
     it('still finds a word that was actually said in Portuguese', async () => {
-      expect(mine(await search.search('cachorro', 300))).toHaveLength(1)
+      expect(mine(await search.search(seriesId, 'cachorro', 300))).toHaveLength(1)
     })
 
     /*
@@ -139,7 +140,7 @@ if (url === undefined || url.length === 0) {
     it('finds an English loanword the Portuguese stemmer cannot reach', async () => {
       expect(await inOneLanguage('portuguese', 'podcasts')).toBe(0)
 
-      const found = mine(await search.search('podcasts', 300))
+      const found = mine(await search.search(seriesId, 'podcasts', 300))
 
       expect(found.length).toBeGreaterThan(0)
       expect(found.every((match) => /podcast/iu.test(match.text))).toBe(true)
@@ -156,7 +157,7 @@ if (url === undefined || url.length === 0) {
      */
     it('finds a short Portuguese plural that Portuguese stemming leaves joined', async () => {
       const throughPortuguese = await inOneLanguage('portuguese', 'ano')
-      const found = mine(await search.search('ano', 300))
+      const found = mine(await search.search(seriesId, 'ano', 300))
 
       // Nothing at all through Portuguese alone; the English half is the
       // only reason this word is findable.
@@ -178,14 +179,14 @@ if (url === undefined || url.length === 0) {
       'returns nothing for the Portuguese stop word %s',
       async (word) => {
         expect(await inOneLanguage('english', word)).toBeGreaterThan(0)
-        expect(mine(await search.search(word, 300))).toEqual([])
+        expect(mine(await search.search(seriesId, word, 300))).toEqual([])
       },
     )
 
     // Symmetrically. `the` is a content word to the Portuguese configuration,
     // so on an English episode it would match every segment.
     it.each(['the', 'and', 'that'])('returns nothing for the English stop word %s', async (word) => {
-      expect(mine(await search.search(word, 300))).toEqual([])
+      expect(mine(await search.search(seriesId, word, 300))).toEqual([])
     })
 
     /*
@@ -201,7 +202,7 @@ if (url === undefined || url.length === 0) {
       'never loses a segment a Portuguese search already found: %s',
       async (word) => {
         const throughPortuguese = await inOneLanguage('portuguese', word)
-        const found = mine(await search.search(word, 1_000))
+        const found = mine(await search.search(seriesId, word, 1_000))
 
         expect(found.length).toBeGreaterThanOrEqual(throughPortuguese)
       },
@@ -237,7 +238,7 @@ if (url === undefined || url.length === 0) {
     it.each(['cachorro & gato', "o 'cachorro'", 'cachorro | <->', "it's & podcasts"])(
       'survives query syntax typed by accident: %o',
       async (query) => {
-        await expect(search.search(query, 10)).resolves.toBeInstanceOf(Array)
+        await expect(search.search(seriesId, query, 10)).resolves.toBeInstanceOf(Array)
       },
     )
   })

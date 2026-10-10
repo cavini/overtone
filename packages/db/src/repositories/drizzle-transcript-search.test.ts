@@ -3,6 +3,9 @@ import { drizzle } from 'drizzle-orm/pg-proxy'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { DrizzleTranscriptSearch } from './drizzle-transcript-search.js'
 
+/** Whose library is being searched. Required by the port. */
+const SERIES = '11111111-1111-1111-1111-111111111111'
+
 let statements: string[]
 let search: DrizzleTranscriptSearch
 
@@ -26,7 +29,7 @@ describe('DrizzleTranscriptSearch', () => {
    * episode, which still returns the right answer and gets slower every week.
    */
   it('searches with the expression the index was built on', async () => {
-    await search.search('cachorro', 50)
+    await search.search(SERIES, 'cachorro', 50)
 
     expect(statements[0]).toContain(`to_tsvector('portuguese'`)
     expect(statements[0]).toContain(`plainto_tsquery('portuguese'`)
@@ -35,7 +38,7 @@ describe('DrizzleTranscriptSearch', () => {
   // Stemming is the reason for naming the language at all: `simple` would
   // match "cachorro" and miss "cachorros".
   it('does not fall back to the language-agnostic configuration', async () => {
-    await search.search('cachorro', 50)
+    await search.search(SERIES, 'cachorro', 50)
 
     expect(statements[0]).not.toContain(`'simple'`)
   })
@@ -43,7 +46,7 @@ describe('DrizzleTranscriptSearch', () => {
   // `plainto_tsquery` reads the input as words. `to_tsquery` would read it
   // as query syntax and throw on an ampersand somebody typed.
   it('treats what was typed as words, not as query syntax', async () => {
-    await search.search('cachorro & gato', 50)
+    await search.search(SERIES, 'cachorro & gato', 50)
 
     const sql = statements[0] ?? ''
     // Every `to_tsquery` in the statement must be part of a
@@ -57,7 +60,7 @@ describe('DrizzleTranscriptSearch', () => {
   })
 
   it('reaches the episode through its transcript', async () => {
-    await search.search('x', 50)
+    await search.search(SERIES, 'x', 50)
 
     expect(statements[0]).toMatch(/join "transcripts"/i)
     expect(statements[0]).toMatch(/join "episodes"/i)
@@ -66,13 +69,13 @@ describe('DrizzleTranscriptSearch', () => {
   // A half-transcribed episode would return moments from the part that
   // happens to be done and silently omit the rest.
   it('only searches episodes that finished', async () => {
-    await search.search('x', 50)
+    await search.search(SERIES, 'x', 50)
 
     expect(statements[0]).toContain('"status"')
   })
 
   it('returns segments in order within an episode', async () => {
-    await search.search('x', 50)
+    await search.search(SERIES, 'x', 50)
 
     expect(statements[0]).toMatch(/order by/i)
     expect(statements[0]).toMatch(/"start_ms" asc/i)
@@ -89,7 +92,7 @@ describe('DrizzleTranscriptSearch', () => {
    * wrong.
    */
   it('gives the budget to the episodes that discuss it most', async () => {
-    await search.search('cachorro', 300)
+    await search.search(SERIES, 'cachorro', 300)
 
     const sql = statements[0] ?? ''
     expect(sql).toMatch(/count\(\*\) over \(partition by/i)
@@ -101,7 +104,7 @@ describe('DrizzleTranscriptSearch', () => {
   })
 
   it('bounds the rows it asks for', async () => {
-    await search.search('x', 50)
+    await search.search(SERIES, 'x', 50)
 
     expect(statements[0]).toMatch(/limit/i)
   })
@@ -116,7 +119,7 @@ describe('DrizzleTranscriptSearch, in both languages', () => {
    * alone, so a search for `deploy` misses it; `english` reduces both.
    */
   it('searches with the expression each index was built on', async () => {
-    await search.search('deploy', 50)
+    await search.search(SERIES, 'deploy', 50)
 
     expect(statements[0]).toContain(`to_tsvector('portuguese'`)
     expect(statements[0]).toContain(`to_tsvector('english'`)
@@ -125,7 +128,7 @@ describe('DrizzleTranscriptSearch, in both languages', () => {
   })
 
   it('still reads what was typed as words, not as query syntax', async () => {
-    await search.search('deploy & cachorro', 50)
+    await search.search(SERIES, 'deploy & cachorro', 50)
 
     const sql = statements[0] ?? ''
     const all = sql.match(/to_tsquery/gu) ?? []
@@ -156,7 +159,7 @@ describe('DrizzleTranscriptSearch, in both languages', () => {
    * English episode.
    */
   it('discards a query that either configuration reduces to nothing', async () => {
-    await search.search('que', 50)
+    await search.search(SERIES, 'que', 50)
 
     expect(statements[0]).toMatch(/length\(plainto_tsquery\('portuguese'/)
     expect(statements[0]).toMatch(/length\(plainto_tsquery\('english'/)
@@ -165,7 +168,7 @@ describe('DrizzleTranscriptSearch, in both languages', () => {
   // The two halves are OR-ed, not AND-ed: a loanword only the English index
   // knows about still has to come back.
   it('matches in either language', async () => {
-    await search.search('podcasts', 50)
+    await search.search(SERIES, 'podcasts', 50)
 
     expect(statements[0]).toMatch(/@@[\s\S]*\bor\b[\s\S]*@@/i)
   })
