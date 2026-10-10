@@ -51,7 +51,11 @@ export function UploadForm({
 }: {
   readonly locale: Locale
   readonly labels: Labels
-  /** Told whenever an episode becomes the one worth looking at. */
+  /**
+   * Told whenever an episode becomes the one worth looking at, and told
+   * again with `live` false once nothing more is coming — which is what
+   * stops the transcript asking and gets the library its final status.
+   */
   readonly onEpisode: (episodeId: string, live: boolean) => void
 }) {
   const input = useRef<HTMLInputElement>(null)
@@ -337,7 +341,7 @@ export function UploadForm({
         </p>
       ) : null}
 
-      {result === undefined ? null : (
+      {result ? (
         <section aria-live="polite">
           <div className="flex items-baseline gap-3">
             <h2 className="text-xl" style={{ fontFamily: 'var(--font-display)' }}>
@@ -368,7 +372,7 @@ export function UploadForm({
             </>
           ) : null}
         </section>
-      )}
+      ) : null}
     </>
   )
 }
