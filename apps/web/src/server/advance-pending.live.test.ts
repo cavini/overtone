@@ -38,9 +38,24 @@ if (url === undefined || url.length === 0) {
     const seriesId = made?.id ?? ''
     await db.insert(seriesMembers).values({ seriesId, userId: OWNER, role: 'owner' })
 
+    /*
+     * Stamped in 1970, so this is deterministically the oldest.
+     *
+     * `advancePending` picks the oldest unfinished episode *anywhere* —
+     * that is the point of it — so another suite seeding one in parallel
+     * would otherwise win the race and fail this for the wrong reason. It
+     * did once.
+     */
     const [episode] = await db
       .insert(episodes)
-      .values({ seriesId, number: 1, title: 'Half done', status, durationMs: 60_000 })
+      .values({
+        seriesId,
+        number: 1,
+        title: 'Half done',
+        status,
+        durationMs: 60_000,
+        createdAt: new Date(0),
+      })
       .returning({ id: episodes.id })
 
     return episode?.id ?? ''
