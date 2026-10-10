@@ -1,3 +1,4 @@
+import { identityFromToken } from './access-token.js'
 import type {
   Identity,
   IdentityFailure,
@@ -22,6 +23,19 @@ interface TokenResponse {
   readonly user?: { readonly id?: unknown; readonly email?: unknown }
 }
 
+/**
+ * A JSON Web Key, narrowed to what importing one needs.
+ *
+ * Spelled out rather than using the DOM's `JsonWebKey`, which is not in this
+ * package's lib — and which is wider than anything here should accept.
+ */
+interface PublishedKey {
+  readonly kty: string
+  readonly crv: string
+  readonly x: string
+  readonly y: string
+}
+
 const asString = (value: unknown): string | undefined =>
   typeof value === 'string' && value.length > 0 ? value : undefined
 
@@ -41,6 +55,8 @@ export class SupabaseIdentityProvider implements IdentityProvider {
   private readonly auth: string
   private readonly key: string
   private readonly fetch: typeof globalThis.fetch
+  /** Signing keys, fetched once. They rotate rarely and are public. */
+  private keys: Map<string, CryptoKey> | undefined
 
   constructor(options: SupabaseIdentityOptions) {
     this.auth = `${options.projectUrl.replace(/\/+$/u, '')}/auth/v1`
@@ -142,30 +158,62 @@ export class SupabaseIdentityProvider implements IdentityProvider {
     return this.exchange('/token?grant_type=refresh_token', { refresh_token: refreshToken })
   }
 
-  /**
-   * Asks the service who a token belongs to, rather than reading the token.
-   *
-   * A signature check here would be faster and would need the project's
-   * signing secret on hand. This is one request on a page view, and it is
-   * the service's own answer — including for a token that was valid and has
-   * since been revoked, which a signature check would still accept.
-   */
-  async whoIs(accessToken: string): Promise<Identity | undefined> {
-    let response: Response
+  /** The public signing keys, fetched once and kept. */
+  private async signingKeys(): Promise<Map<string, CryptoKey>> {
+    if (this.keys !== undefined) return this.keys
+
+    const loaded = new Map<string, CryptoKey>()
     try {
-      response = await this.fetch(`${this.auth}/user`, {
-        headers: { ...this.headers(), authorization: `Bearer ${accessToken}` },
+      const response = await this.fetch(`${this.auth}/.well-known/jwks.json`, {
+        headers: this.headers(),
       })
+      if (response.ok) {
+        const body = (await response.json()) as { keys?: readonly Record<string, unknown>[] }
+        for (const key of body.keys ?? []) {
+          const kid = asString(key['kid'])
+          // Only the curve this verifies. Importing anything else would
+          // mean trusting an algorithm nothing here checked.
+          if (kid === undefined || key['kty'] !== 'EC' || key['crv'] !== 'P-256') continue
+
+          loaded.set(
+            kid,
+            await crypto.subtle.importKey(
+              'jwk',
+              key as unknown as PublishedKey,
+              { name: 'ECDSA', namedCurve: 'P-256' },
+              false,
+              ['verify'],
+            ),
+          )
+        }
+      }
     } catch {
-      return undefined
+      // Left empty rather than cached, so the next request tries again.
+      return loaded
     }
 
-    if (!response.ok) return undefined
+    // Only kept once something was actually loaded: caching an empty set
+    // would turn one bad moment into everybody being signed out until the
+    // instance recycled.
+    if (loaded.size > 0) this.keys = loaded
+    return loaded
+  }
 
-    const body = (await response.json().catch(() => ({}))) as { id?: unknown; email?: unknown }
-    const userId = asString(body.id)
-    const email = asString(body.email)
+  /**
+   * Who an access token belongs to, checked against the published key.
+   *
+   * Locally, not by asking the service. The alternative is a network round
+   * trip on **every** request, and the transcript reader asks for more every
+   * five seconds while an episode runs — one open tab would be twelve
+   * sign-in checks a minute against a free tier.
+   *
+   * The cost is that a token stays good until it expires even if the session
+   * was ended elsewhere. Sessions last an hour, and for a group of friends
+   * that is the right trade.
+   */
+  async whoIs(accessToken: string): Promise<Identity | undefined> {
+    const keys = await this.signingKeys()
 
-    return userId === undefined || email === undefined ? undefined : { userId, email }
+    return identityFromToken(accessToken, (kid) => Promise.resolve(keys.get(kid)), Date.now())
   }
 }

@@ -113,23 +113,61 @@ describe('SupabaseIdentityProvider', () => {
   })
 
   describe('recognising a token holder', () => {
-    it('answers with who it belongs to', async () => {
-      const stub = answering(200, { id: 'user-1', email: 'dex@example.test' })
-      expect(await provider(stub).whoIs('access-abc')).toEqual({
-        userId: 'user-1',
-        email: 'dex@example.test',
-      })
-      const headers = (callTo(stub)?.[1].headers ?? {}) as Record<string, string>
-      expect(headers['authorization']).toBe('Bearer access-abc')
+    /*
+     * Checked against the published signing key rather than by asking the
+     * service, because the alternative is a round trip on every request —
+     * and the transcript reader asks again every five seconds. The signature
+     * checking itself is covered in `access-token.test.ts`; what matters
+     * here is that the keys are fetched, and fetched once.
+     */
+    const jwks = {
+      keys: [
+        {
+          kid: 'key-1',
+          kty: 'EC',
+          crv: 'P-256',
+          alg: 'ES256',
+          use: 'sig',
+          x: 'XRAybxBq99i9dTDzs_jQQWZN5fkX8v7u5YvdvuRX_vI',
+          y: 'wzA5IuSNABSf1RyKlQ3w7KFuZPJu52eQ_QxnEhOm9xw',
+        },
+      ],
+    }
+
+    it('fetches the published keys rather than asking about the token', async () => {
+      const stub = answering(200, jwks)
+      await provider(stub).whoIs('not.a.real-token')
+
+      expect(callTo(stub)?.[0]).toContain('/auth/v1/.well-known/jwks.json')
     })
 
-    it('answers with nobody for a token the service does not know', async () => {
-      expect(await provider(answering(401)).whoIs('made-up')).toBeUndefined()
+    it('fetches them once, however many tokens it is shown', async () => {
+      const stub = answering(200, jwks)
+      const one = provider(stub)
+      await one.whoIs('a.b.c')
+      await one.whoIs('d.e.f')
+
+      expect((stub as unknown as { mock: { calls: unknown[] } }).mock.calls).toHaveLength(1)
+    })
+
+    it('answers with nobody for something that is not a token at all', async () => {
+      expect(await provider(answering(200, jwks)).whoIs('made-up')).toBeUndefined()
+    })
+
+    // Caching an empty set would sign everybody out until the instance
+    // recycled, for one bad moment.
+    it('does not remember an empty answer', async () => {
+      const stub = answering(500, {})
+      const one = provider(stub)
+      await one.whoIs('a.b.c')
+      await one.whoIs('a.b.c')
+
+      expect((stub as unknown as { mock: { calls: unknown[] } }).mock.calls).toHaveLength(2)
     })
 
     it('answers with nobody rather than throwing when the service is down', async () => {
       const dead = vi.fn(() => Promise.reject(new Error('offline'))) as unknown as typeof globalThis.fetch
-      expect(await provider(dead).whoIs('access-abc')).toBeUndefined()
+      expect(await provider(dead).whoIs('a.b.c')).toBeUndefined()
     })
   })
 
