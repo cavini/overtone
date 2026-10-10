@@ -10,3 +10,9 @@ export {
   type AdvanceEpisodeRequest,
   type UploadedChunk,
 } from './advance-episode.js'
+export {
+  searchTranscripts,
+  type FoundMoment,
+  type SearchTranscriptsDependencies,
+  type SearchTranscriptsRequest,
+} from './search-transcripts.js'
