@@ -9,6 +9,7 @@ import type { UiKey } from '../i18n/ui.js'
 import type { AnalysisView, OutcomeView } from '../presenter/episode-view.js'
 import { CountsTable, JokeList, StatStrip } from './counts-table.js'
 import { ProgressPanel, type Progress } from './progress-panel.js'
+import { TranscriptView } from './transcript-view.js'
 
 type Labels = Record<UiKey, string>
 
@@ -54,6 +55,9 @@ export function UploadForm({
   const [filename, setFilename] = useState('')
   const [busy, setBusy] = useState(false)
   const [progress, setProgress] = useState<Progress | undefined>(undefined)
+  // The episode currently on screen, whether it is still being transcribed
+  // or has just finished.
+  const [liveEpisodeId, setLiveEpisodeId] = useState<string | undefined>(undefined)
   const [error, setError] = useState('')
   const [result, setResult] = useState<Result | undefined>(undefined)
 
@@ -92,6 +96,7 @@ export function UploadForm({
 
       const chunks = started['chunks'] as ChunkTarget[]
       const episodeId = String(started['episodeId'])
+      setLiveEpisodeId(episodeId)
 
       await splitAndUpload(file, chunks, ({ done, total }) => {
         setProgress({ headline: `${labels.sendingPart} ${done + 1} / ${total}`, done, total })
@@ -178,6 +183,7 @@ export function UploadForm({
       if (episode === null) return
 
       setBusy(true)
+      setLiveEpisodeId(episode.episodeId)
       setProgress({
         headline: labels.resuming,
         done: episode.chunksDone,
@@ -243,6 +249,14 @@ export function UploadForm({
       </form>
 
       {progress ? <ProgressPanel progress={progress} labels={labels} /> : null}
+
+      {/* Whatever has been transcribed so far, while the rest is still
+          going. Kept here rather than inside the progress panel because it
+          outlives the progress: it is still worth reading when the episode
+          is finished. */}
+      {liveEpisodeId !== undefined ? (
+        <TranscriptView episodeId={liveEpisodeId} labels={labels} live={progress !== undefined} />
+      ) : null}
 
       {error !== '' ? (
         <p
