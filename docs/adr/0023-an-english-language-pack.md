@@ -194,6 +194,14 @@ anyone breaking the rule to make it so.
   worth acting on yet.
 - Searching a Portuguese stop word returns nothing, as it did before. That is
   unchanged behaviour, now load-bearing rather than incidental.
+- **The English dictionary must not be loaded before this is on `main`.** The
+  migration is safe to apply early — the column defaults to `pt`, so every
+  existing row keeps the truth about itself — but the deployed `lemmaQuery`
+  has no language filter and collapses duplicate forms with last-row-wins.
+  With both halves present it would resolve those 760 spellings to whichever
+  language the database happened to return last. The data is loaded by a
+  script rather than a migration, which is what makes the ordering a choice;
+  the live tests that need it skip until it is there.
 - A query is never language-detected. Two words carry far too little signal,
   and detection is the thing ADR 0014 refuses for audio for the same reason.
 
