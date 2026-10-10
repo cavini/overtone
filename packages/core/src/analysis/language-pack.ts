@@ -1,3 +1,4 @@
+import { mergesGenderPt } from './gender-merge.js'
 import { AUDIO_LANGUAGES, type AudioLanguage } from '../domain/audio-language.js'
 import { COLLOQUIAL_LEMMAS } from './colloquial.js'
 import { splitContractions } from './contractions.js'
@@ -41,6 +42,13 @@ export interface LanguagePack {
    * its index was built on would quietly stop using the index.
    */
   readonly textSearchConfiguration: string
+  /**
+   * Whether a dictionary entry folds a word into its other gender.
+   *
+   * A language-pack concern because grammatical gender is: Portuguese has it
+   * and English does not, so the English pack has nothing to suppress.
+   */
+  readonly mergesGender: (surface: string, lemma: string) => boolean
 }
 
 const PORTUGUESE: LanguagePack = {
@@ -48,6 +56,7 @@ const PORTUGUESE: LanguagePack = {
   fillers: FILLERS,
   overrides: COLLOQUIAL_LEMMAS,
   splitWord: splitEnclitics,
+  mergesGender: mergesGenderPt,
   stem,
   textSearchConfiguration: 'portuguese',
 }
@@ -66,6 +75,9 @@ const ENGLISH: LanguagePack = {
   fillers: FILLERS_EN,
   overrides: {},
   splitWord: splitContractions,
+  // English nouns carry no grammatical gender, so there is nothing here to
+  // keep apart.
+  mergesGender: () => false,
   stem: stemEnglish,
   textSearchConfiguration: 'english',
 }

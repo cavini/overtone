@@ -109,4 +109,31 @@ describe('annotate, in English', () => {
       'surface',
     )
   })
+
+  /*
+   * The bundled list maps a feminine noun onto its masculine form, which is
+   * the conventional citation form and the wrong answer here: this page says
+   * what was said, and a daughter is not a son.
+   */
+  it('keeps a word apart from its other gender, whatever the dictionary says', () => {
+    const [token] = annotate(
+      [{ surface: 'menina', index: 0 }],
+      new Map([['menina', 'menino']]),
+      'pt',
+    )
+
+    expect(token).toMatchObject({ lemma: 'menina', lemmaSource: 'surface' })
+  })
+
+  // Falling through to the stemmer instead would give `menin`, which is not
+  // a word either — the surface is the honest answer.
+  it('does not stem the word it refused to fold', () => {
+    const [token] = annotate([{ surface: 'nova', index: 0 }], new Map([['nova', 'novo']]), 'pt')
+    expect(token?.lemma).toBe('nova')
+  })
+
+  it('still groups a verb with its infinitive', () => {
+    const [token] = annotate([{ surface: 'fala', index: 0 }], new Map([['fala', 'falar']]), 'pt')
+    expect(token).toMatchObject({ lemma: 'falar', lemmaSource: 'dictionary' })
+  })
 })

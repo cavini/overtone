@@ -25,7 +25,7 @@ export function annotate<T extends Token>(
   lemmas: LemmaLookup,
   language: AudioLanguage,
 ): Array<Annotated<T>> {
-  const { overrides, stem } = languagePack(language)
+  const { overrides, stem, mergesGender } = languagePack(language)
 
   return tokens.map((token) => {
     const corrected = overrides[token.surface]
@@ -37,9 +37,19 @@ export function annotate<T extends Token>(
     if (corrected !== undefined) {
       lemma = corrected
       lemmaSource = 'override'
-    } else if (fromDictionary !== undefined) {
+    } else if (fromDictionary !== undefined && !mergesGender(token.surface, fromDictionary)) {
       lemma = fromDictionary
       lemmaSource = 'dictionary'
+    } else if (fromDictionary !== undefined) {
+      /*
+       * The dictionary had an answer and it folded the word into its other
+       * gender — `menina` into `menino`, `música` into `músico`. The word
+       * stands for itself rather than falling through to the stemmer, which
+       * would give `menin`: not a word either, and a worse label than the
+       * one that was actually said.
+       */
+      lemma = token.surface
+      lemmaSource = 'surface'
     } else {
       const stemmed = stem(token.surface)
       lemma = stemmed
