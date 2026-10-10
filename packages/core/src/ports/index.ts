@@ -27,3 +27,11 @@ export type { BlobStore } from './blob-store.js'
 export type { TranscriptMatch, TranscriptSearch } from './transcript-search.js'
 export { MATCH_CLOSE, MATCH_OPEN } from './transcript-search.js'
 export type { EpisodeDirectory, PublishedEpisode } from './episode-directory.js'
+export type {
+  Identity,
+  IdentityFailure,
+  IdentityProvider,
+  LinkSent,
+  Session,
+  SignInOutcome,
+} from './identity-provider.js'
