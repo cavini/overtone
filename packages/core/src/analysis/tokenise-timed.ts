@@ -1,6 +1,6 @@
 import type { TimedToken } from '../domain/token.js'
 import type { TimedWord } from '../domain/timed-word.js'
-import type { PackedLanguage } from './language-pack.js'
+import type { AudioLanguage } from './language-pack.js'
 import { normalize } from './normalize.js'
 import { surfacesOf } from './tokenise.js'
 
@@ -16,7 +16,7 @@ import { surfacesOf } from './tokenise.js'
  */
 export function tokeniseTimed(
   words: readonly TimedWord[],
-  language: PackedLanguage,
+  language: AudioLanguage,
 ): TimedToken[] {
   const tokens: TimedToken[] = []
 

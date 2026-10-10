@@ -1,5 +1,5 @@
 import type { TokenClass } from '../domain/token.js'
-import { languagePack, type PackedLanguage } from './language-pack.js'
+import { languagePack, type AudioLanguage } from './language-pack.js'
 
 /**
  * Sorts a normalised token into the three buckets the UI treats differently.
@@ -15,7 +15,7 @@ import { languagePack, type PackedLanguage } from './language-pack.js'
  * in whichever language it meant something in, and hide it invisibly — the
  * token is still stored and still counted, it simply never appears.
  */
-export function classify(surface: string, language: PackedLanguage): TokenClass {
+export function classify(surface: string, language: AudioLanguage): TokenClass {
   const { fillers, stopWords } = languagePack(language)
 
   if (fillers.has(surface)) return 'filler'

@@ -1,6 +1,6 @@
 import type { Annotated, LemmaLookup, LemmaSource, Token } from '../domain/token.js'
 import { classify } from './classify.js'
-import { languagePack, type PackedLanguage } from './language-pack.js'
+import { languagePack, type AudioLanguage } from './language-pack.js'
 
 /**
  * Attaches a lemma and a class to every token.
@@ -23,7 +23,7 @@ import { languagePack, type PackedLanguage } from './language-pack.js'
 export function annotate<T extends Token>(
   tokens: readonly T[],
   lemmas: LemmaLookup,
-  language: PackedLanguage,
+  language: AudioLanguage,
 ): Array<Annotated<T>> {
   const { overrides, stem } = languagePack(language)
 
