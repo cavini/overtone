@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import type { UiKey } from '../i18n/ui.js'
 import { timestamp } from '../presenter/episode-view.js'
+import { markedQuote } from '../presenter/marked-quote.js'
 
 type Labels = Record<UiKey, string>
 
@@ -110,7 +111,25 @@ export function SearchPanel({ labels }: { readonly labels: Labels }) {
                   </span>
                 </div>
                 <p className="mt-1 text-sm leading-relaxed" style={{ color: 'var(--quiet)' }}>
-                  {moment.quote.length > 220 ? `${moment.quote.slice(0, 220)}…` : moment.quote}
+                  {/*
+                    Bolded by the database, which is the only layer that
+                    knows which words made this match: the search stems, so
+                    "ano" matches "anos". Comparing strings here would bold
+                    neither.
+                  */}
+                  {markedQuote(moment.quote, 220).map((part, index) =>
+                    part.matched ? (
+                      <strong
+                        key={`${moment.episodeId}-${moment.startMs}-${index}`}
+                        style={{ color: 'var(--prose)', fontWeight: 600 }}
+                      >
+                        {part.text}
+                      </strong>
+                    ) : (
+                      <span key={`${moment.episodeId}-${moment.startMs}-${index}`}>{part.text}</span>
+                    ),
+                  )}
+                  {moment.quote.length > 220 ? '…' : ''}
                 </p>
               </li>
             ))}
