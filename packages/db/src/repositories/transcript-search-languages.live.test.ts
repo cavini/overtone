@@ -153,7 +153,19 @@ if (url === undefined || url.length === 0) {
     )
   })
 
-  describe('the dictionary, in both languages', () => {
+  /*
+   * The English half is loaded by a script, not a migration, and must not be
+   * loaded until this change is on `main`: the deployed `lemmaQuery` has no
+   * language filter and collapses duplicate forms with last-row-wins, so both
+   * halves present would resolve 760 spellings to whichever language came
+   * back last. Skipped rather than failed until somebody runs
+   * `pnpm fetch:lemmas en && pnpm --filter @overtone/db db:load-lemmas en`.
+   */
+  const [{ n: englishPairs = 0 } = {}] = await client<Array<{ n: number }>>`
+    select count(*)::int as n from lemmas where language = 'en'`
+  const whenLoaded = englishPairs > 0 ? describe : describe.skip
+
+  whenLoaded('the dictionary, in both languages', () => {
     /*
      * 760 spellings sit in both halves with different lemmas — `aches` is
      * `achar` ("to find") in Portuguese and `ache` in English, `admires` is
