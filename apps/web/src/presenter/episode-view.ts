@@ -91,7 +91,7 @@ const LOCALE_TAGS: Record<Locale, string> = { pt: 'pt-BR', en: 'en-GB' }
  * numbers, so the separator is not a detail — and `toLocaleString` scattered
  * through components is how it ends up inconsistent.
  */
-const number = (value: number, locale: Locale): string =>
+export const number = (value: number, locale: Locale): string =>
   new Intl.NumberFormat(LOCALE_TAGS[locale]).format(value)
 
 /**
