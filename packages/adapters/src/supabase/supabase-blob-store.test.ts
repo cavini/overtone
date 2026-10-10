@@ -241,3 +241,72 @@ describe('SupabaseBlobStore', () => {
     })
   })
 })
+
+describe('SupabaseBlobStore, listing', () => {
+  /** The listing endpoint answers one level at a time. A folder has no id. */
+  const folder = (name: string) => ({ name, id: null })
+  const object = (name: string) => ({ name, id: `id-${name}` })
+
+  const listing = (at: Record<string, unknown[]>) =>
+    storeThat((url) => {
+      if (!url.includes('/object/list/')) return new Response('{}', { status: 404 })
+      const asked = String(JSON.parse(String(calls.at(-1)?.body ?? '{}')).prefix ?? '')
+
+      return new Response(JSON.stringify(at[asked] ?? []), { status: 200 })
+    })
+
+  it('lists the objects at a prefix', async () => {
+    const store = listing({ episodes: [object('a.wav'), object('b.wav')] })
+
+    expect(await store.list('episodes/')).toEqual(['episodes/a.wav', 'episodes/b.wav'])
+  })
+
+  /*
+   * The case the sweep depends on. An abandoned episode leaves a *folder*,
+   * and a listing that stopped at the top level would find the folder and
+   * none of the audio inside it — reporting nothing to clean up while the
+   * tier filled.
+   */
+  it('walks into folders', async () => {
+    const store = listing({
+      episodes: [folder('ep-1')],
+      'episodes/ep-1': [object('chunk-0.wav'), object('chunk-1.wav')],
+    })
+
+    expect([...(await store.list('episodes/'))].sort()).toEqual([
+      'episodes/ep-1/chunk-0.wav',
+      'episodes/ep-1/chunk-1.wav',
+    ])
+  })
+
+  it('walks more than one level down', async () => {
+    const store = listing({
+      episodes: [folder('ep-1')],
+      'episodes/ep-1': [folder('parts')],
+      'episodes/ep-1/parts': [object('chunk-0.wav')],
+    })
+
+    expect(await store.list('episodes/')).toEqual(['episodes/ep-1/parts/chunk-0.wav'])
+  })
+
+  it('lists nothing where there is nothing', async () => {
+    expect(await listing({}).list('episodes/')).toEqual([])
+  })
+
+  it('ignores an entry with no name', async () => {
+    const store = storeThat(
+      () => new Response(JSON.stringify([{ id: 'x' }, { name: '', id: 'y' }]), { status: 200 }),
+    )
+
+    expect(await store.list('episodes/')).toEqual([])
+  })
+
+  // Failing loudly: a sweep that read a failure as "nothing stored" would
+  // report a clean bucket and leave it filling.
+  it('throws when the service refuses', async () => {
+    const store = storeThat(() => new Response('nope', { status: 500 }))
+
+    await expect(store.list('episodes/')).rejects.toThrow()
+  })
+})
+

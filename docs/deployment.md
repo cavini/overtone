@@ -83,6 +83,17 @@ that falls asleep is the database. It sits outside the password gate, because
 the scheduler has no cookie and never will, and guards itself with
 `CRON_SECRET` instead.
 
+The same daily run also deletes stored audio belonging to no episode. Audio
+is removed once an episode is transcribed (ADR 0005), so what is left over
+is from an upload that was interrupted or an episode somebody threw away —
+and nothing else can find it, because the database stopped mentioning it the
+moment the row went. Measured before this existed: two deleted episodes had
+left **43.9 MB** on a tier that holds a gigabyte.
+
+It refuses to sweep anything if the library comes back empty, because an
+empty library with audio still stored is indistinguishable from a database
+read that failed, and only one of those two mistakes is expensive.
+
 Hobby allows a cron **once a day**, which is five times more often than
 needed. Confirm it is registered under **Vercel → Project → Settings → Cron
 Jobs** after the first deploy; a `vercel.json` that never deployed schedules

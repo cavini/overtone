@@ -45,4 +45,14 @@ export interface BlobStore {
    * be retried without first checking what it managed last time.
    */
   remove(keys: readonly string[]): Promise<void>
+  /**
+   * Every key stored under a prefix.
+   *
+   * For finding audio that belongs to nothing. An upload that was
+   * interrupted, or an episode that was thrown away, leaves its chunks
+   * behind — measured on the real bucket, two deleted episodes had left
+   * 43.9 MB on a tier that holds a gigabyte. Nothing else can find them,
+   * because the database no longer mentions them at all.
+   */
+  list(prefix: string): Promise<readonly string[]>
 }
