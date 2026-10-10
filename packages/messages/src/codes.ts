@@ -80,6 +80,7 @@ export const MESSAGE_PARAMS = {
 
   // Topics and terms
   TOPIC_NAME_TAKEN: { name: 'string' },
+  TOPIC_NEEDS_A_NAME: {},
   TOPIC_NEEDS_A_TERM: {},
   TERM_TOO_MANY_WORDS: { word_count: 'number', max_words: 'number' },
   TOPIC_TERM_LIMIT: { max_terms: 'number' },

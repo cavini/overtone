@@ -16,6 +16,7 @@
   "DAILY_ALLOWANCE_EXHAUSTED": "A cota de hoje acabou — são {allowance_hours, number} horas de áudio por dia. Ela volta em {hours_until_reset, number} horas.",
   "STORAGE_FULL": "Não há espaço: o armazenamento usa {used_bytes, number, ::compact-short} de {limit_bytes, number, ::compact-short}, e este episódio precisa de {needed_bytes, number, ::compact-short}. Apague o áudio de episódios antigos — as estatísticas continuam lá.",
   "TOPIC_NAME_TAKEN": "Já existe uma piada chamada \"{name}\".",
+  "TOPIC_NEEDS_A_NAME": "Dê um nome à piada.",
   "TOPIC_NEEDS_A_TERM": "Escreva pelo menos uma palavra ou expressão para contar.",
   "TERM_TOO_MANY_WORDS": "Esta expressão tem {word_count, number} palavras e o limite é {max_words, number}.",
   "TOPIC_TERM_LIMIT": "Uma piada pode ter até {max_terms, number} variações.",
