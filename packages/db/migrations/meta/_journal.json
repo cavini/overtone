@@ -64,6 +64,13 @@
       "when": 1791523558348,
       "tag": "0008_lemmas_per_language",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1791523558349,
+      "tag": "0009_search_in_english",
+      "breakpoints": true
     }
   ]
 }
