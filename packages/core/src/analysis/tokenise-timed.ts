@@ -1,5 +1,6 @@
 import type { TimedToken } from '../domain/token.js'
 import type { TimedWord } from '../domain/timed-word.js'
+import type { PackedLanguage } from './language-pack.js'
 import { normalize } from './normalize.js'
 import { surfacesOf } from './tokenise.js'
 
@@ -13,11 +14,14 @@ import { surfacesOf } from './tokenise.js'
  * mapping is the whole reason word-level timings were required in the first
  * place.
  */
-export function tokeniseTimed(words: readonly TimedWord[]): TimedToken[] {
+export function tokeniseTimed(
+  words: readonly TimedWord[],
+  language: PackedLanguage,
+): TimedToken[] {
   const tokens: TimedToken[] = []
 
   for (const word of words) {
-    for (const surface of surfacesOf(normalize(word.text))) {
+    for (const surface of surfacesOf(normalize(word.text), language)) {
       tokens.push({
         surface,
         index: tokens.length,

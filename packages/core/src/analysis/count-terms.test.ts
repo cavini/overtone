@@ -18,7 +18,7 @@ const analyse = (
   text: string,
   options?: CountTermsOptions,
   lemmas: ReadonlyMap<string, string> = NO_DICTIONARY,
-) => countTerms(annotate(tokenise(normalize(text)), lemmas), options)
+) => countTerms(annotate(tokenise(normalize(text), 'pt'), lemmas, 'pt'), options)
 
 const SENTENCE = 'O pirão do churrasco é melhor que o pirão da feira'
 

@@ -2,7 +2,7 @@
 import { describe, expect, it } from 'vitest'
 import { tokenise } from './tokenise.js'
 
-const surfaces = (text: string): string[] => tokenise(text).map((t) => t.surface)
+const surfaces = (text: string): string[] => tokenise(text, 'pt').map((t) => t.surface)
 
 describe('tokenise', () => {
   it('splits on whitespace', () => {
@@ -10,11 +10,11 @@ describe('tokenise', () => {
   })
 
   it('numbers the tokens in order', () => {
-    expect(tokenise('um dois três').map((t) => t.index)).toEqual([0, 1, 2])
+    expect(tokenise('um dois três', 'pt').map((t) => t.index)).toEqual([0, 1, 2])
   })
 
   it('returns nothing for empty input', () => {
-    expect(tokenise('')).toEqual([])
+    expect(tokenise('', 'pt')).toEqual([])
   })
 
   // Enclitic pronouns are separate words wearing a hyphen. The verb is what
@@ -76,5 +76,38 @@ describe('tokenise', () => {
 
   it('discards a fragment left with no letters after splitting', () => {
     expect(surfaces('--me')).toEqual(['me'])
+  })
+})
+
+describe('tokenise, in English', () => {
+  const english = (text: string): string[] => tokenise(text, 'en').map((t) => t.surface)
+
+  it('splits a contraction into the words it is', () => {
+    expect(english("it's a podcast")).toEqual(['it', 's', 'a', 'podcast'])
+  })
+
+  it('keeps a contracted negative whole, because the stop-word list holds it', () => {
+    expect(english("i don't know")).toEqual(['i', "don't", 'know'])
+  })
+
+  // English hyphens join words rather than attaching pronouns, so nothing
+  // splits on one.
+  it('leaves a hyphenated word alone', () => {
+    expect(english('a check-in and a voice-over')).toEqual([
+      'a', 'check-in', 'and', 'a', 'voice-over',
+    ])
+  })
+
+  /*
+   * Each rule stays on its own side.
+   *
+   * The Portuguese splitter would leave `it's` joined, and nothing on the
+   * English stop-word list matches it in that shape, so it would arrive at
+   * the top of the frequency list as a countable word. The English splitter
+   * run on Portuguese would leave `diga-me` joined for the same reason.
+   */
+  it('does not apply the Portuguese rule', () => {
+    expect(tokenise('diga-me', 'en').map((t) => t.surface)).toEqual(['diga-me'])
+    expect(tokenise("it's", 'pt').map((t) => t.surface)).toEqual(["it's"])
   })
 })

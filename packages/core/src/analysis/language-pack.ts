@@ -2,7 +2,7 @@ import { COLLOQUIAL_LEMMAS } from './colloquial.js'
 import { splitContractions } from './contractions.js'
 import { stemEnglish } from './stem-en.js'
 import { stem } from './stem.js'
-import { splitEnclitics } from './tokenise.js'
+import { splitEnclitics } from './enclitics.js'
 import { FILLERS_EN, STOP_WORDS_EN } from './vocabulary-en.js'
 import { FILLERS, STOP_WORDS } from './vocabulary.js'
 
