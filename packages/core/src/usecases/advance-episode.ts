@@ -145,6 +145,7 @@ export async function advanceEpisode(
       offsetMs: uploaded.startMs,
       words: transcribed.transcript.words,
       segmentStartsMs: transcribed.transcript.segmentStartsMs,
+      providerModel: transcribed.transcript.providerModel,
     })
     // Hand the provider's own reading straight through. It is ground truth
     // about a balance we otherwise only estimate, and it costs nothing
@@ -199,7 +200,15 @@ export async function advanceEpisode(
   const analysis: StoredAnalysis = {
     transcript: {
       provider: 'groq',
-      providerModel: 'whisper-large-v3-turbo',
+      /*
+       * What actually ran, read back off the chunks.
+       *
+       * This was a hard-coded string, so every episode claimed the same
+       * model whatever had really produced it — including after the switch
+       * to the full one (ADR 0024). The one thing the column is for is
+       * tracing a count to its source.
+       */
+      providerModel: stored.find((chunk) => chunk.providerModel !== undefined)?.providerModel ?? 'unknown',
       rawProviderPayload: stored,
       fullText: words.map((word) => word.text).join(' '),
       normalizationVersion: NORMALIZATION_VERSION,

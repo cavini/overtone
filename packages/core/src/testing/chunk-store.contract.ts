@@ -87,6 +87,43 @@ export function describeChunkStore(
       })
     })
 
+    /*
+     * The boundaries have to survive the round trip, and nothing proved it.
+     *
+     * They were added to the column, the type, both reads, the stitching
+     * and the grouping — and not to the INSERT. Every line in production
+     * fell back to breaking on punctuation, silently, which is the bug the
+     * boundaries exist to fix. The assertion above was loosened from
+     * `toEqual` to `toMatchObject` when the field appeared, and that is
+     * exactly what let it through.
+     */
+    it('keeps the transcriber boundaries it was given', async () => {
+      await withStore(async ({ store, episodeIds: [episode] }) => {
+        await store.save(episode, { ...chunk(0, 0, 'olá'), segmentStartsMs: [0, 1_200] })
+
+        expect((await store.transcript(episode, 0))?.segmentStartsMs).toEqual([0, 1_200])
+      })
+    })
+
+    it('keeps them when the same chunk is saved again', async () => {
+      await withStore(async ({ store, episodeIds: [episode] }) => {
+        await store.save(episode, { ...chunk(0, 0, 'olá'), segmentStartsMs: [0] })
+        await store.save(episode, { ...chunk(0, 0, 'olá'), segmentStartsMs: [0, 900] })
+
+        expect((await store.transcript(episode, 0))?.segmentStartsMs).toEqual([0, 900])
+      })
+    })
+
+    // Same lesson as the boundaries above: a field the reads know about and
+    // the write does not is a field that is always empty in production.
+    it('keeps which model produced it', async () => {
+      await withStore(async ({ store, episodeIds: [episode] }) => {
+        await store.save(episode, { ...chunk(0, 0, 'olá'), providerModel: 'whisper-large-v3' })
+
+        expect((await store.transcript(episode, 0))?.providerModel).toBe('whisper-large-v3')
+      })
+    })
+
     it('reads one chunk on its own', async () => {
       await withStore(async ({ store, episodeIds: [episode] }) => {
         await store.save(episode, chunk(0, 0, 'primeiro'))
