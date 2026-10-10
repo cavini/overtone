@@ -1,3 +1,4 @@
+import { timestamp } from '../presenter/episode-view.js'
 import type { AnalysisView } from '../presenter/episode-view.js'
 import type { UiKey } from '../i18n/ui.js'
 
@@ -128,6 +129,34 @@ export function JokeList({
                 {topic.count}
               </span>
             </div>
+            {/*
+              * Where it clustered, across the whole episode.
+              *
+              * Left to right is start to finish, so a bit that ran all
+              * evening and one that was three minutes near the end look
+              * nothing alike — which is the thing the count cannot say.
+              */}
+            {topic.strip.length === 0 ? null : (
+              <ol
+                className="mt-3 flex h-6 items-end gap-px"
+                aria-label={`${labels.whenItCameUp}: ${topic.name}`}
+              >
+                {topic.strip.map((band) => (
+                  <li
+                    key={band.startMs}
+                    title={`${timestamp(band.startMs)} · ${band.count}`}
+                    className="flex-1 rounded-xs"
+                    style={{
+                      // A floor, so a quiet stretch is still a stretch of
+                      // episode rather than a gap in the picture.
+                      height: `${Math.max(12, band.heat)}%`,
+                      background: band.count === 0 ? 'var(--edge)' : 'var(--accent)',
+                    }}
+                  />
+                ))}
+              </ol>
+            )}
+
             <ul className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm" style={{ color: 'var(--quiet)' }}>
               {topic.moments.map((moment) => (
                 <li key={moment.startMs}>

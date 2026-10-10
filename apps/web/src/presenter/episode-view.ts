@@ -1,3 +1,4 @@
+import { densityStrip, type Band } from './density-strip.js'
 import {
   DAILY_ALLOWANCE_MS,
   HOURLY_ALLOWANCE_MS,
@@ -37,6 +38,14 @@ export interface TopicRow {
   /** Unformatted, so a test can prove the count does not move with language. */
   readonly rawCount: number
   readonly moments: readonly Moment[]
+  /**
+   * Where in the episode it clustered.
+   *
+   * The count answers "how often" and the quotes answer "doing what".
+   * Neither answers *when*, which is the one a group argues about — whether
+   * a bit ran all episode or was three minutes near the end.
+   */
+  readonly strip: readonly Band[]
 }
 
 export interface AnalysisView {
@@ -135,6 +144,7 @@ export function presentAnalysis(analysis: EpisodeAnalysis, locale: Locale): Anal
         quote: mention.matchedText,
         startMs: mention.startMs,
       })),
+      strip: densityStrip(topic.mentions, analysis.durationMs),
     })),
   }
 }

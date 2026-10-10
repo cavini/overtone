@@ -100,7 +100,8 @@ let nowMs = Date.parse('2026-10-09T09:00:00.000Z')
 const clock = { now: () => nowMs }
 
 try {
-  // A clean series each run.
+  // A clean series each run, in case a previous one died before its own
+  // cleanup could run.
   await sql.unsafe(`delete from public.series where owner_id = '${USER}'`)
 
   const [createdSeries] = await db
@@ -229,5 +230,14 @@ try {
   console.error(error instanceof Error ? error.stack : error)
   process.exitCode = 1
 } finally {
+  /*
+   * Takes its own series with it.
+   *
+   * It used to clear up only at the *start* of the next run, so every run
+   * left a library behind until somebody ran it again — and this points at
+   * the same database the group actually uses. Found one sitting there
+   * weeks later, with three running jokes nobody had written.
+   */
+  await sql.unsafe(`delete from public.series where owner_id = '${USER}'`).catch(() => undefined)
   await sql.end()
 }
