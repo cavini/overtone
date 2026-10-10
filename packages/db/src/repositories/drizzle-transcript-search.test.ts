@@ -75,6 +75,28 @@ describe('DrizzleTranscriptSearch', () => {
     expect(statements[0]).toMatch(/"start_ms" asc/i)
   })
 
+  /*
+   * The row budget has to go to the episodes that actually discuss the
+   * thing, not to the most recent ones.
+   *
+   * Ordering by episode number meant the 300 rows were handed out newest
+   * first. A term talked about at length in episode 1 disappears entirely
+   * the moment 300 segments in later episodes mention it in passing — and
+   * it disappears silently, which is the worst way for a search to be
+   * wrong.
+   */
+  it('gives the budget to the episodes that discuss it most', async () => {
+    await search.search('cachorro', 300)
+
+    const sql = statements[0] ?? ''
+    expect(sql).toMatch(/count\(\*\) over \(partition by/i)
+    // The count comes before recency in the ordering, not after.
+    const byHits = sql.search(/count\(\*\) over[^)]*\)[^,]*desc/i)
+    const byNumber = sql.search(/"number" desc/i)
+    expect(byHits).toBeGreaterThan(-1)
+    expect(byHits).toBeLessThan(byNumber)
+  })
+
   it('bounds the rows it asks for', async () => {
     await search.search('x', 50)
 
