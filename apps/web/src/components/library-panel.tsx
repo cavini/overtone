@@ -27,23 +27,40 @@ export interface LibraryEntry {
 export function LibraryPanel({
   labels,
   selected,
+  reloadToken,
   onOpen,
 }: {
   readonly labels: Labels
   readonly selected: string | undefined
+  /**
+   * Changes whenever the list behind this panel has moved on — an episode
+   * was added, or one reached the end.
+   *
+   * The list was fetched once, on mount, which meant the episode you had
+   * just uploaded was not in the library until the page was reloaded.
+   */
+  readonly reloadToken: number
   readonly onOpen: (episodeId: string) => void
 }) {
   const [episodes, setEpisodes] = useState<readonly LibraryEntry[]>([])
 
   useEffect(() => {
+    let stopped = false
+
     void (async () => {
       const response = await fetch('/api/episodes/list').catch(() => undefined)
-      if (!response?.ok) return
+      if (stopped || !response?.ok) return
 
       const { episodes: found } = (await response.json()) as { episodes: LibraryEntry[] }
-      setEpisodes(found)
+      if (!stopped) setEpisodes(found)
     })()
-  }, [])
+
+    // A second answer arriving before the first would otherwise be free to
+    // put the older list back on screen.
+    return () => {
+      stopped = true
+    }
+  }, [reloadToken])
 
   if (episodes.length === 0) {
     return (

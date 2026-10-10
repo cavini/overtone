@@ -35,13 +35,25 @@ export function Workspace({
   readonly labels: Labels
 }) {
   const [showing, setShowing] = useState<Showing | undefined>(undefined)
+  /*
+   * Changed whenever an episode appears or finishes, so the library goes
+   * and looks again.
+   *
+   * An upload used to leave the library a page-reload behind: the episode
+   * was in the database within a second of pressing the button and in the
+   * list on screen only on the next visit.
+   */
+  const [reloadToken, setReloadToken] = useState(0)
 
   return (
     <>
       <UploadForm
         locale={locale}
         labels={labels}
-        onEpisode={(episodeId, live) => setShowing({ episodeId, live })}
+        onEpisode={(episodeId, live) => {
+          setShowing({ episodeId, live })
+          setReloadToken((token) => token + 1)
+        }}
       />
 
       <SearchPanel
@@ -67,6 +79,7 @@ export function Workspace({
       <LibraryPanel
         labels={labels}
         selected={showing?.episodeId}
+        reloadToken={reloadToken}
         onOpen={(episodeId) => setShowing({ episodeId, live: false })}
       />
 
