@@ -1,16 +1,17 @@
 /**
- * Downloads the Portuguese lemma list and writes it out for loading.
+ * Downloads the lemma lists and writes them out for loading.
  *
  * Deliberately a script rather than a migration with the data inlined: the
- * source is 19 MB of text, which does not belong in git history. Run it once
- * per environment; the output is gitignored.
+ * Portuguese source alone is 19 MB of text, which does not belong in git
+ * history. Run it once per environment; the output is gitignored.
  *
- *   pnpm fetch:lemmas
+ *   pnpm fetch:lemmas          # both languages
+ *   pnpm fetch:lemmas en       # just one
  *
  * The parsing itself lives in `@overtone/adapters/lemmas` and is covered by
  * unit tests — including the Windows line endings, the byte-order mark, the
- * junk rows, and the 213 lemmas that need protecting from the stemmer. This
- * file only moves bytes around.
+ * junk rows, and the lemmas that need protecting from the stemmer. This file
+ * only moves bytes around.
  *
  * Source: https://github.com/michmech/lemmatization-lists  (ODbL)
  * See ATTRIBUTION.md.
@@ -18,37 +19,62 @@
 import { mkdir, writeFile } from 'node:fs/promises'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { AUDIO_LANGUAGES, type AudioLanguage } from '../packages/core/src/domain/audio-language.js'
 import { parseLemmaList } from '../packages/adapters/src/lemmas/parse-lemma-list.js'
 
-const SOURCE =
-  'https://raw.githubusercontent.com/michmech/lemmatization-lists/master/lemmatization-pt.txt'
+const SOURCE = (language: AudioLanguage) =>
+  `https://raw.githubusercontent.com/michmech/lemmatization-lists/master/lemmatization-${language}.txt`
 
 const here = dirname(fileURLToPath(import.meta.url))
-const outPath = resolve(here, '../packages/db/data/lemmas-pt.tsv')
+const outPath = (language: AudioLanguage) =>
+  resolve(here, `../packages/db/data/lemmas-${language}.tsv`)
 
-const asTsv = (pairs: ReadonlyArray<readonly [string, string]>): string =>
-  pairs.map(([form, lemma]) => `${form}\t${lemma}`).join('\n') + '\n'
+/**
+ * `language<TAB>form<TAB>lemma`, which is the column order the loader's
+ * `COPY` expects.
+ *
+ * The language is repeated on every line even though the filename already
+ * carries it. That is what lets the loader stream the file straight into
+ * Postgres instead of transforming it line by line — and the file is a load
+ * artefact, not a copy of the source.
+ */
+const asTsv = (
+  language: AudioLanguage,
+  pairs: ReadonlyArray<readonly [string, string]>,
+): string => pairs.map(([form, lemma]) => `${language}\t${form}\t${lemma}`).join('\n') + '\n'
 
-console.log(`fetching ${SOURCE}`)
-const response = await fetch(SOURCE)
+const requested = process.argv.slice(2)
+const languages = requested.length > 0 ? requested : AUDIO_LANGUAGES
 
-if (!response.ok) {
-  console.error(`download failed: ${response.status} ${response.statusText}`)
-  process.exit(1)
+for (const language of languages) {
+  if (!AUDIO_LANGUAGES.includes(language as AudioLanguage)) {
+    console.error(`unknown language ${language}; expected one of ${AUDIO_LANGUAGES.join(', ')}`)
+    process.exit(1)
+  }
 }
 
-const text = await response.text()
-console.log(`  ${(text.length / 1024 / 1024).toFixed(1)} MB downloaded`)
+for (const language of languages as readonly AudioLanguage[]) {
+  console.log(`fetching ${SOURCE(language)}`)
+  const response = await fetch(SOURCE(language))
 
-const pairs = parseLemmaList(text)
-const protective = pairs.filter(([form, lemma]) => form === lemma).length
+  if (!response.ok) {
+    console.error(`download failed: ${response.status} ${response.statusText}`)
+    process.exit(1)
+  }
 
-await mkdir(dirname(outPath), { recursive: true })
-await writeFile(outPath, asTsv(pairs), 'utf8')
+  const text = await response.text()
+  console.log(`  ${(text.length / 1024 / 1024).toFixed(1)} MB downloaded`)
 
-console.log(`  ${pairs.length.toLocaleString()} pairs kept`)
-console.log(`  ${protective} protective rows added for lemmas the stemmer would cut`)
-console.log(`  written to ${outPath}`)
-console.log('\nThe table it loads into does not exist yet. Until it does, this')
-console.log('file is the dictionary: the analysis works without it, grouping')
-console.log('plurals via the stemmer and marking those groupings heuristic.')
+  const pairs = parseLemmaList(text, language)
+  const protective = pairs.filter(([form, lemma]) => form === lemma).length
+  const destination = outPath(language)
+
+  await mkdir(dirname(destination), { recursive: true })
+  await writeFile(destination, asTsv(language, pairs), 'utf8')
+
+  console.log(`  ${pairs.length.toLocaleString()} pairs kept`)
+  console.log(`  ${protective} protective rows for lemmas the ${language} stemmer would cut`)
+  console.log(`  written to ${destination}\n`)
+}
+
+console.log('Load them with: pnpm --filter @overtone/db db:load-lemmas')
