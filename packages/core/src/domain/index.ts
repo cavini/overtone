@@ -46,3 +46,11 @@ export type { AudioChunk, ChunkTranscript } from './audio-chunk.js'
 export type { AllowanceState } from './allowance.js'
 export type { ObservedAllowance } from './observed-allowance.js'
 export { ALLOWANCE_REFILL_RATE } from './observed-allowance.js'
+export {
+  checkTopic,
+  MAX_TERMS_PER_TOPIC,
+  MAX_TOPICS_PER_SERIES,
+  MAX_WORDS_PER_TERM,
+  type TopicDraft,
+  type TopicProblem,
+} from './topic-rules.js'
