@@ -1,5 +1,5 @@
 import { sql } from 'drizzle-orm'
-import { EPISODE_STATUSES, SERIES_ROLES } from '@overtone/core'
+import { AUDIO_LANGUAGES, EPISODE_STATUSES, SERIES_ROLES } from '@overtone/core'
 import {
   bigint,
   check,
@@ -134,6 +134,15 @@ export const episodes = pgTable(
     failureParams: jsonb('failure_params'),
     pipelineVersion: integer('pipeline_version').notNull().default(1),
     durationMs: integer('duration_ms').notNull().default(0),
+    /**
+     * What the audio is spoken in, settled when the episode was uploaded.
+     *
+     * Stored rather than derived, because it is a fact about this episode
+     * and not about whoever is reading it. Changing the interface language
+     * later must not retell what an existing episode was transcribed as
+     * (ADR 0022).
+     */
+    language: text('language', { enum: AUDIO_LANGUAGES }).notNull().default('pt'),
     byteSize: bigint('byte_size', { mode: 'number' }).notNull().default(0),
     blobKey: text('blob_key'),
     /** Present means the stats page is public to anyone holding the link. */
@@ -144,6 +153,7 @@ export const episodes = pgTable(
   (table) => [
     unique('episodes_series_number').on(table.seriesId, table.number),
     index('episodes_series_status').on(table.seriesId, table.status),
+    check('episodes_language', inList(table.language, AUDIO_LANGUAGES)),
     // Drizzle's `enum` option is a TypeScript nicety; without this the column
     // is plain `text` and the database would accept any string at all.
     check('episodes_status', inList(table.status, EPISODE_STATUSES)),
