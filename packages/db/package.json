@@ -20,12 +20,14 @@
     "db:inspect": "tsx src/inspect.mts",
     "db:load-lemmas": "tsx src/load-lemmas.mts",
     "db:smoke": "tsx src/smoke.mts",
-    "test:integration": "vitest run -c vitest.integration.config.ts"
+    "test:integration": "vitest run -c vitest.integration.config.ts",
+    "db:rename-episodes": "tsx src/rename-episodes.mts"
   },
   "dependencies": {
     "@overtone/core": "workspace:*",
     "drizzle-orm": "^0.45.4",
-    "postgres": "^3.4.9"
+    "postgres": "^3.4.9",
+    "@overtone/adapters": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^26.6.4",
