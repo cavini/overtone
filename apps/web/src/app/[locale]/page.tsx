@@ -2,6 +2,7 @@ import { renderMessage } from '@overtone/messages'
 import { hasLocale } from 'next-intl'
 import { setRequestLocale } from 'next-intl/server'
 import { notFound } from 'next/navigation'
+import { JokesPanel } from '../../components/jokes-panel.js'
 import { LocaleSwitcher } from '../../components/locale-switcher.js'
 import { Link } from '../../i18n/navigation.js'
 import { UploadForm } from '../../components/upload-form.js'
@@ -35,6 +36,8 @@ export default async function HomePage({
         </div>
         <LocaleSwitcher label={labels.language} />
       </header>
+
+      <JokesPanel locale={locale} labels={labels} />
 
       <UploadForm locale={locale} labels={labels} />
 
