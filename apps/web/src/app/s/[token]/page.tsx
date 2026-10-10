@@ -1,11 +1,19 @@
 import { notFound } from 'next/navigation'
-import { CountsTable } from '../../../components/counts-table.js'
+import { CountsTable, JokeList, StatStrip } from '../../../components/counts-table.js'
 import { presentAnalysis } from '../../../presenter/episode-view.js'
 import { UI } from '../../../i18n/ui.js'
 import { sharedEpisode } from '../../../server/sharing.js'
 
-/** Not in anybody's index. A shared link is given out, never found. */
-export const metadata = { robots: { index: false, follow: false } }
+/**
+ * Rendered per request, never cached.
+ *
+ * It reads the database directly rather than through `fetch`, so Next has
+ * nothing to invalidate and will happily serve the first render forever —
+ * measured: adding a running joke and recounting left the shared page
+ * showing the numbers from before. A link whose figures silently stop
+ * moving is worse than one that is slow.
+ */
+export const dynamic = 'force-dynamic'
 
 /**
  * One episode's numbers, for somebody with the link and no account.
@@ -51,7 +59,13 @@ export default async function SharedPage({
       </header>
 
       <div className="stack mt-8 flex flex-col gap-6">
+        <StatStrip labels={labels} analysis={view} />
         <CountsTable labels={labels} analysis={view} />
+        {/*
+          * The running jokes and where they clustered. The point of sharing
+          * a result is usually one of these rather than the word table.
+          */}
+        <JokeList labels={labels} analysis={view} />
       </div>
 
       <footer className="mt-10 border-t pt-5 text-sm" style={{ borderColor: 'var(--edge)' }}>
