@@ -77,7 +77,7 @@ export function JokesPanel({ locale, labels }: { readonly locale: Locale; readon
   }
 
   return (
-    <Panel heading={labels.jokesHeading}>
+    <Panel heading={labels.jokesHeading} startOpen={false}>
       <p className="mt-1 text-sm" style={{ color: 'var(--quiet)' }}>
         {labels.jokesHint}
       </p>

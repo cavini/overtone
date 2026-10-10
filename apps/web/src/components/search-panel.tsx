@@ -54,7 +54,7 @@ export function SearchPanel({
   }
 
   return (
-    <Panel heading={labels.searchHeading}>
+    <Panel heading={labels.searchHeading} startOpen={false}>
       <p className="mt-1 text-sm" style={{ color: 'var(--quiet)' }}>
         {labels.searchHint}
       </p>
