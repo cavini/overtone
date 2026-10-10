@@ -160,7 +160,7 @@ export async function advanceEpisode(
   const tokens = tokeniseTimed(words, language)
 
   const distinctForms = [...new Set(tokens.map((token) => token.surface))]
-  const annotated = annotate(tokens, await lemmas.lookup(distinctForms), language)
+  const annotated = annotate(tokens, await lemmas.lookup(distinctForms, language), language)
 
   const counts = countTerms(annotated)
   const segments = toSegments(words, annotated)

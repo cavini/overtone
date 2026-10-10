@@ -1,4 +1,4 @@
-import { Param, sql } from 'drizzle-orm'
+import { Param, and, eq, sql } from 'drizzle-orm'
 import type { PgDatabase, PgQueryResultHKT } from 'drizzle-orm/pg-core'
 import { lemmas } from '../schema.js'
 
@@ -39,16 +39,25 @@ export interface LemmaQueryRow {
  */
 export function lemmaQuery(
   db: Database,
-): (forms: readonly string[]) => Promise<readonly LemmaQueryRow[]> {
-  return async (forms) =>
+): (forms: readonly string[], language: string) => Promise<readonly LemmaQueryRow[]> {
+  return async (forms, language) =>
     db
       .select({ form: lemmas.form, lemma: lemmas.lemma })
       .from(lemmas)
+      // Scoped by language and leading with it, which is the order of the
+      // primary key — `move` is a form in both halves of the dictionary and
+      // means different things in each.
+      //
       // `= any($1)` with the list bound as a single array parameter.
       //
       // `inArray` would read better but expands to one placeholder per value:
       // a few thousand of them for one episode, and different query text
       // every time, so Postgres can never reuse the plan. An array in a `sql`
       // template gets expanded the same way, hence the explicit `Param`.
-      .where(sql`${lemmas.form} = any(${new Param([...forms])})`)
+      .where(
+        and(
+          eq(lemmas.language, language),
+          sql`${lemmas.form} = any(${new Param([...forms])})`,
+        ),
+      )
 }

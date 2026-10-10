@@ -60,8 +60,8 @@ export function pipelineDependencies(): AdvanceEpisodeDependencies {
     lemmas: {
       // One bulk query for the whole episode's distinct forms. The pure
       // functions never touch a database.
-      lookup: async (forms) =>
-        new Map((await lemmaQuery(connection)(forms)).map((row) => [row.form, row.lemma])),
+      lookup: async (forms, language) =>
+        new Map((await lemmaQuery(connection)(forms, language)).map((row) => [row.form, row.lemma])),
     },
     chunks: new DrizzleChunkStore(connection),
     allowance: new DrizzleAllowanceStore(connection),
