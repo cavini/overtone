@@ -9,7 +9,6 @@ import type { UiKey } from '../i18n/ui.js'
 import type { AnalysisView, OutcomeView } from '../presenter/episode-view.js'
 import { CountsTable, JokeList, StatStrip } from './counts-table.js'
 import { ProgressPanel, type Progress } from './progress-panel.js'
-import { TranscriptView } from './transcript-view.js'
 
 type Labels = Record<UiKey, string>
 
@@ -46,18 +45,20 @@ async function readJson(response: Response): Promise<Record<string, unknown>> {
 export function UploadForm({
   locale,
   labels,
+  onEpisode,
 }: {
   readonly locale: Locale
   readonly labels: Labels
+  /** Told whenever an episode becomes the one worth looking at. */
+  readonly onEpisode: (episodeId: string, live: boolean) => void
 }) {
   const input = useRef<HTMLInputElement>(null)
   const resumed = useRef(false)
   const [filename, setFilename] = useState('')
   const [busy, setBusy] = useState(false)
   const [progress, setProgress] = useState<Progress | undefined>(undefined)
-  // The episode currently on screen, whether it is still being transcribed
-  // or has just finished.
-  const [liveEpisodeId, setLiveEpisodeId] = useState<string | undefined>(undefined)
+  // Which episode is on screen is the workspace's business now, so the
+  // library and the search results can change it too.
   const [error, setError] = useState('')
   const [result, setResult] = useState<Result | undefined>(undefined)
 
@@ -96,7 +97,7 @@ export function UploadForm({
 
       const chunks = started['chunks'] as ChunkTarget[]
       const episodeId = String(started['episodeId'])
-      setLiveEpisodeId(episodeId)
+      onEpisode(episodeId, true)
 
       await splitAndUpload(file, chunks, ({ done, total }) => {
         setProgress({ headline: `${labels.sendingPart} ${done + 1} / ${total}`, done, total })
@@ -190,7 +191,7 @@ export function UploadForm({
       // Shown either way. A finished episode is here to be read, and
       // without this the transcript vanished the moment transcription
       // ended and the page was reloaded.
-      setLiveEpisodeId(episode.episodeId)
+      onEpisode(episode.episodeId, episode.live)
 
       /*
        * Only an unfinished episode is carried forward.
@@ -268,14 +269,7 @@ export function UploadForm({
 
       {progress ? <ProgressPanel progress={progress} labels={labels} /> : null}
 
-      {/* Whatever has been transcribed so far, while the rest is still
-          going. Kept here rather than inside the progress panel because it
-          outlives the progress: it is still worth reading when the episode
-          is finished. */}
-      {liveEpisodeId !== undefined ? (
-        <TranscriptView episodeId={liveEpisodeId} labels={labels} live={progress !== undefined} />
-      ) : null}
-
+      
       {error !== '' ? (
         <p
           role="alert"
