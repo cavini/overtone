@@ -24,7 +24,7 @@ const HAS_WORD_CHARACTER = /[\p{L}\p{N}]/u
  * compounds need no dictionary: `guarda-chuva` ends in `chuva`, and even
  * `bem-te-vi` — whose middle segment *is* a clitic — ends in `vi`.
  */
-function splitEnclitics(word: string): string[] {
+export function splitEnclitics(word: string): string[] {
   const clitics: string[] = []
   let head = word
 
