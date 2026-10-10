@@ -61,6 +61,18 @@
   --alarm: #e5774e;
 }
 
+/*
+ * Keep the page the same width whether or not it scrolls.
+ *
+ * Folding a section away can take the content above the viewport height,
+ * which removes the scrollbar, which widens the page — so opening and
+ * closing a block made everything on it jump sideways. Reserving the gutter
+ * costs a few pixels that were never usable anyway.
+ */
+html {
+  scrollbar-gutter: stable;
+}
+
 body {
   /* Painted explicitly: a transparent body borrows whatever is behind it. */
   background: var(--ground);
