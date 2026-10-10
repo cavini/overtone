@@ -2,7 +2,7 @@
 import { describe, expect, it } from 'vitest'
 import type { Topic } from '../domain/topic.js'
 import { annotate } from './annotate.js'
-import { findMentions } from './find-mentions.js'
+import { findMentions, matchKeyFor } from './find-mentions.js'
 import { normalize } from './normalize.js'
 import { tokenise } from './tokenise.js'
 
@@ -116,5 +116,42 @@ describe('findMentions', () => {
     expect(JSON.stringify(mentionsIn('hotdog, hot dog, pão com salsicha'))).toBe(
       JSON.stringify(once),
     )
+  })
+})
+
+// US-046 · ADR 0006
+describe('matchKeyFor', () => {
+  /*
+   * Saving a joke and scanning for it are two different places in two
+   * different packages, and they have to arrive at the same string. They did
+   * not: storage stripped spaces and hyphens off the raw text, so "o pirão"
+   * was filed under `opirão` while the scanner looked for `pirão` — and the
+   * joke counted zero with nothing to show it had failed.
+   */
+  it('agrees with what the scanner actually looks for', () => {
+    for (const pattern of ['pirão', 'o pirão', 'O Pirão', '  pirão  ']) {
+      const topic: Topic = { id: 't', name: 'Pirão', patterns: [pattern] }
+      const found = mentionsIn('nós falamos do pirão ontem', topic)
+
+      expect(found.length, pattern).toBe(1)
+      expect(matchKeyFor(pattern), pattern).toBe(matchKeyFor('pirão'))
+    }
+  })
+
+  it('collapses the ways a compound gets written', () => {
+    expect(matchKeyFor('hot dog')).toBe(matchKeyFor('hotdog'))
+    expect(matchKeyFor('hot-dog')).toBe(matchKeyFor('hotdog'))
+  })
+
+  // Accents are never stripped: `e` and `é` are different words, and so are
+  // `por` and `pôr`.
+  it('keeps accents apart', () => {
+    expect(matchKeyFor('pirão')).not.toBe(matchKeyFor('pirao'))
+  })
+
+  it('has nothing to look up for a pattern with no words in it', () => {
+    for (const empty of ['', '   ', '...', '-']) {
+      expect(matchKeyFor(empty), empty).toBeUndefined()
+    }
   })
 })

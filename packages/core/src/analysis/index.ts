@@ -9,6 +9,7 @@ export {
   SINGLE_CHUNK_LIMIT_MS,
   missingChunks,
   planChunks,
+  planFromTranscripts,
   stitchChunks,
 } from './chunking.js'
 export { stem } from './stem.js'
@@ -20,7 +21,7 @@ export {
   type PacingDecision,
 } from './pacing.js'
 export { compareByCountThenLabel } from './ranking.js'
-export { findMentions } from './find-mentions.js'
+export { findMentions, matchKeyFor } from './find-mentions.js'
 export { countTerms, type CountTermsOptions } from './count-terms.js'
 export { PIPELINE_VERSION } from './pipeline-version.js'
 export { FILLERS, STOP_WORDS, VOCABULARY_VERSION } from './vocabulary.js'
