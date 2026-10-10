@@ -4,6 +4,7 @@ import {
   planChunks,
   asAudioLanguage,
   readEpisodeName,
+  type PublishedEpisode,
   type AudioLanguage,
   planFromTranscripts,
   type AdvanceEpisodeOutcome,
@@ -25,7 +26,7 @@ import {
 import { and, asc, desc, eq, sql } from 'drizzle-orm'
 import { DrizzleAllowanceStore, DrizzleChunkStore } from '@overtone/db/repositories'
 import { listTopics } from './topics.js'
-import { blobStore, database, pipelineDependencies } from './wiring.js'
+import { blobStore, database, episodeDirectory, pipelineDependencies } from './wiring.js'
 
 /**
  * How long a signed URL has to stay good.
@@ -150,7 +151,34 @@ export async function startEpisode(
    * sorts by.
    */
   const named = readEpisodeName(filename)
-  const title = named.title.length > 0 ? named.title : filename
+
+  /*
+   * The publisher's own title beats a guess made from a filename.
+   *
+   * Looked up by episode number in the show's feed, when the series has
+   * one. `Sun Your Balls #201` rather than `sun-your-balls-201`, and the
+   * show notes along with it — though on this show those run to a line.
+   *
+   * A feed that cannot be reached must not stop an upload: the title read
+   * from the filename is a perfectly good fallback, and refusing to accept
+   * an episode because somebody else's XML is down would be absurd.
+   */
+  let published: PublishedEpisode | undefined
+  if (named.number !== undefined) {
+    const [series_] = await db
+      .select({ feedUrl: series.feedUrl })
+      .from(series)
+      .where(eq(series.id, seriesId))
+      .limit(1)
+
+    try {
+      published = await episodeDirectory(series_?.feedUrl)?.find(named.number)
+    } catch (error) {
+      console.warn('could not read the feed; keeping the name from the file', error)
+    }
+  }
+
+  const title = published?.title ?? (named.title.length > 0 ? named.title : filename)
   const [created] = await db
     .insert(episodes)
     .values({
@@ -165,6 +193,7 @@ export async function startEpisode(
       // (ADR 0022).
       language,
       ...(audioDigest === undefined ? {} : { audioDigest }),
+      ...(published === undefined ? {} : { description: published.description }),
     })
     .returning({ id: episodes.id })
 
