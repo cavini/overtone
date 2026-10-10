@@ -45,9 +45,24 @@ export class DrizzleTranscriptSearch implements TranscriptSearch {
           eq(episodes.status, 'ready'),
         ),
       )
-      // Newest episode first, and in order within it, so the moments above
-      // this are built from segments that already run forwards.
-      .orderBy(desc(episodes.number), asc(segments.startMs))
+      /*
+       * Busiest episode first, then newest, then in order within it.
+       *
+       * The limit below is a budget, and it used to be spent newest-first:
+       * a term discussed at length in episode 1 vanished the moment 300
+       * segments in later episodes mentioned it in passing. Ranking by how
+       * many segments of an episode match spends the budget on the
+       * conversations somebody is actually looking for.
+       *
+       * A window function in `order by` is evaluated before the limit, so
+       * this ranks across everything that matched rather than reordering a
+       * page that was already chosen wrongly.
+       */
+      .orderBy(
+        sql`count(*) over (partition by ${episodes.id}) desc`,
+        desc(episodes.number),
+        asc(segments.startMs),
+      )
       .limit(limit)
 
     return rows
