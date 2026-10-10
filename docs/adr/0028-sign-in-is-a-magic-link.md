@@ -70,6 +70,21 @@ and nothing is sent, because "you are not invited" confirms both that the list
 exists and that they found a real deployment. Unset means no list, so a fresh
 checkout still runs with no setup — the same bargain the password made.
 
+## The cutover is not an outage
+
+Switching over needs three things done by hand in the Supabase dashboard, and
+until they are done **nobody can sign in at all**. Deleting the password with
+them undone would have taken the app down for however long that took, on a
+deploy that looked like a feature.
+
+So the password still works, and whoever holds it is treated as the owner of
+the library from before accounts — the group's existing episodes keep reading
+exactly as they did, and a browser that already has the cookie is not signed
+out. It is **off unless `OVERTONE_PASSWORD` is set**: unset the variable and
+the whole path disappears.
+
+That is the one piece of this to delete on purpose, once sign-in works.
+
 ## Consequences
 
 - **Three dashboard settings have to be made by hand** and sign-in is broken

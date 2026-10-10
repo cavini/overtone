@@ -2,6 +2,7 @@ import createMiddleware from 'next-intl/middleware'
 import type { NextRequest } from 'next/server'
 import { NextResponse } from 'next/server'
 import { routing } from './i18n/routing.js'
+import { GATE_COOKIE } from './server/gate.js'
 import { ACCESS_COOKIE, REFRESH_COOKIE } from './server/session.js'
 
 const withLocale = createMiddleware(routing)
@@ -27,7 +28,7 @@ const CREDITS_PAGE = '/creditos'
  * `CRON_SECRET` instead (ADR 0027).
  */
 const OPEN_PREFIXES = ['/auth/', '/api/auth/'] as const
-const OPEN_PATHS = ['/api/keep-alive', '/api/episodes/advance-pending'] as const
+const OPEN_PATHS = ['/api/keep-alive', '/api/episodes/advance-pending', '/api/enter'] as const
 
 /**
  * Two jobs, in order: send strangers to the door, then put the page in a
@@ -53,9 +54,13 @@ export default function middleware(request: NextRequest): Response {
   if (OPEN_PREFIXES.some((prefix) => pathname.startsWith(prefix))) return onward()
   if (pathname.endsWith(GATE_PAGE) || pathname.endsWith(CREDITS_PAGE)) return onward()
 
-  if (request.cookies.has(ACCESS_COOKIE) || request.cookies.has(REFRESH_COOKIE)) {
-    return onward()
-  }
+  const carriesSomething =
+    request.cookies.has(ACCESS_COOKIE) ||
+    request.cookies.has(REFRESH_COOKIE) ||
+    // The shared password, while it is still set. See `gate.ts`.
+    request.cookies.has(GATE_COOKIE)
+
+  if (carriesSomething) return onward()
 
   // A status for a program, a page for a person. A fetch that followed a
   // redirect would get HTML where it expected JSON and report nonsense.

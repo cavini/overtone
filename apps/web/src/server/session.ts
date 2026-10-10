@@ -1,6 +1,7 @@
 import type { Identity, Session } from '@overtone/core'
 import { cookies } from 'next/headers'
-import { NotYours } from './analyse-upload.js'
+import { M0_OWNER, NotYours } from './analyse-upload.js'
+import { GATE_COOKIE, matches, tokenFor } from './gate.js'
 import { identityProvider } from './wiring.js'
 
 /** Where the tokens live. Both httpOnly — no script ever needs to read them. */
@@ -56,6 +57,24 @@ export async function signOut(): Promise<void> {
 export async function currentUser(): Promise<Identity | undefined> {
   const jar = await cookies()
   const provider = identityProvider()
+
+  /*
+   * The shared password, while it is still set.
+   *
+   * Only so the cutover to accounts is not an outage: signing in needs
+   * three things set by hand in the Supabase dashboard, and until they are
+   * done nobody can sign in at all. Whoever holds the password is the owner
+   * of the library from before accounts, so the group's episodes keep
+   * reading exactly as they did.
+   *
+   * Unset `OVERTONE_PASSWORD` and this is gone (ADR 0028).
+   */
+  const password = process.env['OVERTONE_PASSWORD']
+  if (password !== undefined && password.length > 0) {
+    if (matches(jar.get(GATE_COOKIE)?.value, await tokenFor(password))) {
+      return { userId: M0_OWNER, email: 'shared-password@overtone.invalid' }
+    }
+  }
 
   const accessToken = jar.get(ACCESS_COOKIE)?.value
   if (accessToken !== undefined) {
