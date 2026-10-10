@@ -12,5 +12,10 @@
  * 1 described one pipeline, and version 2 describes two that share a shape.
  * A Portuguese episode and an English one both claiming version 1 would make
  * the number meaningless in exactly the case it exists for.
+ *
+ * **3** — Portuguese words are no longer folded into their other gender.
+ * `menina` used to be counted as `menino`, `música` as `músico`, `irmã` as
+ * `irmão`; now each stands for itself. On a measured episode this moves 32
+ * terms, so every count from before it is a different number.
  */
-export const PIPELINE_VERSION = 2
+export const PIPELINE_VERSION = 3
