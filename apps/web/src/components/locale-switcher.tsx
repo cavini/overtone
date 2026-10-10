@@ -7,12 +7,20 @@ import { usePathname, useRouter } from '../i18n/navigation.js'
 
 const NAMES: Record<Locale, string> = { pt: 'Português', en: 'English' }
 
+/** Set just before navigating, read once on the page they arrive at. */
+export const LANGUAGE_CHANGED = 'overtone.language-changed'
+
 /**
- * Switches the interface language, and only the interface language.
+ * Switches the language — of the interface *and* of what gets transcribed
+ * next.
  *
- * The audio is always Brazilian Portuguese and the pipeline always runs in
- * it, so nothing here can change a count — which is the thing a reader would
- * reasonably fear and the thing a test proves (ADR 0014).
+ * It used to be the interface only, with the audio pinned to Brazilian
+ * Portuguese (ADR 0014). It now also chooses what future episodes are
+ * transcribed and analysed as (ADR 0022), which is a bigger consequence
+ * than a language picker usually carries — so the next page says so.
+ *
+ * Episodes already transcribed are untouched: each one records what it was
+ * transcribed as, so no existing count can move because somebody switched.
  */
 export function LocaleSwitcher({ label }: { readonly label: string }) {
   const router = useRouter()
@@ -30,6 +38,16 @@ export function LocaleSwitcher({ label }: { readonly label: string }) {
         aria-label={label}
         onChange={(event) => {
           const next = event.target.value as Locale
+
+          // Flagged before navigating, because the notice belongs on the
+          // page they land on — this component is about to be replaced.
+          try {
+            window.sessionStorage.setItem(LANGUAGE_CHANGED, next)
+          } catch {
+            // A browser refusing storage is not a reason to block the
+            // switch; they just miss the notice.
+          }
+
           startTransition(() => {
             router.replace(pathname, { locale: next })
           })
