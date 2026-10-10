@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "exports": {
+    "./feed": "./src/feed/index.ts",
     "./groq": "./src/groq/index.ts",
     "./lemmas": "./src/lemmas/index.ts",
     "./supabase": "./src/supabase/index.ts"
