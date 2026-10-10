@@ -33,4 +33,11 @@ export interface ChunkTranscript {
    * episodes still have to read.
    */
   readonly segmentStartsMs?: readonly number[] | undefined
+  /**
+   * Which model produced this chunk.
+   *
+   * Optional because chunks stored before it was recorded have no record,
+   * and inventing one would repeat the mistake it exists to fix.
+   */
+  readonly providerModel?: string | undefined
 }

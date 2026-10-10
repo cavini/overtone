@@ -42,6 +42,7 @@ export class DrizzleChunkStore implements ChunkStore {
         offsetMs: chunkTranscripts.offsetMs,
         words: chunkTranscripts.words,
         segmentStartsMs: chunkTranscripts.segmentStartsMs,
+        providerModel: chunkTranscripts.providerModel,
       })
       .from(chunkTranscripts)
       .where(eq(chunkTranscripts.episodeId, episodeId))
@@ -52,6 +53,7 @@ export class DrizzleChunkStore implements ChunkStore {
       offsetMs: row.offsetMs,
       words: (row.words ?? []) as readonly StoredWord[],
       segmentStartsMs: row.segmentStartsMs ?? [],
+      providerModel: row.providerModel ?? undefined,
     }))
   }
 
@@ -64,6 +66,7 @@ export class DrizzleChunkStore implements ChunkStore {
         offsetMs: chunkTranscripts.offsetMs,
         words: chunkTranscripts.words,
         segmentStartsMs: chunkTranscripts.segmentStartsMs,
+        providerModel: chunkTranscripts.providerModel,
       })
       .from(chunkTranscripts)
       .where(and(eq(chunkTranscripts.episodeId, episodeId), eq(chunkTranscripts.index, index)))
@@ -76,6 +79,7 @@ export class DrizzleChunkStore implements ChunkStore {
       offsetMs: row.offsetMs,
       words: (row.words ?? []) as readonly StoredWord[],
       segmentStartsMs: row.segmentStartsMs ?? [],
+      providerModel: row.providerModel ?? undefined,
     }
   }
 
@@ -91,12 +95,19 @@ export class DrizzleChunkStore implements ChunkStore {
         index: chunk.index,
         offsetMs: chunk.offsetMs,
         words: chunk.words,
+        // Written on both paths. Left off the insert once, which made every
+        // line in production fall back to punctuation without a word said
+        // about it.
+        segmentStartsMs: [...(chunk.segmentStartsMs ?? [])],
+        providerModel: chunk.providerModel ?? null,
       })
       .onConflictDoUpdate({
         target: [chunkTranscripts.episodeId, chunkTranscripts.index],
         set: {
           offsetMs: chunk.offsetMs,
           words: chunk.words,
+          segmentStartsMs: [...(chunk.segmentStartsMs ?? [])],
+          providerModel: chunk.providerModel ?? null,
           createdAt: sql`now()`,
         },
       })

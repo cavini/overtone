@@ -177,6 +177,19 @@ describe('advanceEpisode', () => {
      * real episode: the same chunk transcribed cold lost a clause that the
      * prompted run recovered.
      */
+    /*
+     * This was a hard-coded string for months, so every episode claimed
+     * `whisper-large-v3-turbo` whatever had really run — including after
+     * the switch to the full model. Tracing a count back to what produced
+     * it is the only thing the field is for.
+     */
+    it('records which model actually produced the chunk', async () => {
+      const h = harness()
+      await advance(h)
+
+      expect(h.stored.get(0)?.providerModel).toBe('whisper-large-v3-turbo')
+    })
+
     it('tells the transcriber what the chunk before it said', async () => {
       const h = harness({ transcribed: [0] })
       await advance(h)

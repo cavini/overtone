@@ -240,6 +240,14 @@ export const chunkTranscripts = pgTable(
      * before this column existed have none, and those episodes still read.
      */
     segmentStartsMs: integer('segment_starts_ms').array(),
+    /*
+     * Which model produced this chunk.
+     *
+     * Was a hard-coded string in the use case, so every episode claimed
+     * the same model whatever had really run. Recorded where the
+     * transcription happens, and read back when the chunks are stitched.
+     */
+    providerModel: text('provider_model'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [unique('chunk_transcripts_episode_index').on(table.episodeId, table.index)],
