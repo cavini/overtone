@@ -112,6 +112,9 @@ importers:
 
   packages/db:
     dependencies:
+      '@overtone/adapters':
+        specifier: workspace:*
+        version: link:../adapters
       '@overtone/core':
         specifier: workspace:*
         version: link:../core
