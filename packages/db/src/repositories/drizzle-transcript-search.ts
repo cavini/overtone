@@ -1,4 +1,6 @@
 import {
+  MATCH_CLOSE,
+  MATCH_OPEN,
   AUDIO_LANGUAGES,
   languagePack,
   type TranscriptMatch,
@@ -61,6 +63,40 @@ const asked = (configuration: string, query: string): SQL =>
  * stop word in one language and a content word in the other, of which `era`
  * is about the only real example.
  */
+/**
+ * `StartSel`/`StopSel` are control characters, not markup.
+ *
+ * The page splits on them and emits its own elements, so nothing downstream
+ * has to trust — or sanitise — HTML assembled inside a SQL string.
+ *
+ * `HighlightAll` because a segment is about three seconds of speech and the
+ * reader wants all of it; the default returns a fragment of a fragment.
+ */
+const HEADLINE_OPTIONS = `StartSel=${MATCH_OPEN}, StopSel=${MATCH_CLOSE}, HighlightAll=TRUE`
+
+/**
+ * The text with the matching words marked.
+ *
+ * Marked here rather than in the browser because only the database knows
+ * *why* a segment matched: the search stems, so `ano` matches `anos` and
+ * `falar` matches `falou`. Comparing strings up in the page would bold
+ * neither, and would bold the wrong thing in the cases it did hit.
+ *
+ * Which configuration did the matching decides which one highlights — a
+ * segment found by the English half must be marked by the English half, or
+ * the words come back unmarked.
+ */
+function highlightedText(query: string): SQL<string> {
+  const branches = CONFIGURATIONS.map(
+    (configuration) =>
+      sql`when ${indexedText(configuration)} @@ ${asked(configuration, query)} then ts_headline(${named(configuration)}, ${segments.text}, ${asked(configuration, query)}, ${HEADLINE_OPTIONS})`,
+  )
+
+  // Nothing matched is not a state this is reached in, but a `case` with no
+  // `else` yields null, and a null quote would blank the result.
+  return sql<string>`case ${sql.join(branches, sql` `)} else ${segments.text} end`
+}
+
 function matchedInAnyLanguage(query: string): SQL {
   const searchable = CONFIGURATIONS.map(
     (configuration) => sql`length(${asked(configuration, query)}::text) > 0`,
@@ -86,6 +122,8 @@ export class DrizzleTranscriptSearch implements TranscriptSearch {
         startMs: segments.startMs,
         endMs: segments.endMs,
         text: segments.text,
+        highlighted: highlightedText(query),
+
       })
       .from(segments)
       .innerJoin(transcripts, eq(transcripts.id, segments.transcriptId))

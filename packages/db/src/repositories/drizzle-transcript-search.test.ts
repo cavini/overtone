@@ -15,6 +15,9 @@ beforeEach(() => {
   search = new DrizzleTranscriptSearch(db)
 })
 
+/** One Postgres text-search configuration per audio language. */
+const CONFIGURATION_COUNT = 2
+
 describe('DrizzleTranscriptSearch', () => {
   /*
    * The index in migration 0006 is built on `to_tsvector('portuguese', text)`.
@@ -128,8 +131,16 @@ describe('DrizzleTranscriptSearch, in both languages', () => {
     const all = sql.match(/to_tsquery/gu) ?? []
     const plain = sql.match(/plainto_tsquery/gu) ?? []
 
-    // Two per configuration: one to gate the query, one to match on it.
-    expect(plain.length).toBe(4)
+    /*
+     * The invariant, not the count.
+     *
+     * How many times the query is parsed is an implementation detail, and it
+     * grows whenever the statement gains a clause — highlighting added one
+     * per configuration. What must never change is that none of them is a
+     * bare `to_tsquery`, which would read an ampersand somebody typed as an
+     * operator and throw.
+     */
+    expect(plain.length).toBeGreaterThanOrEqual(2)
     expect(all.length).toBe(plain.length)
   })
 
