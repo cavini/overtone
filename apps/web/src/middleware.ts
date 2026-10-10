@@ -23,11 +23,13 @@ const CREDITS_PAGE = '/creditos'
  * Paths that have to answer without a session, each for its own reason.
  *
  * `/auth/*` is how somebody gets one and `/api/auth/*` is the form behind
- * it. The two scheduled endpoints are called by Postgres and by Vercel,
- * which have no cookie and never will — they guard themselves with
- * `CRON_SECRET` instead (ADR 0027).
+ * it. `/s/*` is a shared result, whose whole purpose is to open for a
+ * stranger — the unguessable token in the path is the permission, and what
+ * it reaches is one episode's counts and nothing else (ADR 0030). The two
+ * scheduled endpoints are called by Postgres and by Vercel, which have no
+ * cookie and never will, and guard themselves with `CRON_SECRET` (ADR 0027).
  */
-const OPEN_PREFIXES = ['/auth/', '/api/auth/'] as const
+const OPEN_PREFIXES = ['/auth/', '/api/auth/', '/s/'] as const
 const OPEN_PATHS = ['/api/keep-alive', '/api/episodes/advance-pending', '/api/enter'] as const
 
 /**
@@ -45,10 +47,20 @@ export default function middleware(request: NextRequest): Response {
   const { pathname } = request.nextUrl
   const isApi = pathname.startsWith('/api/')
 
-  // An API route never gets a locale prefix. Letting the i18n middleware see
-  // one rewrites `/api/auth/link` to `/pt/api/auth/link`, which is a 404
-  // wearing a redirect.
-  const onward = (): Response => (isApi ? NextResponse.next() : withLocale(request))
+  /*
+   * Paths that have no locale, and must not be given one.
+   *
+   * The i18n middleware prefixes anything it is handed, so `/api/auth/link`
+   * becomes `/pt/api/auth/link` — a 404 wearing a redirect. The same is
+   * true of the two paths that live outside the locale tree on purpose: a
+   * magic link's callback, whose address is in an email and in the
+   * provider's allow-list, and a shared result, whose address is in
+   * somebody's chat. Both were being redirected into nowhere, which is the
+   * entire feature in each case.
+   */
+  const unlocalised = isApi || pathname.startsWith('/auth/') || pathname.startsWith('/s/')
+
+  const onward = (): Response => (unlocalised ? NextResponse.next() : withLocale(request))
 
   if (OPEN_PATHS.includes(pathname as (typeof OPEN_PATHS)[number])) return onward()
   if (OPEN_PREFIXES.some((prefix) => pathname.startsWith(prefix))) return onward()
