@@ -121,6 +121,7 @@ export function UploadForm({
    * all because the browser is what drives this and browsers get closed.
    */
   async function driveToCompletion(episodeId: string, chunkCount: number): Promise<void> {
+    try {
       for (;;) {
         const response = await fetch('/api/episodes/advance', {
           method: 'POST',
@@ -159,6 +160,17 @@ export function UploadForm({
 
         await sleep(waitMs)
       }
+    } finally {
+      /*
+       * Whatever stopped the drive, nothing more is arriving on its own.
+       *
+       * The transcript keeps asking for more for as long as it is told the
+       * episode is live, and it was never told otherwise: a finished upload
+       * left a request every five seconds running for as long as the tab
+       * stayed open. Saying so here also gets the library its final status.
+       */
+      onEpisode(episodeId, false)
+    }
   }
 
   /*

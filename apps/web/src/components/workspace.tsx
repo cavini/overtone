@@ -51,7 +51,17 @@ export function Workspace({
         locale={locale}
         labels={labels}
         onEpisode={(episodeId, live) => {
-          setShowing({ episodeId, live })
+          setShowing((current) =>
+            /*
+             * A finished episode says so whether or not anyone is still
+             * looking at it, because saying so is what stops the polling.
+             * Only a live episode is worth pulling the reader away from
+             * whatever they went on to open.
+             */
+            live || current === undefined || current.episodeId === episodeId
+              ? { episodeId, live }
+              : current,
+          )
           setReloadToken((token) => token + 1)
         }}
       />
