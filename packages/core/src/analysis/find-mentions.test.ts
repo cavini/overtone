@@ -18,7 +18,7 @@ const LEMMAS: ReadonlyMap<string, string> = new Map([
 ])
 
 const mentionsIn = (text: string, topic: Topic = HOTDOG) =>
-  findMentions(annotate(tokenise(normalize(text)), LEMMAS), topic)
+  findMentions(annotate(tokenise(normalize(text), 'pt'), LEMMAS, 'pt'), topic)
 
 describe('findMentions', () => {
   it('finds a single-word topic', () => {
