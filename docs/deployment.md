@@ -74,6 +74,31 @@ needed. Confirm it is registered under **Vercel → Project → Settings → Cro
 Jobs** after the first deploy; a `vercel.json` that never deployed schedules
 nothing.
 
+## Finishing episodes with the tab closed
+
+An episode is paced against an allowance that refills by the second, so a
+two-hour one takes about an hour. Postgres drives that, not the browser
+(ADR 0027) — Vercel Hobby's one-cron-a-day is no use for it.
+
+After the first deploy, and again whenever `CRON_SECRET` or the URL changes:
+
+```bash
+APP_URL=https://overtone-five.vercel.app pnpm --filter @overtone/db schedule-advance
+```
+
+It installs `pg_cron` and `pg_net`, then schedules a minute-ly `POST` to
+`/api/episodes/advance-pending`. Running it twice replaces the job rather than
+adding a second one. `CRON_SECRET` is read from `.env.local` and **must match
+the value set in Vercel** — if they differ, the database calls with a token
+the app rejects and episodes silently stop finishing.
+
+Check it is alive:
+
+```sql
+select jobname, schedule, active from cron.job;
+select status, (response).status_code from net._http_response order by created desc limit 5;
+```
+
 **Changing the shared password** — edit it in Vercel and redeploy. Everyone's
 cookie stops matching immediately, because the cookie holds a hash of the
 password itself. That is the logout button.

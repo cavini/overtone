@@ -28,6 +28,9 @@ const CREDITS_PAGE = '/creditos'
  */
 const KEEP_ALIVE_API = '/api/keep-alive'
 
+/** The scheduled transcription step. Same reasoning, same guard. */
+const ADVANCE_API = '/api/episodes/advance-pending'
+
 async function carriesTheCookie(request: NextRequest, password: string): Promise<boolean> {
   return matches(request.cookies.get(GATE_COOKIE)?.value, await tokenFor(password))
 }
@@ -55,7 +58,7 @@ export default async function middleware(request: NextRequest): Promise<Response
   if (password === undefined || password.length === 0) return onward()
 
   if (pathname === GATE_API || pathname.endsWith(GATE_PAGE)) return onward()
-  if (pathname === KEEP_ALIVE_API) return onward()
+  if (pathname === KEEP_ALIVE_API || pathname === ADVANCE_API) return onward()
   if (pathname.endsWith(CREDITS_PAGE)) return onward()
 
   if (await carriesTheCookie(request, password)) return onward()

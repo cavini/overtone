@@ -206,6 +206,19 @@ export const episodes = pgTable(
  * must use the real offset or every timestamp after the join points at the
  * wrong moment.
  */
+/**
+ * Whoever is currently allowed to advance an episode.
+ *
+ * One row. Claimed by a conditional UPDATE rather than an advisory lock,
+ * because the app speaks to Postgres through the *transaction* pooler and a
+ * session-level lock does not survive between statements there — measured,
+ * and it failed silently in exactly the direction that costs money.
+ */
+export const advanceLease = pgTable('advance_lease', {
+  onlyRow: boolean('only_row').primaryKey().default(true),
+  heldUntil: timestamp('held_until', { withTimezone: true }).notNull().defaultNow(),
+})
+
 export const chunkTranscripts = pgTable(
   'chunk_transcripts',
   {

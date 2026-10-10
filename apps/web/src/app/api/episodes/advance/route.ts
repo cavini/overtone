@@ -1,4 +1,5 @@
 import { DEFAULT_LOCALE, LOCALES, type Locale } from '@overtone/messages'
+import { withAdvanceLease } from '../../../../server/advance-pending.js'
 import { advanceOnce } from '../../../../server/analyse-upload.js'
 import { presentAnalysis, presentOutcome } from '../../../../presenter/episode-view.js'
 
@@ -6,6 +7,14 @@ export const runtime = 'nodejs'
 
 /** Hobby's ceiling. One chunk takes a fraction of it. */
 export const maxDuration = 300
+
+/**
+ * How soon to come back when the schedule is mid-step.
+ *
+ * Short, because a step is seconds and the tab is watching: this is not the
+ * allowance saying wait, it is two drivers of the same loop taking turns.
+ */
+const BUSY_RETRY_MS = 3_000
 
 const localeOf = (value: unknown): Locale =>
   LOCALES.includes(value as Locale) ? (value as Locale) : DEFAULT_LOCALE
@@ -32,7 +41,21 @@ export async function POST(request: Request): Promise<Response> {
   }
 
   try {
-    const result = await advanceOnce(episodeId)
+    /*
+     * Under the same lease the schedule takes.
+     *
+     * An episode is advanced by two drivers now — this, when a tab is open,
+     * and `pg_cron` when one is not (ADR 0027). They share one global
+     * allowance, so two advances at once would transcribe the same chunk
+     * twice and pay for it twice.
+     */
+    const result = await withAdvanceLease(() => advanceOnce(episodeId))
+
+    // The schedule has it. It is doing the same work this call would have
+    // done, so there is nothing to report but "ask again shortly".
+    if (result === undefined) {
+      return Response.json({ busy: true, retryAfterMs: BUSY_RETRY_MS })
+    }
 
     return Response.json({
       status: presentOutcome(result.outcome, locale, { chunkCount: result.chunkCount }),
