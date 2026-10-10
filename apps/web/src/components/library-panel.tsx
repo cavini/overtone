@@ -35,6 +35,7 @@ export function LibraryPanel({
   selected,
   reloadToken,
   onOpen,
+  onDeleted,
 }: {
   readonly labels: Labels
   readonly selected: string | undefined
@@ -47,8 +48,32 @@ export function LibraryPanel({
    */
   readonly reloadToken: number
   readonly onOpen: (episodeId: string) => void
+  /** Told when an episode is gone, so nothing keeps showing it. */
+  readonly onDeleted: (episodeId: string) => void
 }) {
   const [episodes, setEpisodes] = useState<readonly LibraryEntry[]>([])
+  /** Which row has asked "are you sure". At most one at a time. */
+  const [confirming, setConfirming] = useState<string | undefined>(undefined)
+
+  /**
+   * Throws an episode away, with everything derived from it.
+   *
+   * Removed from the list here rather than by refetching: the answer is
+   * already known, and a refetch would blink the whole library for one row.
+   */
+  async function remove(episodeId: string): Promise<void> {
+    setConfirming(undefined)
+
+    const response = await fetch(`/api/episodes/list?id=${encodeURIComponent(episodeId)}`, {
+      method: 'DELETE',
+    }).catch(() => undefined)
+
+    if (response?.ok !== true) return
+
+    setEpisodes((listed) => listed.filter((episode) => episode.episodeId !== episodeId))
+    onDeleted(episodeId)
+  }
+
   const [typed, setTyped] = useState('')
 
   useEffect(() => {
@@ -99,16 +124,25 @@ export function LibraryPanel({
                 const reading = episode.episodeId === selected
                 const unfinished = episode.chunksDone < episode.chunkCount
 
+                const asking = episode.episodeId === confirming
+
                 return (
-                  <li key={episode.episodeId}>
+                  <li
+                    key={episode.episodeId}
+                    className="flex items-stretch gap-1 rounded-md border transition-colors"
+                    style={{
+                      borderColor: asking
+                        ? 'var(--alarm)'
+                        : reading
+                          ? 'var(--accent)'
+                          : 'var(--edge)',
+                      background: reading ? 'var(--panel)' : 'transparent',
+                    }}
+                  >
                     <button
                       type="button"
                       onClick={() => onOpen(episode.episodeId)}
-                      className="flex w-full flex-wrap items-baseline justify-between gap-2 rounded-md border px-3 py-2 text-left text-sm transition-colors"
-                      style={{
-                        borderColor: reading ? 'var(--accent)' : 'var(--edge)',
-                        background: reading ? 'var(--panel)' : 'transparent',
-                      }}
+                      className="flex min-w-0 flex-1 flex-wrap items-baseline justify-between gap-2 px-3 py-2 text-left text-sm"
                     >
                       <span className="min-w-0">
                         <span className="font-medium">{episode.title}</span>
@@ -128,6 +162,47 @@ export function LibraryPanel({
                         {reading ? labels.libraryReading : labels.libraryOpen}
                       </span>
                     </button>
+
+                    {/*
+                      Two steps, in place.
+                      
+                      Deleting an episode throws away a transcript that cost
+                      real transcription allowance to produce and cannot be
+                      recovered, so it does not happen on one click. Asked
+                      here rather than in a browser dialog: a dialog blocks
+                      the page, and this one sits next to the thing it is
+                      about to delete.
+                    */}
+                    {asking ? (
+                      <span className="flex items-center gap-1 pr-2 text-xs">
+                        <button
+                          type="button"
+                          onClick={() => void remove(episode.episodeId)}
+                          className="rounded px-2 py-1 font-medium"
+                          style={{ color: 'var(--alarm)' }}
+                        >
+                          {labels.libraryDeleteSure}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setConfirming(undefined)}
+                          className="rounded px-2 py-1"
+                          style={{ color: 'var(--quiet)' }}
+                        >
+                          {labels.libraryDeleteCancel}
+                        </button>
+                      </span>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => setConfirming(episode.episodeId)}
+                        aria-label={`${labels.libraryDelete} ${episode.title}`}
+                        className="px-3 text-xs"
+                        style={{ color: 'var(--quiet)' }}
+                      >
+                        {labels.libraryDelete}
+                      </button>
+                    )}
                   </li>
                 )
               })}
