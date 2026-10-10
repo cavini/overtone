@@ -11,6 +11,7 @@ export {
   missingChunks,
   planChunks,
   planFromTranscripts,
+  stitchBoundaries,
   stitchChunks,
 } from './chunking.js'
 export { stem } from './stem.js'

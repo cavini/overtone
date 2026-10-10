@@ -79,7 +79,7 @@ export function describeChunkStore(
       await withStore(async ({ store, episodeIds: [episode] }) => {
         await store.save(episode, chunk(3, 3_600_000, 'garrafinha'))
 
-        expect((await store.transcripts(episode))[0]).toEqual({
+        expect((await store.transcripts(episode))[0]).toMatchObject({
           index: 3,
           offsetMs: 3_600_000,
           words: [{ text: 'garrafinha', startMs: 120, endMs: 480 }],
@@ -92,7 +92,7 @@ export function describeChunkStore(
         await store.save(episode, chunk(0, 0, 'primeiro'))
         await store.save(episode, chunk(1, 600_000, 'segundo'))
 
-        expect(await store.transcript(episode, 1)).toEqual({
+        expect(await store.transcript(episode, 1)).toMatchObject({
           index: 1,
           offsetMs: 600_000,
           words: [{ text: 'segundo', startMs: 120, endMs: 480 }],

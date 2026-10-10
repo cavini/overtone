@@ -28,6 +28,7 @@ export async function transcriptSoFar(
       index: chunkTranscripts.index,
       offsetMs: chunkTranscripts.offsetMs,
       words: chunkTranscripts.words,
+      segmentStartsMs: chunkTranscripts.segmentStartsMs,
     })
     .from(chunkTranscripts)
     .where(and(eq(chunkTranscripts.episodeId, episodeId), gte(chunkTranscripts.index, since)))
@@ -38,6 +39,7 @@ export async function transcriptSoFar(
       index: row.index,
       offsetMs: row.offsetMs,
       words: (row.words ?? []) as readonly TimedWord[],
+      segmentStartsMs: row.segmentStartsMs ?? [],
     })),
     since,
   )

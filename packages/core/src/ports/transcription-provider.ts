@@ -14,6 +14,18 @@ export interface Transcript {
   readonly providerModel: string
   readonly text: string
   readonly words: readonly TranscribedWord[]
+  /**
+   * Where the transcriber itself started each run of speech.
+   *
+   * The only thing in the response that knows a *different person* began
+   * talking. Reported from a real episode: three turns ran onto one line
+   * because no full stop was written between them, and the transcriber's
+   * own boundaries sat at all three joins.
+   *
+   * Empty when it reported none — a worse transcript, not an unusable one,
+   * so the lines fall back to breaking on punctuation alone.
+   */
+  readonly segmentStartsMs: readonly number[]
   readonly language: string
   readonly durationMs: number
   /**

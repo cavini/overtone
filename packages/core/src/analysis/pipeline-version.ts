@@ -17,5 +17,10 @@
  * `menina` used to be counted as `menino`, `música` as `músico`, `irmã` as
  * `irmão`; now each stands for itself. On a measured episode this moves 32
  * terms, so every count from before it is a different number.
+ *
+ * **4** — lines break where the transcriber said a run of speech started,
+ * not only at punctuation. Three people's turns used to run onto one line
+ * whenever no full stop was written between them, so every segment boundary
+ * — and every citation that points at one — moves.
  */
-export const PIPELINE_VERSION = 3
+export const PIPELINE_VERSION = 4

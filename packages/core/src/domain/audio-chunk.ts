@@ -25,4 +25,12 @@ export interface ChunkTranscript {
   readonly index: number
   readonly offsetMs: number
   readonly words: readonly TimedWord[]
+  /**
+   * Where the transcriber started each run of speech, relative to the chunk
+   * like the word timings are.
+   *
+   * Optional because chunks stored before this existed have none, and those
+   * episodes still have to read.
+   */
+  readonly segmentStartsMs?: readonly number[] | undefined
 }

@@ -217,6 +217,16 @@ export const chunkTranscripts = pgTable(
     offsetMs: integer('offset_ms').notNull(),
     /** `[{ text, startMs, endMs }, …]`, relative to the chunk. */
     words: jsonb('words').notNull(),
+    /*
+     * Where the transcriber started each run of speech, relative to the
+     * chunk like the word timings are.
+     *
+     * Only the starts, never the segment text — the text is already in
+     * `words`, and keeping it twice would roughly double the largest column
+     * in the database to say nothing new. Nullable because chunks stored
+     * before this column existed have none, and those episodes still read.
+     */
+    segmentStartsMs: integer('segment_starts_ms').array(),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [unique('chunk_transcripts_episode_index').on(table.episodeId, table.index)],

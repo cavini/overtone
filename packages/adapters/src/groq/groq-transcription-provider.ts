@@ -162,6 +162,10 @@ export class GroqTranscriptionProvider implements TranscriptionProvider {
       endMs: secondsToMs(word.end),
     }))
 
+    const segmentStartsMs = (parsed.data.segments ?? []).map((segment) =>
+      secondsToMs(segment.start),
+    )
+
     const lastWord = words.at(-1)
 
     return {
@@ -172,6 +176,7 @@ export class GroqTranscriptionProvider implements TranscriptionProvider {
         providerModel: this.model,
         text: parsed.data.text,
         words,
+        segmentStartsMs,
         language: request.language,
         durationMs:
           parsed.data.duration !== undefined

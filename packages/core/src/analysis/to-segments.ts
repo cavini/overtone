@@ -23,9 +23,10 @@ export function toSegments(
   words: readonly TimedWord[],
   tokens: ReadonlyArray<Annotated<TimedToken>>,
   maxWords: number = DEFAULT_MAX_WORDS,
+  boundariesMs: readonly number[] = [],
 ): TranscriptSegment[] {
   return (
-    groupWords(words, maxWords)
+    groupWords(words, maxWords, boundariesMs)
       .map((group, position) => ({
         position,
         startMs: group.startMs,

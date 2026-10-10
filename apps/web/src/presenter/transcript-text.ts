@@ -1,4 +1,4 @@
-import { groupWords, stitchChunks } from '@overtone/core/analysis'
+import { groupWords, stitchBoundaries, stitchChunks } from '@overtone/core/analysis'
 import type { TimedWord } from '@overtone/core/domain'
 
 /**
@@ -37,6 +37,8 @@ interface TranscribedChunk {
   readonly index: number
   readonly offsetMs: number
   readonly words: readonly TimedWord[]
+  /** Where the transcriber started each run of speech. Absent on old chunks. */
+  readonly segmentStartsMs?: readonly number[] | undefined
 }
 
 /**
@@ -64,14 +66,18 @@ export function linesAfter(
 
   for (let chunk = byIndex.get(next); chunk !== undefined; chunk = byIndex.get(next)) {
     const index = next
-    groupWords(stitchChunks([chunk])).forEach((group, position) => {
-      lines.push({
-        chunk: index,
-        position,
-        startMs: group.startMs,
-        text: group.words.map((word) => word.text).join(' '),
-      })
-    })
+    // The transcriber's own breaks as well as the punctuation, so two
+    // people's turns do not land on one line.
+    groupWords(stitchChunks([chunk]), undefined, stitchBoundaries([chunk])).forEach(
+      (group, position) => {
+        lines.push({
+          chunk: index,
+          position,
+          startMs: group.startMs,
+          text: group.words.map((word) => word.text).join(' '),
+        })
+      },
+    )
     next += 1
   }
 
