@@ -16,6 +16,7 @@
   "DAILY_ALLOWANCE_EXHAUSTED": "Today's allowance is spent — it's {allowance_hours, number} hours of audio per day. It comes back in {hours_until_reset, number} hours.",
   "STORAGE_FULL": "Out of room: storage is using {used_bytes, number, ::compact-short} of {limit_bytes, number, ::compact-short}, and this episode needs {needed_bytes, number, ::compact-short}. Delete the audio from older episodes — their statistics stay.",
   "TOPIC_NAME_TAKEN": "There's already a running joke called \"{name}\".",
+  "TOPIC_NEEDS_A_NAME": "Give the running joke a name.",
   "TOPIC_NEEDS_A_TERM": "Add at least one word or phrase to count.",
   "TERM_TOO_MANY_WORDS": "That phrase has {word_count, number} words and the limit is {max_words, number}.",
   "TOPIC_TERM_LIMIT": "A running joke can have up to {max_terms, number} variations.",
