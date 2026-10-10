@@ -39,7 +39,7 @@ let statuses: readonly string[]
 
 beforeAll(async () => {
   const dictionary = new Map(
-    parseLemmaList(readFileSync(`${fixtures}/lemmas-sample.tsv`, 'utf8')),
+    parseLemmaList(readFileSync(`${fixtures}/lemmas-sample.tsv`, 'utf8'), 'pt'),
   )
   const spoken = readFileSync(`${fixtures}/episode-transcript.txt`, 'utf8')
   const transcript = transcriptFromText(spoken)
@@ -62,7 +62,7 @@ beforeAll(async () => {
           transcript: { ...transcript, provider: 'fake', providerModel: 'fixture' },
         }),
     },
-    lemmas: new QueryingLemmaRepository((forms) =>
+    lemmas: new QueryingLemmaRepository((forms, _language) =>
       Promise.resolve(
         forms.flatMap((form) => {
           const lemma = dictionary.get(form)

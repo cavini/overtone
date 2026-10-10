@@ -35,7 +35,7 @@ describe('QueryingLemmaRepository', () => {
       'falei',
       'falando',
       'pirão',
-    ])
+    ], 'pt')
 
     expect(lemmas.get('falei')).toBe('falar')
     expect(lemmas.get('falando')).toBe('falar')
@@ -48,7 +48,7 @@ describe('QueryingLemmaRepository', () => {
     const { query, batches } = recordingQuery()
     await new QueryingLemmaRepository(query).lookup([
       'falei', 'falei', 'falando', 'falei',
-    ])
+    ], 'pt')
 
     expect(batches).toHaveLength(1)
     expect([...(batches[0] ?? [])].sort()).toEqual(['falando', 'falei'])
@@ -57,7 +57,7 @@ describe('QueryingLemmaRepository', () => {
   // An episode with nothing in it should not cost a round trip.
   it('does not query at all for an empty list', async () => {
     const { query, batches } = recordingQuery()
-    const lemmas = await new QueryingLemmaRepository(query).lookup([])
+    const lemmas = await new QueryingLemmaRepository(query).lookup([], 'pt')
 
     expect(lemmas.size).toBe(0)
     expect(batches).toEqual([])
@@ -67,7 +67,7 @@ describe('QueryingLemmaRepository', () => {
     const { query, batches } = recordingQuery()
     const forms = Array.from({ length: LOOKUP_BATCH_SIZE * 2 + 1 }, (_, i) => `w${i}`)
 
-    await new QueryingLemmaRepository(query).lookup(forms)
+    await new QueryingLemmaRepository(query).lookup(forms, 'pt')
 
     expect(batches).toHaveLength(3)
     expect(batches[0]).toHaveLength(LOOKUP_BATCH_SIZE)
@@ -81,7 +81,7 @@ describe('QueryingLemmaRepository', () => {
       ...filler,
       'falei',
       'casas',
-    ])
+    ], 'pt')
 
     expect(lemmas.get('falei')).toBe('falar')
     expect(lemmas.get('casas')).toBe('casa')
@@ -94,12 +94,26 @@ describe('QueryingLemmaRepository', () => {
         { form: 'nunca-pedi-isso', lemma: 'surpresa' },
       ])
 
-    const lemmas = await new QueryingLemmaRepository(chatty).lookup(['falei'])
+    const lemmas = await new QueryingLemmaRepository(chatty).lookup(['falei'], 'pt')
     expect([...lemmas.keys()]).toEqual(['falei'])
   })
 
   it('returns an empty map when the dictionary knows nothing', async () => {
     const empty: LemmaQuery = () => Promise.resolve([])
-    expect((await new QueryingLemmaRepository(empty).lookup(['pirão'])).size).toBe(0)
+    expect((await new QueryingLemmaRepository(empty).lookup(['pirão'], 'pt')).size).toBe(0)
+  })
+})
+
+describe('QueryingLemmaRepository, across two languages', () => {
+  it('passes the language down to every batch', async () => {
+    const asked: string[] = []
+    const repository = new QueryingLemmaRepository(async (forms, language) => {
+      asked.push(language)
+      return forms.map((form) => ({ form, lemma: form }))
+    })
+
+    await repository.lookup(['move', 'serve'], 'en')
+
+    expect(asked).toEqual(['en'])
   })
 })

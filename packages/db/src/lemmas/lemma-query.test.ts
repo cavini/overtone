@@ -15,7 +15,7 @@ const capturing = (rows: unknown[][] = []) => {
 describe('lemmaQuery', () => {
   it('reads form and lemma for the forms it was given', async () => {
     const { db, seen } = capturing([['falei', 'falar']])
-    const rows = await lemmaQuery(db)(['falei', 'falando'])
+    const rows = await lemmaQuery(db)(['falei', 'falando'], 'pt')
 
     expect(rows).toEqual([{ form: 'falei', lemma: 'falar' }])
     expect(seen[0]?.sql).toContain('"lemmas"')
@@ -27,28 +27,46 @@ describe('lemmaQuery', () => {
   // put one placeholder per word, and an episode has thousands.
   it('passes the whole list as a single array parameter', async () => {
     const { db, seen } = capturing()
-    await lemmaQuery(db)(['falei', 'falando', 'pirão'])
+    await lemmaQuery(db)(['falei', 'falando', 'pirão'], 'pt')
 
     expect(seen[0]?.sql).toMatch(/= any/i)
-    expect(seen[0]?.params).toHaveLength(1)
-    expect(seen[0]?.params[0]).toEqual(['falei', 'falando', 'pirão'])
+    // Two parameters: the language, and the whole list of forms as one array.
+    expect(seen[0]?.params).toHaveLength(2)
+    expect(seen[0]?.params[1]).toEqual(['falei', 'falando', 'pirão'])
   })
 
   it('reads nothing else from the dictionary table', async () => {
     const { db, seen } = capturing()
-    await lemmaQuery(db)(['falei'])
+    await lemmaQuery(db)(['falei'], 'pt')
     expect(seen[0]?.sql).not.toMatch(/join/i)
     expect(seen[0]?.sql).not.toMatch(/order by/i)
   })
 
   it('makes one query', async () => {
     const { db, seen } = capturing()
-    await lemmaQuery(db)(['a', 'b', 'c'])
+    await lemmaQuery(db)(['a', 'b', 'c'], 'pt')
     expect(seen).toHaveLength(1)
   })
 
   it('returns nothing when the dictionary knows nothing', async () => {
     const { db } = capturing([])
-    expect(await lemmaQuery(db)(['pirão'])).toEqual([])
+    expect(await lemmaQuery(db)(['pirão'], 'pt')).toEqual([])
+  })
+})
+
+describe('lemmaQuery, across two languages', () => {
+  /*
+   * `move` is in both halves of the dictionary: in Portuguese it is the third
+   * person of `mover`, in English a verb of its own. A query that did not say
+   * which language it wanted would get whichever row the index reached first,
+   * and the analysis would be handed the other language's answer with nothing
+   * to show that it had happened.
+   */
+  it('asks for one language, not for a spelling', async () => {
+    const { db, seen } = capturing([])
+    await lemmaQuery(db)(['move'], 'en')
+
+    expect(seen[0]?.sql).toContain('"language"')
+    expect(seen[0]?.params).toContain('en')
   })
 })

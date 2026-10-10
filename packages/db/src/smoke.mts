@@ -20,6 +20,7 @@ import {
   stitchChunks,
   type Topic,
   type UploadedChunk,
+  type AudioLanguage,
 } from '@overtone/core'
 import { drizzle } from 'drizzle-orm/postgres-js'
 import postgres from 'postgres'
@@ -130,7 +131,9 @@ try {
 
   const deps = {
     transcription: replay,
-    lemmas: { lookup: async (forms: readonly string[]) => new Map((await lemmaQuery(db)(forms)).map((r) => [r.form, r.lemma])) },
+    lemmas: { lookup: async (forms: readonly string[], language: AudioLanguage) =>
+        new Map((await lemmaQuery(db)(forms, language)).map((r) => [r.form, r.lemma])),
+    },
     chunks: new DrizzleChunkStore(db),
     allowance: new DrizzleAllowanceStore(db),
     store: new DrizzleEpisodeStore(db),

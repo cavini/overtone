@@ -2,7 +2,7 @@
 import { describe, expect, it } from 'vitest'
 import { parseLemmaList } from './parse-lemma-list.js'
 
-const asMap = (text: string) => new Map(parseLemmaList(text))
+const asMap = (text: string) => new Map(parseLemmaList(text, 'pt'))
 
 describe('parseLemmaList', () => {
   // The published format is lemma first, token second. Getting this round the
@@ -99,11 +99,57 @@ describe('parseLemmaList', () => {
   })
 
   it('handles an empty file', () => {
-    expect(parseLemmaList('')).toEqual([])
+    expect(parseLemmaList('', 'pt')).toEqual([])
   })
 
   it('is deterministic', () => {
     const text = ['falar\tfalei', 'casa\tcasas', 'país\tpaís'].join('\n')
-    expect(parseLemmaList(text)).toEqual(parseLemmaList(text))
+    expect(parseLemmaList(text, 'pt')).toEqual(parseLemmaList(text, 'pt'))
+  })
+})
+
+describe('parseLemmaList, for English', () => {
+  it('reads the same published format', () => {
+    const map = new Map(parseLemmaList(['be\twas', 'be\twere', 'go\twent'].join('\n'), 'en'))
+
+    expect(map.get('was')).toBe('be')
+    expect(map.get('were')).toBe('be')
+    expect(map.get('went')).toBe('go')
+  })
+
+  /*
+   * An identity row is dropped only when the stemmer independently agrees
+   * (ADR 0019), so the pruning has to consult the stemmer that will actually
+   * run at lookup time. `news` is its own lemma: the English stemmer leaves
+   * it alone, so the row is redundant and goes. Pruned against the
+   * *Portuguese* stemmer, which cuts `news` to `new`, the same row looks
+   * load-bearing and is kept — and the English half of the dictionary fills
+   * with rows protecting it from a stemmer that will never see it.
+   */
+  it('prunes against the stemmer the language will use', () => {
+    expect(parseLemmaList('news\tnews', 'en')).toEqual([])
+    expect(parseLemmaList('news\tnews', 'pt')).toEqual([['news', 'news']])
+  })
+
+  /*
+   * English needs far fewer protective rows than Portuguese, because the
+   * English stemmer guards most singular `-s` nouns by rule rather than by
+   * list: `-ss`, `-us` and `-is` cover `glass`, `virus` and `analysis`
+   * between them. `bias` is safe without a row of its own, where `país`
+   * needed one.
+   */
+  it('adds no row for a lemma the stemmer already leaves alone', () => {
+    const pairs = parseLemmaList('bias\tbiases', 'en')
+
+    expect(pairs).toContainEqual(['biases', 'bias'])
+    expect(new Map(pairs).get('bias')).toBeUndefined()
+  })
+
+  // And the other half of the rule still applies where the rules run out.
+  it('protects a lemma the stemmer would cut', () => {
+    const map = new Map(parseLemmaList('headquarters\theadquarter', 'en'))
+
+    expect(map.get('headquarter')).toBe('headquarters')
+    expect(map.get('headquarters')).toBe('headquarters')
   })
 })

@@ -350,10 +350,24 @@ export const queries = pgTable('queries', {
 export const lemmas = pgTable(
   'lemmas',
   {
-    form: text('form').primaryKey(),
+    /**
+     * Which half of the dictionary a row belongs to.
+     *
+     * Part of the primary key, because a spelling is not unique across
+     * languages: `move`, `come`, `serve` and `parte` are all inflections of
+     * a Portuguese verb *and* English words in their own right. With `form`
+     * alone as the key, whichever language loaded second would overwrite the
+     * other and the analysis would be handed the wrong answer silently.
+     */
+    language: text('language').notNull().default('pt'),
+    form: text('form').notNull(),
     lemma: text('lemma').notNull(),
   },
-  (table) => [index('lemmas_lemma').on(table.lemma)],
+  (table) => [
+    primaryKey({ columns: [table.language, table.form] }),
+    check('lemmas_language', inList(table.language, AUDIO_LANGUAGES)),
+    index('lemmas_lemma').on(table.language, table.lemma),
+  ],
 )
 
 /**
