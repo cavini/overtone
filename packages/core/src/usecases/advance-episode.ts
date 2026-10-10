@@ -13,7 +13,6 @@ import type {
 import type { LemmaRepository } from '../ports/lemma-repository.js'
 import type { TranscriptionProvider } from '../ports/transcription-provider.js'
 import { annotate } from '../analysis/annotate.js'
-import type { PackedLanguage } from '../analysis/language-pack.js'
 import { stitchChunks } from '../analysis/chunking.js'
 import { countTerms } from '../analysis/count-terms.js'
 import { findMentions } from '../analysis/find-mentions.js'
@@ -36,13 +35,6 @@ export interface UploadedChunk {
 
 export interface AdvanceEpisodeRequest {
   readonly episodeId: string
-  /**
-   * What the audio is spoken in, and therefore what it is analysed in.
-   *
-   * Optional, defaulting to Portuguese, because every episode recorded
-   * before this existed was Portuguese and is stored that way.
-   */
-  readonly language?: PackedLanguage
   readonly chunks: readonly UploadedChunk[]
   readonly topics: readonly Topic[]
   /**
@@ -161,7 +153,7 @@ export async function advanceEpisode(
   // Every chunk is in. Stitch, analyse, store.
   await store.setStatus(request.episodeId, 'analyzing')
 
-  const language: PackedLanguage = request.language ?? 'pt'
+  const language = request.language ?? DEFAULT_AUDIO_LANGUAGE
 
   const stored = await chunks.transcripts(request.episodeId)
   const words = stitchChunks(stored)

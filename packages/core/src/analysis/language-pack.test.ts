@@ -1,18 +1,24 @@
 import { describe, expect, it } from 'vitest'
-import { PACKED_LANGUAGES, languagePack } from './language-pack.js'
+import { AUDIO_LANGUAGES } from '../domain/audio-language.js'
+import { languagePack } from './language-pack.js'
 import { COLLOQUIAL_LEMMAS } from './colloquial.js'
 import { FILLERS_EN, STOP_WORDS_EN } from './vocabulary-en.js'
 import { FILLERS, STOP_WORDS } from './vocabulary.js'
 
 describe('languagePack', () => {
-  it('has a pack for every language it claims to cover', () => {
-    for (const language of PACKED_LANGUAGES) {
+  /*
+   * Every language an episode can be in has a pack.
+   *
+   * Offering a language for transcription without a stop-word list, a
+   * stemmer and a splitter for it would analyse that episode with Portuguese
+   * rules and report the result as if it were right. The record type makes
+   * that a compile error; this makes it a test failure too, because the
+   * compile error is only as good as the type staying total.
+   */
+  it('has a pack for every language an episode can be in', () => {
+    for (const language of AUDIO_LANGUAGES) {
       expect(languagePack(language), language).toBeDefined()
     }
-  })
-
-  it('covers the two languages the show is recorded in', () => {
-    expect([...PACKED_LANGUAGES].sort()).toEqual(['en', 'pt'])
   })
 
   describe('Portuguese', () => {

@@ -1,3 +1,4 @@
+import { AUDIO_LANGUAGES, type AudioLanguage } from '../domain/audio-language.js'
 import { COLLOQUIAL_LEMMAS } from './colloquial.js'
 import { splitContractions } from './contractions.js'
 import { stemEnglish } from './stem-en.js'
@@ -69,23 +70,19 @@ const ENGLISH: LanguagePack = {
   textSearchConfiguration: 'english',
 }
 
-const PACKS = { pt: PORTUGUESE, en: ENGLISH } as const
-
 /**
- * The languages the analysis can actually handle.
+ * One pack per language an episode can be in.
  *
- * Derived from the packs rather than declared, and deliberately a different
- * type from the domain's `AudioLanguage`. They hold the same two values
- * today, and they answer different questions: one is what the transcriber
- * can be asked for, the other is what this pipeline has a stop-word list, a
- * stemmer and a splitter for. If a third language is ever offered for
- * transcription before its pack exists, `languagePack(episode.language)`
- * should stop compiling — which is only possible while the two are separate.
+ * Typed as a total record rather than a loose object, so offering a new
+ * language for transcription without writing its stop-word list, stemmer and
+ * splitter is a compile error rather than an episode quietly analysed with
+ * Portuguese rules.
  */
-export type PackedLanguage = keyof typeof PACKS
+const PACKS: Record<AudioLanguage, LanguagePack> = { pt: PORTUGUESE, en: ENGLISH }
 
-export const PACKED_LANGUAGES = Object.keys(PACKS) as readonly PackedLanguage[]
-
-export function languagePack(language: PackedLanguage): LanguagePack {
+export function languagePack(language: AudioLanguage): LanguagePack {
   return PACKS[language]
 }
+
+/** Re-exported so a caller needs one import to analyse in a language. */
+export { AUDIO_LANGUAGES, type AudioLanguage }
