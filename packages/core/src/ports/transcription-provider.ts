@@ -1,3 +1,4 @@
+import type { AudioLanguage } from '../domain/audio-language.js'
 import type { ObservedAllowance } from '../domain/observed-allowance.js'
 
 /** One word, with the timing that lets a count link back to the audio. */
@@ -74,11 +75,15 @@ export interface TranscriptionRequest {
   /** Where the provider can fetch the audio. */
   readonly audioUrl: string
   /**
-   * Always stated, never auto-detected. Detection misfires on accented and
-   * code-switched speech, and an episode silently transcribed as the wrong
-   * language would produce fluent nonsense that still counts.
+   * Always stated, never auto-detected.
+   *
+   * Detection misfires on accented and code-switched speech, and an episode
+   * silently transcribed as the wrong language produces fluent nonsense that
+   * still counts. Chosen per episode and recorded with it (ADR 0022), so
+   * what it was transcribed as is a fact about the episode rather than a
+   * property of whoever is reading.
    */
-  readonly language: 'pt'
+  readonly language: AudioLanguage
 }
 
 export interface TranscriptionProvider {

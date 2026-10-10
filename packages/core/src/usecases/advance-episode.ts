@@ -1,4 +1,5 @@
 import type { ChunkTranscript } from '../domain/audio-chunk.js'
+import { DEFAULT_AUDIO_LANGUAGE, type AudioLanguage } from '../domain/audio-language.js'
 import type { Topic } from '../domain/topic.js'
 import type { AllowanceStore } from '../ports/allowance-store.js'
 import type { ChunkStore } from '../ports/chunk-store.js'
@@ -36,6 +37,14 @@ export interface AdvanceEpisodeRequest {
   readonly episodeId: string
   readonly chunks: readonly UploadedChunk[]
   readonly topics: readonly Topic[]
+  /**
+   * What the audio is spoken in.
+   *
+   * A property of the episode, settled when it was uploaded — not of
+   * whoever happens to be looking at it now (ADR 0022). Defaults to
+   * Brazilian Portuguese, which is what this show is.
+   */
+  readonly language?: AudioLanguage
 }
 
 export interface AdvanceEpisodeDependencies {
@@ -112,7 +121,7 @@ export async function advanceEpisode(
 
     const transcribed = await transcription.transcribe({
       audioUrl: uploaded.audioUrl,
-      language: 'pt',
+      language: request.language ?? DEFAULT_AUDIO_LANGUAGE,
     })
 
     if (!transcribed.ok) {
