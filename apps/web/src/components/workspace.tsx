@@ -91,6 +91,11 @@ export function Workspace({
         selected={showing?.episodeId}
         reloadToken={reloadToken}
         onOpen={(episodeId) => setShowing({ episodeId, live: false })}
+        onDeleted={(episodeId) =>
+          // Stop reading an episode that no longer exists. Leaving it on
+          // screen would keep polling a transcript for a deleted row.
+          setShowing((current) => (current?.episodeId === episodeId ? undefined : current))
+        }
       />
 
       {showing ? (
