@@ -25,6 +25,7 @@ import {
 } from '@overtone/db/schema'
 import { and, asc, desc, eq, sql } from 'drizzle-orm'
 import { DrizzleAllowanceStore, DrizzleChunkStore } from '@overtone/db/repositories'
+import { isAbandoned } from './abandoned.js'
 import { topicsOfSeries } from './topics.js'
 import { blobStore, database, episodeDirectory, pipelineDependencies } from './wiring.js'
 
@@ -494,6 +495,8 @@ export async function advanceOnce(episodeId: string): Promise<AdvancedEpisode> {
       // The scheduled step has no signed-in user, so the running jokes come
       // from the episode's own library rather than from whoever is looking.
       seriesId: episodes.seriesId,
+      // How long its audio has had to arrive.
+      createdAt: episodes.createdAt,
     })
     .from(episodes)
     .where(eq(episodes.id, episodeId))
@@ -568,6 +571,25 @@ export async function advanceOnce(episodeId: string): Promise<AdvancedEpisode> {
     (uploaded.find((chunk) => chunk.index === next.index)?.audioUrl ?? '') !== ''
 
   if (!nextHasAudio) {
+    /*
+     * Eventually written down, not just reported.
+     *
+     * The scheduled runner takes the **oldest** unfinished episode every
+     * minute (ADR 0027), so an episode whose audio never arrived is
+     * unfinishable *and* immovable: picked every minute, failing every
+     * minute, starving everything behind it. Recording the failure takes it
+     * out of the queue.
+     *
+     * Only after the grace period. The row is written before the chunks are
+     * uploaded, so failing one the moment its audio is missing would kill a
+     * perfectly good upload that is still arriving.
+     */
+    if (isAbandoned(episode.createdAt.getTime(), Date.now())) {
+      await pipelineDependencies().store.setStatus(episodeId, 'failed', {
+        code: 'AUDIO_NOT_FOUND',
+      })
+    }
+
     return {
       outcome: { state: 'failed', failure: { code: 'AUDIO_NOT_FOUND' } },
       chunkCount: plan.length,

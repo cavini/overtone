@@ -3,6 +3,9 @@ import { defineConfig } from 'vitest/config'
 export default defineConfig({
   test: {
     include: ['src/**/*.test.ts', 'src/**/*.test.tsx'],
+    // The database-backed ones have their own config, and their own reason
+    // to run one at a time. See `vitest.integration.config.ts`.
+    exclude: ['src/**/*.live.test.ts', 'node_modules/**'],
     environment: 'node',
     coverage: {
       provider: 'v8',
