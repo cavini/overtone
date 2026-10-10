@@ -143,6 +143,18 @@ export const episodes = pgTable(
      * (ADR 0022).
      */
     language: text('language', { enum: AUDIO_LANGUAGES }).notNull().default('pt'),
+    /**
+     * A hash of the audio, so the same file is recognised as the same file.
+     *
+     * Computed in the browser before anything is uploaded. Names are not
+     * enough — the same episode arrives as `ep-201.mp3` and `Sun Your Balls
+     * 201.m4a` — and re-transcribing a two-hour episode spends a third of a
+     * day's allowance to learn nothing.
+     *
+     * Nullable, because episodes uploaded before this existed have no hash
+     * and there is nothing honest to put there.
+     */
+    audioDigest: text('audio_digest'),
     byteSize: bigint('byte_size', { mode: 'number' }).notNull().default(0),
     blobKey: text('blob_key'),
     /** Present means the stats page is public to anyone holding the link. */
@@ -153,6 +165,7 @@ export const episodes = pgTable(
   (table) => [
     unique('episodes_series_number').on(table.seriesId, table.number),
     index('episodes_series_status').on(table.seriesId, table.status),
+    index('episodes_audio_digest').on(table.seriesId, table.audioDigest),
     check('episodes_language', inList(table.language, AUDIO_LANGUAGES)),
     // Drizzle's `enum` option is a TypeScript nicety; without this the column
     // is plain `text` and the database would accept any string at all.
