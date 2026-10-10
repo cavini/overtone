@@ -3,6 +3,7 @@ import {
   DAILY_ALLOWANCE_MS,
   planChunks,
   asAudioLanguage,
+  readEpisodeName,
   type AudioLanguage,
   planFromTranscripts,
   type AdvanceEpisodeOutcome,
@@ -99,6 +100,15 @@ export interface StartedEpisode {
     readonly endMs: number
     readonly uploadUrl: string
   }>
+  /**
+   * This exact audio was already here, so nothing was uploaded.
+   *
+   * The episode returned is the one that already exists. Re-transcribing a
+   * two-hour episode costs about a third of a day's allowance, and the
+   * second copy would say exactly what the first one says.
+   */
+  readonly alreadyHave: boolean
+  readonly title: string
 }
 
 /**
@@ -111,15 +121,41 @@ export interface StartedEpisode {
  */
 export async function startEpisode(
   durationMs: number,
-  title: string,
+  filename: string,
   language: AudioLanguage,
+  audioDigest?: string,
 ): Promise<StartedEpisode> {
   const seriesId = await sharedSeriesId()
-  const [created] = await database()
+  const db = database()
+
+  // The same audio under a different name is the same episode.
+  if (audioDigest !== undefined && audioDigest.length > 0) {
+    const [existing] = await db
+      .select({ id: episodes.id, title: episodes.title })
+      .from(episodes)
+      .where(and(eq(episodes.seriesId, seriesId), eq(episodes.audioDigest, audioDigest)))
+      .limit(1)
+
+    if (existing !== undefined) {
+      return { episodeId: existing.id, chunks: [], alreadyHave: true, title: existing.title }
+    }
+  }
+
+  /*
+   * A filename is not a title.
+   *
+   * `sun-your-balls-201.m4a` was being stored verbatim, so a library of
+   * eleven episodes read like a directory listing. The number in the name
+   * is the episode number when there is one, which is also what the library
+   * sorts by.
+   */
+  const named = readEpisodeName(filename)
+  const title = named.title.length > 0 ? named.title : filename
+  const [created] = await db
     .insert(episodes)
     .values({
       seriesId,
-      number: await nextEpisodeNumber(seriesId),
+      number: named.number ?? (await nextEpisodeNumber(seriesId)),
       title,
       // Stored now because every later step re-derives the chunk plan from
       // it, and the plan has to come out the same every time.
@@ -128,6 +164,7 @@ export async function startEpisode(
       // as is a fact about the episode, not about who is reading it later
       // (ADR 0022).
       language,
+      ...(audioDigest === undefined ? {} : { audioDigest }),
     })
     .returning({ id: episodes.id })
 
@@ -141,7 +178,7 @@ export async function startEpisode(
     })),
   )
 
-  return { episodeId, chunks }
+  return { episodeId, chunks, alreadyHave: false, title }
 }
 
 export interface LibraryEpisode {
