@@ -35,7 +35,18 @@ export default async function HomePage({
             {labels.tagline}
           </p>
         </div>
-        <LocaleSwitcher label={labels.language} />
+        <div className="flex items-center gap-4">
+          <LocaleSwitcher label={labels.language} />
+          {/*
+           * A form, not a link. A sign-out somebody else's page can trigger
+           * with an image tag is a nuisance anybody can inflict.
+           */}
+          <form method="post" action="/api/auth/sign-out">
+            <button type="submit" className="text-sm underline" style={{ color: 'var(--quiet)' }}>
+              {labels.signOut}
+            </button>
+          </form>
+        </div>
       </header>
 
       {/*
