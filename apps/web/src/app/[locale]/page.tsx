@@ -38,11 +38,27 @@ export default async function HomePage({
         <LocaleSwitcher label={labels.language} />
       </header>
 
-      <LanguageNotice labels={labels} />
+      {/*
+       * One column, one rhythm.
+       *
+       * Every block used to carry its own top margin, which held up until
+       * one of them did not: the upload form had none, so it sat flush
+       * against the running jokes above it. A block cannot see its
+       * neighbours, so the gap between them was never its decision to make.
+       */}
+      <div className="stack flex flex-col gap-6">
+        <LanguageNotice labels={labels} />
 
-      <JokesPanel locale={locale} labels={labels} />
+        {/* Upload, search, the library, and the transcript they open. */}
+        <Workspace locale={locale} labels={labels} />
 
-      <Workspace locale={locale} labels={labels} />
+        {/*
+         * Last, because it is a setting rather than a thing to read. It
+         * decides what the next upload counts, not what this page says, and
+         * it used to be the first thing between the reader and the words.
+         */}
+        <JokesPanel locale={locale} labels={labels} />
+      </div>
 
       {/* Said once, plainly: these counts describe the edit, not the room. */}
       <footer className="mt-14 border-t pt-5 text-xs" style={{ borderColor: 'var(--edge)', color: 'var(--quiet)' }}>

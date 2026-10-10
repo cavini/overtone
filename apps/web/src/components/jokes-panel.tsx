@@ -3,6 +3,7 @@
 import type { Locale } from '@overtone/messages'
 import { useEffect, useState } from 'react'
 import type { UiKey } from '../i18n/ui.js'
+import { Panel } from './panel.js'
 
 type Labels = Record<UiKey, string>
 
@@ -76,13 +77,7 @@ export function JokesPanel({ locale, labels }: { readonly locale: Locale; readon
   }
 
   return (
-    <section
-      className="mt-6 rounded-xl border p-5"
-      style={{ borderColor: 'var(--edge)', background: 'var(--panel)' }}
-    >
-      <h2 className="text-xl" style={{ fontFamily: 'var(--font-display)' }}>
-        {labels.jokesHeading}
-      </h2>
+    <Panel heading={labels.jokesHeading}>
       <p className="mt-1 text-sm" style={{ color: 'var(--quiet)' }}>
         {labels.jokesHint}
       </p>
@@ -188,6 +183,6 @@ export function JokesPanel({ locale, labels }: { readonly locale: Locale; readon
           {error}
         </p>
       ) : null}
-    </section>
+    </Panel>
   )
 }

@@ -9,6 +9,7 @@ import { splitAndUpload, type ChunkTarget } from '../audio/split-and-upload.js'
 import type { UiKey } from '../i18n/ui.js'
 import type { AnalysisView, OutcomeView } from '../presenter/episode-view.js'
 import { CountsTable, JokeList, StatStrip } from './counts-table.js'
+import { Panel } from './panel.js'
 import { ProgressPanel, type Progress } from './progress-panel.js'
 
 type Labels = Record<UiKey, string>
@@ -264,55 +265,59 @@ export function UploadForm({
 
   return (
     <>
-      <form
-        className="rounded-xl border p-5"
-        style={{ borderColor: 'var(--edge)', background: 'var(--panel)' }}
-        onSubmit={(event) => {
-          event.preventDefault()
-          const file = input.current?.files?.[0]
-          if (file) void send(file)
-        }}
-      >
-        <h2 className="text-xl" style={{ fontFamily: 'var(--font-display)' }}>
-          {labels.uploadHeading}
-        </h2>
-        <p className="mt-1 text-sm" style={{ color: 'var(--quiet)' }}>
-          {labels.uploadHint}
-        </p>
+      <Panel heading={labels.uploadHeading}>
+        <form
+          onSubmit={(event) => {
+            event.preventDefault()
+            const file = input.current?.files?.[0]
+            if (file) void send(file)
+          }}
+        >
+          <p className="mt-1 text-sm" style={{ color: 'var(--quiet)' }}>
+            {labels.uploadHint}
+          </p>
 
-        <div className="mt-4 flex flex-wrap items-center gap-3">
-          <input
-            ref={input}
-            type="file"
-            name="audio"
-            accept={FILE_INPUT_ACCEPT}
-            required
-            disabled={busy}
-            onChange={(event) => setFilename(event.target.files?.[0]?.name ?? '')}
-            className="text-sm file:mr-3 file:cursor-pointer file:rounded-md file:border file:px-3 file:py-1.5 file:text-sm"
-            style={{ color: 'var(--quiet)' }}
-          />
-          <button
-            type="submit"
-            disabled={busy}
-            className="rounded-md px-4 py-2 text-sm font-medium transition-opacity disabled:opacity-60"
-            style={{ background: 'var(--accent)', color: 'var(--ground)' }}
-          >
-            {busy ? labels.uploading : labels.uploadButton}
-          </button>
-        </div>
+          <div className="mt-4 flex flex-wrap items-center gap-3">
+            <input
+              ref={input}
+              type="file"
+              name="audio"
+              accept={FILE_INPUT_ACCEPT}
+              required
+              disabled={busy}
+              onChange={(event) => setFilename(event.target.files?.[0]?.name ?? '')}
+              className="text-sm file:mr-3 file:cursor-pointer file:rounded-md file:border file:px-3 file:py-1.5 file:text-sm"
+              style={{ color: 'var(--quiet)' }}
+            />
+            <button
+              type="submit"
+              disabled={busy}
+              className="rounded-md px-4 py-2 text-sm font-medium transition-opacity disabled:opacity-60"
+              style={{ background: 'var(--accent)', color: 'var(--ground)' }}
+            >
+              {busy ? labels.uploading : labels.uploadButton}
+            </button>
+          </div>
 
-        <p className="mt-2 text-xs" style={{ color: 'var(--quiet)' }}>
-          {filename === '' ? labels.noFile : filename}
-        </p>
-      </form>
+          <p className="mt-2 text-xs" style={{ color: 'var(--quiet)' }}>
+            {filename === '' ? labels.noFile : filename}
+          </p>
+        </form>
+
+        {/* What the button is for, while there is nothing to show yet. */}
+        {result === undefined ? (
+          <p className="mt-4 text-sm" style={{ color: 'var(--quiet)' }}>
+            {labels.nothingYet}
+          </p>
+        ) : null}
+      </Panel>
 
       {progress ? <ProgressPanel progress={progress} labels={labels} /> : null}
 
       {alreadyHere !== undefined ? (
         <p
           role="status"
-          className="mt-4 rounded-lg border px-4 py-3 text-sm"
+          className="rounded-lg border px-4 py-3 text-sm"
           style={{ borderColor: 'var(--accent-quiet)', color: 'var(--prose)' }}
         >
           {labels.episodeAlreadyHere}
@@ -325,15 +330,15 @@ export function UploadForm({
       {error !== '' ? (
         <p
           role="alert"
-          className="mt-4 rounded-lg border px-4 py-3 text-sm"
+          className="rounded-lg border px-4 py-3 text-sm"
           style={{ borderColor: 'var(--alarm)', color: 'var(--alarm)' }}
         >
           {error}
         </p>
       ) : null}
 
-      {result ? (
-        <section className="mt-8" aria-live="polite">
+      {result === undefined ? null : (
+        <section aria-live="polite">
           <div className="flex items-baseline gap-3">
             <h2 className="text-xl" style={{ fontFamily: 'var(--font-display)' }}>
               {labels.resultsHeading}
@@ -363,10 +368,6 @@ export function UploadForm({
             </>
           ) : null}
         </section>
-      ) : (
-        <p className="mt-8 text-sm" style={{ color: 'var(--quiet)' }}>
-          {labels.nothingYet}
-        </p>
       )}
     </>
   )
