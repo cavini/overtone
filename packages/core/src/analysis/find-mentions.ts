@@ -36,6 +36,19 @@ function stripLeadingDeterminers(words: readonly string[]): readonly string[] {
   return firstMeaningful > 0 ? words.slice(firstMeaningful) : words
 }
 
+/**
+ * The key a pattern is looked up by.
+ *
+ * Exported because it has to be computed in two places — once when a running
+ * joke is saved, once when an episode is scanned — and the two must agree
+ * exactly or the joke silently counts zero. They did not: storage was
+ * stripping spaces and hyphens off the raw text, so "o pirão" was filed
+ * under `opirão` while the scanner looked for `pirão`.
+ */
+export function matchKeyFor(pattern: string): string | undefined {
+  return compilePattern(pattern)
+}
+
 function compilePattern(pattern: string): string | undefined {
   const words = tokenise(normalize(pattern)).map((token) => token.surface)
   const key = keyOf(stripLeadingDeterminers(words))
