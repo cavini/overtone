@@ -2,7 +2,6 @@ import type { AnnotatedToken } from '../domain/token.js'
 import type { Mention } from '../domain/mention.js'
 import type { Topic } from '../domain/topic.js'
 import { normalize } from './normalize.js'
-import { tokenise } from './tokenise.js'
 
 /**
  * Dropped from the front of a pattern, so writing `o hotdog` matches `hotdog`.
@@ -49,8 +48,19 @@ export function matchKeyFor(pattern: string): string | undefined {
   return compilePattern(pattern)
 }
 
+/*
+ * Split on whitespace rather than tokenised, deliberately.
+ *
+ * `match_key` is stored on the topic and compared against a key computed
+ * while scanning an episode, so the two must agree exactly or a running joke
+ * silently counts zero. Tokenising would make the key depend on the language
+ * the splitter was given — and a series can now hold episodes in both — while
+ * `keyOf` strips the hyphens and apostrophes a splitter would have cut on
+ * anyway. `diga-me` keys as `digame` either way; the difference is that this
+ * way it cannot drift.
+ */
 function compilePattern(pattern: string): string | undefined {
-  const words = tokenise(normalize(pattern)).map((token) => token.surface)
+  const words = normalize(pattern).split(' ').filter((word) => word.length > 0)
   const key = keyOf(stripLeadingDeterminers(words))
 
   return key.length > 0 ? key : undefined

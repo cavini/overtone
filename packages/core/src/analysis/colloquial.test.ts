@@ -16,10 +16,10 @@ const DICTIONARY = new Map([
 ])
 
 const lemmaOf = (surface: string): string =>
-  annotate([{ surface, index: 0 }], DICTIONARY)[0]?.lemma ?? ''
+  annotate([{ surface, index: 0 }], DICTIONARY, 'pt')[0]?.lemma ?? ''
 
 const sourceOf = (surface: string): string =>
-  annotate([{ surface, index: 0 }], DICTIONARY)[0]?.lemmaSource ?? ''
+  annotate([{ surface, index: 0 }], DICTIONARY, 'pt')[0]?.lemmaSource ?? ''
 
 describe('the colloquial overrides', () => {
   /*

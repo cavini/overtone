@@ -9,7 +9,7 @@ const spoken = (...texts: string[]): TimedWord[] =>
   texts.map((text, i) => ({ text, startMs: i * 400, endMs: i * 400 + 400 }))
 
 const segmentsOf = (words: readonly TimedWord[], maxWords?: number) =>
-  toSegments(words, annotate(tokeniseTimed(words), new Map()), maxWords)
+  toSegments(words, annotate(tokeniseTimed(words, 'pt'), new Map(), 'pt'), maxWords)
 
 describe('toSegments', () => {
   it('breaks at the end of a sentence', () => {

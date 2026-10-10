@@ -1,7 +1,6 @@
 import type { Annotated, LemmaLookup, LemmaSource, Token } from '../domain/token.js'
 import { classify } from './classify.js'
-import { COLLOQUIAL_LEMMAS } from './colloquial.js'
-import { stem } from './stem.js'
+import { languagePack, type PackedLanguage } from './language-pack.js'
 
 /**
  * Attaches a lemma and a class to every token.
@@ -24,9 +23,12 @@ import { stem } from './stem.js'
 export function annotate<T extends Token>(
   tokens: readonly T[],
   lemmas: LemmaLookup,
+  language: PackedLanguage,
 ): Array<Annotated<T>> {
+  const { overrides, stem } = languagePack(language)
+
   return tokens.map((token) => {
-    const corrected = COLLOQUIAL_LEMMAS[token.surface]
+    const corrected = overrides[token.surface]
     const fromDictionary = lemmas.get(token.surface)
 
     let lemma: string
@@ -48,7 +50,7 @@ export function annotate<T extends Token>(
       ...token,
       lemma,
       lemmaSource,
-      tokenClass: classify(token.surface),
+      tokenClass: classify(token.surface, language),
     }
   })
 }

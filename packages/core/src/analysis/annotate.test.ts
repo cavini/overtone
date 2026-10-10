@@ -15,7 +15,7 @@ const DICTIONARY: ReadonlyMap<string, string> = new Map([
 ])
 
 const run = (text: string, lemmas = DICTIONARY) =>
-  annotate(tokenise(normalize(text)), lemmas)
+  annotate(tokenise(normalize(text), 'pt'), lemmas, 'pt')
 
 describe('annotate', () => {
   it('prefers the dictionary', () => {
@@ -60,7 +60,7 @@ describe('annotate', () => {
   })
 
   it('works with no dictionary at all', () => {
-    const tokens = annotate(tokenise(normalize('hotdogs e pirão')), new Map())
+    const tokens = annotate(tokenise(normalize('hotdogs e pirão'), 'pt'), new Map(), 'pt')
     expect(tokens.map((t) => t.lemma)).toEqual(['hotdog', 'e', 'pirão'])
     expect(tokens.map((t) => t.lemmaSource)).toEqual(['stemmer', 'surface', 'surface'])
   })
@@ -71,6 +71,42 @@ describe('annotate', () => {
   })
 
   it('returns nothing for an empty stream', () => {
-    expect(annotate([], DICTIONARY)).toEqual([])
+    expect(annotate([], DICTIONARY, 'pt')).toEqual([])
+  })
+})
+
+describe('annotate, in English', () => {
+  it('falls back to the English stemmer for a word no dictionary holds', () => {
+    const [token] = annotate([{ surface: 'podcasts', index: 0 }], new Map(), 'en')
+
+    expect(token?.lemma).toBe('podcast')
+    expect(token?.lemmaSource).toBe('stemmer')
+  })
+
+  /*
+   * The two stemmers disagree, and both are right about their own language.
+   *
+   * Portuguese leaves `podcasts` alone — its rules see no plural it
+   * recognises — while English reduces it. `aviões` is the reverse. Using one
+   * stemmer for both languages would mean one of them was always guessing.
+   */
+  it('uses the stemmer for the language it was told', () => {
+    const asEnglish = annotate([{ surface: 'boxes', index: 0 }], new Map(), 'en')
+    const asPortuguese = annotate([{ surface: 'boxes', index: 0 }], new Map(), 'pt')
+
+    expect(asEnglish[0]?.lemma).toBe('box')
+    expect(asPortuguese[0]?.lemma).toBe('boxe')
+  })
+
+  // The Portuguese corrections are evidence from Portuguese episodes. Applying
+  // them to English would mean `cara` was "dude" in a language that does not
+  // have the word.
+  it('does not apply the Portuguese corrections to English', () => {
+    expect(annotate([{ surface: 'cara', index: 0 }], new Map(), 'pt')[0]?.lemmaSource).toBe(
+      'override',
+    )
+    expect(annotate([{ surface: 'cara', index: 0 }], new Map(), 'en')[0]?.lemmaSource).toBe(
+      'surface',
+    )
   })
 })
