@@ -55,6 +55,14 @@ const inList = (column: AnyPgColumn, values: readonly string[]) => {
 
 export const series = pgTable('series', {
   id: uuid('id').primaryKey().defaultRandom(),
+  /**
+   * The show's own RSS feed, when there is one.
+   *
+   * Used to look up what the publisher calls an episode and what they said
+   * it was about. Private feeds carry a token in the path, so this is as
+   * sensitive as a password and never leaves the server.
+   */
+  feedUrl: text('feed_url'),
   // Named explicitly rather than through the `authUserId` helper, which calls
   // its column `user_id`. The owner of a series and a member of one are
   // different things, and a shared helper quietly made them the same column.
@@ -155,6 +163,17 @@ export const episodes = pgTable(
      * and there is nothing honest to put there.
      */
     audioDigest: text('audio_digest'),
+    /**
+     * What the publisher says this episode is about.
+     *
+     * Read from the series' own feed when it has one, keyed by episode
+     * number. Context a transcript cannot supply: who the guest was, what
+     * the bit was called, what the group themselves said it was about.
+     *
+     * Nullable, because an episode uploaded without a feed to match it
+     * against has no description and an invented one would be worse.
+     */
+    description: text('description'),
     byteSize: bigint('byte_size', { mode: 'number' }).notNull().default(0),
     blobKey: text('blob_key'),
     /** Present means the stats page is public to anyone holding the link. */
