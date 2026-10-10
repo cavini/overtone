@@ -1,6 +1,6 @@
 # ADR 0014 — Brazilian Portuguese is the language; replace the analysis library
 
-**Date:** 2026-10-08 · **Status:** accepted · **Supersedes:** the `wink-nlp` choice in ADR/tech-stack · **Resolves:** the language question
+**Date:** 2026-10-08 · **Status:** accepted, **superseded in part by** [ADR 0022](0022-the-language-is-chosen-per-episode.md) — the language is now chosen per episode. What this ADR got right survives: an episode records what it was transcribed as, so switching the interface cannot move an existing count. · **Supersedes:** the `wink-nlp` choice in ADR/tech-stack · **Resolves:** the language question
 
 ## Context
 
