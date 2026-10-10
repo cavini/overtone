@@ -19,6 +19,15 @@ const GATE_API = '/api/enter'
  */
 const CREDITS_PAGE = '/creditos'
 
+/**
+ * The scheduled ping, which has no cookie and never will.
+ *
+ * It guards itself with `CRON_SECRET` instead — the password gate exists to
+ * protect the transcription allowance, and this endpoint reads one row and
+ * spends none of it.
+ */
+const KEEP_ALIVE_API = '/api/keep-alive'
+
 async function carriesTheCookie(request: NextRequest, password: string): Promise<boolean> {
   return matches(request.cookies.get(GATE_COOKIE)?.value, await tokenFor(password))
 }
@@ -46,6 +55,7 @@ export default async function middleware(request: NextRequest): Promise<Response
   if (password === undefined || password.length === 0) return onward()
 
   if (pathname === GATE_API || pathname.endsWith(GATE_PAGE)) return onward()
+  if (pathname === KEEP_ALIVE_API) return onward()
   if (pathname.endsWith(CREDITS_PAGE)) return onward()
 
   if (await carriesTheCookie(request, password)) return onward()

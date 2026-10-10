@@ -43,6 +43,7 @@ gitignored and never leaves the machine.
 | `SUPABASE_SECRET_KEY` | **Server only.** Bypasses row-level security. Never prefix it `NEXT_PUBLIC_` |
 | `GROQ_API_KEY` | `gsk_…` from console.groq.com |
 | `OVERTONE_PASSWORD` | The one the group types to get in |
+| `CRON_SECRET` | Vercel sends it to the daily keep-alive as a bearer token. Any long random string; Vercel generates one if you leave it blank |
 
 **The two database URLs are not interchangeable, and getting it wrong takes
 the site down.** Port 5432 is the *session* pooler: it holds a connection for
@@ -54,6 +55,24 @@ connection back after each statement and is the right one for anything
 serverless. Migrations are the exception: they take advisory locks and run
 statements that the transaction pooler will not carry, so they get their own
 URL on 5432 and run from a laptop, once.
+
+## Keeping the database awake
+
+Supabase pauses a free project after **seven idle days**, and a paused project
+does not answer: the app is simply down, on a Tuesday, with nothing deployed
+and nothing in the logs to explain it. The group records weekly, so one
+holiday is all it takes.
+
+`vercel.json` schedules `/api/keep-alive` once a day. It runs one `select 1`
+against Postgres — reaching the web server proves nothing, because the thing
+that falls asleep is the database. It sits outside the password gate, because
+the scheduler has no cookie and never will, and guards itself with
+`CRON_SECRET` instead.
+
+Hobby allows a cron **once a day**, which is five times more often than
+needed. Confirm it is registered under **Vercel → Project → Settings → Cron
+Jobs** after the first deploy; a `vercel.json` that never deployed schedules
+nothing.
 
 **Changing the shared password** — edit it in Vercel and redeploy. Everyone's
 cookie stops matching immediately, because the cookie holds a hash of the
