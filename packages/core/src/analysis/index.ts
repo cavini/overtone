@@ -13,6 +13,14 @@ export {
   stitchChunks,
 } from './chunking.js'
 export { stem } from './stem.js'
+export { stemEnglish } from './stem-en.js'
+export { splitContractions } from './contractions.js'
+export {
+  PACKED_LANGUAGES,
+  languagePack,
+  type LanguagePack,
+  type PackedLanguage,
+} from './language-pack.js'
 export { annotate } from './annotate.js'
 export {
   DAILY_ALLOWANCE_MS,
@@ -25,5 +33,6 @@ export { findMentions, matchKeyFor } from './find-mentions.js'
 export { countTerms, type CountTermsOptions } from './count-terms.js'
 export { PIPELINE_VERSION } from './pipeline-version.js'
 export { FILLERS, STOP_WORDS, VOCABULARY_VERSION } from './vocabulary.js'
+export { FILLERS_EN, STOP_WORDS_EN } from './vocabulary-en.js'
 export { COLLOQUIAL_LEMMAS } from './colloquial.js'
 export { groupIntoMoments, MOMENT_GAP_MS, type Hit, type Moment } from './moments.js'
