@@ -4,6 +4,9 @@
 import { existsSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { episodes, series, seriesMembers } from '@overtone/db/schema'
+import { eq } from 'drizzle-orm'
+import { drizzle } from 'drizzle-orm/postgres-js'
 import postgres from 'postgres'
 import { afterAll, describe, expect, it } from 'vitest'
 import { advancePending } from './advance-pending.js'
@@ -19,11 +22,35 @@ if (url === undefined || url.length === 0) {
     it.skip('needs DATABASE_URL', () => {})
   })
 } else {
-  const other = postgres(url, { prepare: false, max: 1, onnotice: () => {} })
+  const other = postgres(url, { prepare: false, max: 2, onnotice: () => {} })
+  const db = drizzle(other)
   const freeTheLease = () => other`update advance_lease set held_until = now()`
+
+  /** An owner id no real account can have, so the cleanup cannot reach real rows. */
+  const OWNER = '00000000-0000-0000-0000-00000000ad01'
+
+  /** An episode stuck mid-transcription, the way a closed tab leaves one. */
+  const anUnfinishedEpisode = async (status: 'uploaded' | 'transcribing'): Promise<string> => {
+    const [made] = await db
+      .insert(series)
+      .values({ ownerId: OWNER, title: 'Unfinished' })
+      .returning({ id: series.id })
+    const seriesId = made?.id ?? ''
+    await db.insert(seriesMembers).values({ seriesId, userId: OWNER, role: 'owner' })
+
+    const [episode] = await db
+      .insert(episodes)
+      .values({ seriesId, number: 1, title: 'Half done', status, durationMs: 60_000 })
+      .returning({ id: episodes.id })
+
+    return episode?.id ?? ''
+  }
+
+  const clearUp = () => db.delete(series).where(eq(series.ownerId, OWNER))
 
   afterAll(async () => {
     await freeTheLease()
+    await clearUp()
     await other.end()
   })
 
@@ -69,5 +96,44 @@ if (url === undefined || url.length === 0) {
     })
 
 
+  
+    /*
+     * The whole feature, and until now nothing proved it.
+     *
+     * Every other test here ran against an empty queue and watched it
+     * answer "nothing to do" — which it would also do if the query were
+     * wrong. An upload survives the tab closing only if this *finds* the
+     * episode somebody walked away from.
+     */
+    it.each(['uploaded', 'transcribing'] as const)(
+      'picks up an episode left %s',
+      async (status) => {
+        await freeTheLease()
+        await clearUp()
+        const episodeId = await anUnfinishedEpisode(status)
+
+        const report = await advancePending()
+
+        expect(report).toMatchObject({ did: 'advanced', episodeId })
+        await clearUp()
+      },
+    )
+
+    it('leaves a finished episode alone', async () => {
+      await freeTheLease()
+      await clearUp()
+      const [made] = await db
+        .insert(series)
+        .values({ ownerId: OWNER, title: 'Done' })
+        .returning({ id: series.id })
+      const seriesId = made?.id ?? ''
+      await db.insert(seriesMembers).values({ seriesId, userId: OWNER, role: 'owner' })
+      await db
+        .insert(episodes)
+        .values({ seriesId, number: 1, title: 'Finished', status: 'ready', durationMs: 60_000 })
+
+      expect(await advancePending()).toEqual({ did: 'nothing', because: 'no-episodes' })
+      await clearUp()
+    })
   })
 }

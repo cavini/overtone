@@ -16,6 +16,8 @@ export interface LibraryEntry {
   readonly status: string
   readonly chunksDone: number
   readonly chunkCount: number
+  /** Whether a link to this one is out there. Never the link itself. */
+  readonly shared: boolean
 }
 
 /**
@@ -77,6 +79,28 @@ export function LibraryPanel({
 
     await navigator.clipboard?.writeText(payload.url).catch(() => undefined)
     setCopied(episodeId)
+    markShared(episodeId, true)
+  }
+
+  /**
+   * Updates the row in place rather than refetching.
+   *
+   * The answer is already known, and a refetch would blink the whole
+   * library for one row — the same reasoning as removing one.
+   */
+  const markShared = (episodeId: string, shared: boolean) =>
+    setEpisodes((listed) =>
+      listed.map((episode) => (episode.episodeId === episodeId ? { ...episode, shared } : episode)),
+    )
+
+  /** Revokes the link. It 404s from the next request. */
+  async function unshare(episodeId: string): Promise<void> {
+    await fetch(`/api/share?episodeId=${encodeURIComponent(episodeId)}`, {
+      method: 'DELETE',
+    }).catch(() => undefined)
+
+    setCopied(undefined)
+    markShared(episodeId, false)
   }
 
   /**
@@ -191,14 +215,36 @@ export function LibraryPanel({
                      * A link, not a page of settings. Sharing one episode is
                      * a thing you do in passing and undo the same way.
                      */}
+                    {/*
+                     * Sharing is idempotent, so pressing this on an episode
+                     * that is already shared hands back the same link and
+                     * copies it again — which is what somebody who lost it
+                     * is trying to do.
+                     */}
                     <button
                       type="button"
                       onClick={() => void share(episode.episodeId)}
                       className="shrink-0 px-2 py-2 text-xs"
-                      style={{ color: 'var(--quiet)' }}
+                      style={{ color: episode.shared ? 'var(--accent)' : 'var(--quiet)' }}
                     >
-                      {copied === episode.episodeId ? labels.shareLinkCopied : labels.share}
+                      {copied === episode.episodeId
+                        ? labels.shareLinkCopied
+                        : episode.shared
+                          ? labels.shared
+                          : labels.share}
                     </button>
+
+                    {/* Only worth offering for something that is shared. */}
+                    {episode.shared ? (
+                      <button
+                        type="button"
+                        onClick={() => void unshare(episode.episodeId)}
+                        className="shrink-0 px-2 py-2 text-xs"
+                        style={{ color: 'var(--quiet)' }}
+                      >
+                        {labels.stopSharing}
+                      </button>
+                    ) : null}
 
                     {/*
                       Two steps, in place.
