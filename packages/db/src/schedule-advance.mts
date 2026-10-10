@@ -59,9 +59,26 @@ await sql`select cron.unschedule(${JOB}) where exists (
   select 1 from cron.job where jobname = ${JOB})`
 
 const endpoint = `${appUrl.replace(/\/+$/u, '')}/api/episodes/advance-pending`
+
+/**
+ * A SQL string literal.
+ *
+ * The command is stored as *text* and run later by the scheduler, so it
+ * cannot carry bind parameters — the values have to be written into it.
+ * `sql.unsafe` is a query fragment and not a string: interpolating one into a
+ * template literal yields `[object Promise]`, which is what the first version
+ * of this scheduled, and the job failed every minute until it was read back.
+ */
+const quoted = (value: string): string => `'${value.replaceAll("'", "''")}'`
+
+const headers = JSON.stringify({
+  'content-type': 'application/json',
+  authorization: `Bearer ${secret}`,
+})
+
 const command = `select net.http_post(
-  url := ${sql.unsafe(`'${endpoint}'`)},
-  headers := ${sql.unsafe(`'${JSON.stringify({ 'content-type': 'application/json', authorization: `Bearer ${secret}` })}'::jsonb`)},
+  url := ${quoted(endpoint)},
+  headers := ${quoted(headers)}::jsonb,
   timeout_milliseconds := 290000
 )`
 
