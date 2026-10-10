@@ -36,12 +36,24 @@ gitignored and never leaves the machine.
 
 | | |
 |---|---|
-| `DATABASE_URL` | Supabase session pooler, **port 5432** — 6543 is the transaction pooler and cannot run migrations |
+| `DATABASE_URL` | Supabase transaction pooler, **port 6543** — see below |
+| `MIGRATION_DATABASE_URL` | Supabase session pooler, **port 5432**. Read only by `migrate` and `db:reset`, which run from a laptop — Vercel never needs it |
 | `NEXT_PUBLIC_SUPABASE_URL` | Safe in a browser |
 | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Safe in a browser; row-level security is what protects the data |
 | `SUPABASE_SECRET_KEY` | **Server only.** Bypasses row-level security. Never prefix it `NEXT_PUBLIC_` |
 | `GROQ_API_KEY` | `gsk_…` from console.groq.com |
 | `OVERTONE_PASSWORD` | The one the group types to get in |
+
+**The two database URLs are not interchangeable, and getting it wrong takes
+the site down.** Port 5432 is the *session* pooler: it holds a connection for
+as long as the client lives, and the free tier allows fifteen of them. Every
+warm serverless instance held three, so the app ran out and answered
+`EMAXCONNSESSION: max clients reached in session mode` — on a Tuesday, with
+nothing deployed. Port 6543 is the *transaction* pooler, which hands the
+connection back after each statement and is the right one for anything
+serverless. Migrations are the exception: they take advisory locks and run
+statements that the transaction pooler will not carry, so they get their own
+URL on 5432 and run from a laptop, once.
 
 **Changing the shared password** — edit it in Vercel and redeploy. Everyone's
 cookie stops matching immediately, because the cookie holds a hash of the

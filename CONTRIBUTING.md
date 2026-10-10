@@ -74,7 +74,7 @@ Risky or half-built capabilities go behind a flag in `packages/contracts/flags.t
 ## Commands
 
 ```bash
-pnpm dev               # next dev
+pnpm dev               # next dev, with .env.local loaded
 pnpm test              # unit + integration, watch - the inner loop
 pnpm test:unit         # pure, instant
 pnpm test:integration  # needs: supabase start
