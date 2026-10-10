@@ -84,6 +84,7 @@ const harness = (
       chunks: {
         transcribedIndexes: () => Promise.resolve([...stored.keys()]),
         transcripts: () => Promise.resolve([...stored.values()]),
+        transcript: (_id: string, index: number) => Promise.resolve(stored.get(index)),
         save: (_id: string, chunk: ChunkTranscript) => {
           stored.set(chunk.index, chunk)
           order.push(`save-chunk-${chunk.index}`)
@@ -168,6 +169,30 @@ describe('advanceEpisode', () => {
       const h = harness({ transcribed: [0] })
       await advance(h)
       expect(h.stored.get(1)?.offsetMs).toBe(CHUNK_TARGET_MS)
+    })
+
+    /*
+     * Each chunk is sent on its own, so without this every one after the
+     * first begins mid-conversation knowing nothing about it. Measured on a
+     * real episode: the same chunk transcribed cold lost a clause that the
+     * prompted run recovered.
+     */
+    it('tells the transcriber what the chunk before it said', async () => {
+      const h = harness({ transcribed: [0] })
+      await advance(h)
+
+      expect(h.transcribe.mock.calls[0]?.[0]).toMatchObject({
+        precedingText: expect.stringContaining(SPOKEN[0] ?? ''),
+      })
+    })
+
+    // Nothing came before it, and a blank prompt is still a prompt — it
+    // tells the model the thing it is continuing had no words in it.
+    it('sends nothing before the first chunk of an episode', async () => {
+      const h = harness()
+      await advance(h)
+
+      expect(h.transcribe.mock.calls[0]?.[0]).not.toHaveProperty('precedingText')
     })
   })
 

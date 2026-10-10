@@ -87,6 +87,33 @@ export function describeChunkStore(
       })
     })
 
+    it('reads one chunk on its own', async () => {
+      await withStore(async ({ store, episodeIds: [episode] }) => {
+        await store.save(episode, chunk(0, 0, 'primeiro'))
+        await store.save(episode, chunk(1, 600_000, 'segundo'))
+
+        expect(await store.transcript(episode, 1)).toEqual({
+          index: 1,
+          offsetMs: 600_000,
+          words: [{ text: 'segundo', startMs: 120, endMs: 480 }],
+        })
+      })
+    })
+
+    it('has nothing for a chunk that has not come back', async () => {
+      await withStore(async ({ store, episodeIds: [episode] }) => {
+        await store.save(episode, chunk(0, 0, 'primeiro'))
+        expect(await store.transcript(episode, 7)).toBeUndefined()
+      })
+    })
+
+    it("never reads one episode's chunk under another", async () => {
+      await withStore(async ({ store, episodeIds: [first, second] }) => {
+        await store.save(first, chunk(0, 0, 'aqui'))
+        expect(await store.transcript(second, 0)).toBeUndefined()
+      })
+    })
+
     // A chunk is paid for out of a budget of three episodes a day. Saving it
     // twice must not double every word in that stretch of the episode.
     it('replaces a chunk saved twice rather than duplicating it', async () => {

@@ -1,5 +1,5 @@
 import type { ChunkStore, ChunkTranscript } from '@overtone/core'
-import { asc, eq, sql } from 'drizzle-orm'
+import { and, asc, eq, sql } from 'drizzle-orm'
 import type { PgDatabase, PgQueryResultHKT } from 'drizzle-orm/pg-core'
 import { chunkTranscripts } from '../schema.js'
 
@@ -51,6 +51,28 @@ export class DrizzleChunkStore implements ChunkStore {
       offsetMs: row.offsetMs,
       words: (row.words ?? []) as readonly StoredWord[],
     }))
+  }
+
+  async transcript(episodeId: string, index: number): Promise<ChunkTranscript | undefined> {
+    // Both halves of the key in the `where`, so this is an indexed lookup of
+    // one row rather than a scan of the episode.
+    const [row] = await this.db
+      .select({
+        index: chunkTranscripts.index,
+        offsetMs: chunkTranscripts.offsetMs,
+        words: chunkTranscripts.words,
+      })
+      .from(chunkTranscripts)
+      .where(and(eq(chunkTranscripts.episodeId, episodeId), eq(chunkTranscripts.index, index)))
+      .limit(1)
+
+    if (row === undefined) return undefined
+
+    return {
+      index: row.index,
+      offsetMs: row.offsetMs,
+      words: (row.words ?? []) as readonly StoredWord[],
+    }
   }
 
   async save(episodeId: string, chunk: ChunkTranscript): Promise<void> {

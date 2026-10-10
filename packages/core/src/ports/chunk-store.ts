@@ -14,5 +14,15 @@ export interface ChunkStore {
   transcribedIndexes(episodeId: string): Promise<readonly number[]>
   /** Every stored chunk transcript, for stitching once the set is complete. */
   transcripts(episodeId: string): Promise<readonly ChunkTranscript[]>
+  /**
+   * One stored chunk, for carrying its last words into the next one.
+   *
+   * Its own read rather than filtering `transcripts`, which deliberately
+   * returns *everything*: that exists for stitching, and stitching needs
+   * every word of a two-hour episode at once. Fetching all of it to look at
+   * the tail of one chunk would move megabytes on every step of the pacing
+   * loop, which runs every few minutes for the best part of an hour.
+   */
+  transcript(episodeId: string, index: number): Promise<ChunkTranscript | undefined>
   save(episodeId: string, chunk: ChunkTranscript): Promise<void>
 }

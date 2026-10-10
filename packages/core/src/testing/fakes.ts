@@ -55,6 +55,10 @@ export class FakeChunkStore implements ChunkStore {
     )
   }
 
+  transcript(episodeId: string, index: number): Promise<ChunkTranscript | undefined> {
+    return Promise.resolve(this.forEpisode(episodeId).get(index))
+  }
+
   save(episodeId: string, chunk: ChunkTranscript): Promise<void> {
     this.forEpisode(episodeId).set(chunk.index, chunk)
     return Promise.resolve()

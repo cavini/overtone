@@ -10,7 +10,7 @@ GitHub (main)  ──push──▶  Vercel  ──▶  https://<project>.vercel.
                              │
                              ├── Supabase Postgres   counts, transcripts, allowance
                              ├── Supabase Storage    episode audio, deleted once analysed
-                             └── Groq                whisper-large-v3-turbo
+                             └── Groq                whisper-large-v3
 ```
 
 Every push to `main` deploys. `main` is therefore always green and always

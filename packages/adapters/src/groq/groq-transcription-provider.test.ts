@@ -82,10 +82,38 @@ describe('GroqTranscriptionProvider', () => {
   it('asks for word-level timings in Portuguese', async () => {
     await provider(stub).transcribe({ audioUrl: KNOWN, language: 'pt' })
     const fields = fieldsOf()
-    expect(fields.get('model')).toBe('whisper-large-v3-turbo')
+    expect(fields.get('model')).toBe('whisper-large-v3')
     expect(fields.get('language')).toBe('pt')
     expect(fields.get('response_format')).toBe('verbose_json')
     expect(fields.getAll('timestamp_granularities[]')).toContain('word')
+  })
+
+  /*
+   * Measured on a real episode, not assumed: the same chunk transcribed cold
+   * dropped a clause that the prompted run recovered.
+   */
+  it('passes what came before as the prompt, so a chunk does not start cold', async () => {
+    await provider(stub).transcribe({
+      audioUrl: KNOWN,
+      language: 'pt',
+      precedingText: 'a gente estava falando disso',
+    })
+
+    expect(fieldsOf().get('prompt')).toBe('a gente estava falando disso')
+  })
+
+  // The first chunk of an episode has nothing before it, and an empty prompt
+  // is not the same as no prompt.
+  it('sends no prompt for the chunk that starts the episode', async () => {
+    await provider(stub).transcribe({ audioUrl: KNOWN, language: 'pt' })
+    expect(fieldsOf().has('prompt')).toBe(false)
+  })
+
+  // Sampling is a way of guessing, and a count built on a guess is worse
+  // than a gap in one.
+  it('asks for no creativity at all', async () => {
+    await provider(stub).transcribe({ audioUrl: KNOWN, language: 'pt' })
+    expect(fieldsOf().get('temperature')).toBe('0')
   })
 
   it('converts seconds to milliseconds', async () => {

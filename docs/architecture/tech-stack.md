@@ -8,9 +8,9 @@ The one-line version: **one Next.js app on Vercel's free tier, Supabase for data
 
 ## 1. The decision everything else follows from
 
-Groq runs `whisper-large-v3-turbo` at roughly **160× realtime**. A 25-minute episode comes back in about ten seconds. Vercel gives a function 300 seconds.
+Groq runs `whisper-large-v3` far faster than realtime — a measured 90 seconds of audio came back in about two seconds, request and all. Vercel gives a function 300 seconds.
 
-Transcription therefore **fits inside a normal web request**, with an order of magnitude to spare. That one fact deletes the worker process, the job queue, Docker, local Postgres, retry machinery and stuck-job monitoring. What was planned as a three-week increment of pipeline infrastructure stopped existing.
+Transcription therefore **fits inside a normal web request**, with room to spare — a chunk is twelve minutes of audio, well inside the limit. (What an *episode* takes is set by the allowance refilling at two audio-seconds per wall-second, not by the model; see ADR 0020.) That one fact deletes the worker process, the job queue, Docker, local Postgres, retry machinery and stuck-job monitoring. What was planned as a three-week increment of pipeline infrastructure stopped existing.
 
 The app is one deployable thing. You push to git; Vercel deploys it.
 
@@ -30,7 +30,7 @@ The app is one deployable thing. You push to git; Vercel deploys it.
 | ORM | **Drizzle** | SQL-first, so the cross-episode analytics stay real SQL. Migrations are checked-in SQL files. |
 | File storage | **Supabase Storage** (1 GB free) | Signed upload URLs, so audio goes browser → storage without passing through our functions. |
 | Auth | **Supabase Auth**, magic link | Friends get an email link, no passwords to manage. 50 000 monthly users free. |
-| Transcription | **Groq**, `whisper-large-v3-turbo`, `language: "pt"` | Free, fast enough to remove the queue, and returns **word-level timestamps**. Language is set explicitly, never auto-detected. |
+| Transcription | **Groq**, `whisper-large-v3`, `language: "pt"` | Free, fast enough to remove the queue, and returns **word-level timestamps**. Language is set explicitly, never auto-detected. |
 | Analysis | **our own pt-BR pipeline** — NFC normaliser, clitic-aware tokeniser, a `lemmas` dictionary table, Snowball `pt` stemmer fallback, pt-BR stop-word list | `wink-nlp` was the plan and is **out**: its lemmatiser and stop words are English-only and have no Portuguese equivalent (ADR 0014). Still pure JS, no native build, and **deterministic** — the same episode always yields the same counts. |
 | Architecture | **Clean Architecture** layers + `dependency-cruiser` in CI | The dependency rule is a failed build, not a code-review conversation (ADR 0016). |
 | Validation | **Zod** at every boundary | One schema is the runtime guard, the TS type, and the test fixture. |

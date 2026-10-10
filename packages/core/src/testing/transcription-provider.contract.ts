@@ -34,6 +34,26 @@ export function describeTranscriptionProvider(
       expect(outcome.ok).toBe(true)
     })
 
+    /*
+     * An episode is cut into chunks and each is transcribed on its own, so
+     * every chunk but the first begins mid-sentence with no idea what came
+     * before. Measured on a real episode: a chunk transcribed cold dropped a
+     * clause its prompted twin recovered, and its punctuation restarted from
+     * nothing. Carrying the previous chunk's last words is what a provider
+     * does with that, and one that silently ignores it must not look like
+     * one that uses it.
+     */
+    it('accepts what came before without failing', async () => {
+      const { provider, knownAudioUrl } = await create()
+      const outcome = await provider.transcribe({
+        audioUrl: knownAudioUrl,
+        language: 'pt',
+        precedingText: 'e aí a gente estava falando disso',
+      })
+
+      expect(outcome.ok).toBe(true)
+    })
+
     it('echoes the language it was asked for, never one it guessed', async () => {
       const { provider, knownAudioUrl } = await create()
       const outcome = await provider.transcribe({
