@@ -143,12 +143,82 @@ if (url === undefined || url.length === 0) {
         .returning({ id: series.id })
       const seriesId = made?.id ?? ''
       await db.insert(seriesMembers).values({ seriesId, userId: OWNER, role: 'owner' })
-      await db
+      const [done] = await db
         .insert(episodes)
-        .values({ seriesId, number: 1, title: 'Finished', status: 'ready', durationMs: 60_000 })
+        // Stamped in 1970, so if finished episodes were eligible this would
+        // be the one picked.
+        .values({
+          seriesId,
+          number: 1,
+          title: 'Finished',
+          status: 'ready',
+          durationMs: 60_000,
+          createdAt: new Date(0),
+        })
+        .returning({ id: episodes.id })
 
-      expect(await advancePending()).toEqual({ did: 'nothing', because: 'no-episodes' })
+      expect(await advancePending()).not.toMatchObject({ episodeId: done?.id })
       await clearUp()
     })
+
+    /*
+     * The head-of-line block, which is what makes this worth testing at all.
+     *
+     * The runner takes the oldest unfinished episode every minute. One
+     * whose audio never arrived can never finish, so without giving up on
+     * it eventually it sits at the front of the queue forever — picked
+     * every minute, failing every minute, and starving every episode
+     * behind it.
+     */
+    it('gives up on an upload whose audio never arrived, so the queue moves', async () => {
+      await freeTheLease()
+      await clearUp()
+
+      const stuck = await anUnfinishedEpisode('transcribing')
+      // Older than the grace period, so it counts as abandoned.
+      await db
+        .update(episodes)
+        .set({ createdAt: new Date(Date.now() - 2 * 60 * 60_000) })
+        .where(eq(episodes.id, stuck))
+
+      await advancePending()
+
+      const [after] = await db
+        .select({ status: episodes.status })
+        .from(episodes)
+        .where(eq(episodes.id, stuck))
+
+      /*
+       * Out of the queue, which is the whole point — a `failed` episode is
+       * no longer eligible, so whatever is behind it can be reached.
+       *
+       * Asserted on this episode's own status rather than by asking the
+       * queue again: other suites run in parallel against the same
+       * database, and what they have in flight is not this test's business.
+       */
+      expect(after?.status).toBe('failed')
+
+      await clearUp()
+    })
+
+    // And the other direction: the row is written before the chunks are
+    // uploaded, so giving up straight away would kill a good upload.
+    it('waits on an upload that only just started', async () => {
+      await freeTheLease()
+      await clearUp()
+      const fresh = await anUnfinishedEpisode('uploaded')
+      await db.update(episodes).set({ createdAt: new Date() }).where(eq(episodes.id, fresh))
+
+      await advancePending()
+
+      const [after] = await db
+        .select({ status: episodes.status })
+        .from(episodes)
+        .where(eq(episodes.id, fresh))
+
+      expect(after?.status).not.toBe('failed')
+      await clearUp()
+    })
+
   })
 }
