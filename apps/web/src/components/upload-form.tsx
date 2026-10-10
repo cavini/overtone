@@ -178,12 +178,30 @@ export function UploadForm({
       if (!response?.ok) return
 
       const { episode } = (await response.json()) as {
-        episode: { episodeId: string; chunksDone: number; chunkCount: number } | null
+        episode: {
+          episodeId: string
+          chunksDone: number
+          chunkCount: number
+          live: boolean
+        } | null
       }
       if (episode === null) return
 
-      setBusy(true)
+      // Shown either way. A finished episode is here to be read, and
+      // without this the transcript vanished the moment transcription
+      // ended and the page was reloaded.
       setLiveEpisodeId(episode.episodeId)
+
+      /*
+       * Only an unfinished episode is carried forward.
+       *
+       * Driving a finished one would re-stitch and re-analyse it on every
+       * single page load — the same work that makes recounting free, run
+       * for no reason, every time anybody opens the page.
+       */
+      if (!episode.live) return
+
+      setBusy(true)
       setProgress({
         headline: labels.resuming,
         done: episode.chunksDone,

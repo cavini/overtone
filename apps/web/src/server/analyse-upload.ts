@@ -11,6 +11,7 @@ import {
   VOCABULARY_VERSION,
 } from '@overtone/core'
 import {
+  chunkTranscripts,
   episodes,
   insights,
   mentions,
@@ -20,7 +21,7 @@ import {
   topics,
   transcripts,
 } from '@overtone/db/schema'
-import { and, asc, eq } from 'drizzle-orm'
+import { and, asc, desc, eq } from 'drizzle-orm'
 import { DrizzleAllowanceStore, DrizzleChunkStore } from '@overtone/db/repositories'
 import { listTopics } from './topics.js'
 import { blobStore, database, pipelineDependencies } from './wiring.js'
@@ -148,33 +149,73 @@ export interface PendingEpisode {
   readonly title: string
   readonly chunksDone: number
   readonly chunkCount: number
+  /**
+   * Whether this episode is still being transcribed.
+   *
+   * `false` means it is finished and only here to be read. The page must
+   * not carry a finished episode forward — doing so would re-analyse it on
+   * every page load.
+   */
+  readonly live: boolean
 }
 
 /**
- * Whatever was left mid-transcription, so a reopened page can pick it up.
+ * The episode the page should be showing.
  *
- * One at a time: the allowance is shared and sending two episodes at once
- * only makes both of them slower. The oldest unfinished one wins, so nothing
- * can be starved by a newer upload.
+ * Two jobs in one lookup, because the page wants the same thing either way:
+ * something to read.
+ *
+ * An episode still being transcribed wins, and the page carries it forward
+ * — the browser is what drives transcription, and a browser gets closed.
+ * The oldest unfinished one wins so a newer upload cannot starve it.
+ *
+ * Failing that, the most recent episode that has any transcript at all.
+ * Without this the transcript vanished the moment an episode finished and
+ * the page was reloaded: there was a full transcript in the database and no
+ * way whatsoever to look at it, which made the whole feature invisible
+ * unless you happened to be watching during the upload.
  */
 export async function pendingEpisode(): Promise<PendingEpisode | null> {
   const db = database()
-  const [episode] = await db
+  const chunks = new DrizzleChunkStore(db)
+
+  const [transcribing] = await db
     .select({ id: episodes.id, title: episodes.title, durationMs: episodes.durationMs })
     .from(episodes)
     .where(eq(episodes.status, 'transcribing'))
     .orderBy(asc(episodes.createdAt))
     .limit(1)
 
-  if (episode === undefined) return null
+  if (transcribing !== undefined) {
+    const done = await chunks.transcribedIndexes(transcribing.id)
+    return {
+      episodeId: transcribing.id,
+      title: transcribing.title,
+      chunksDone: done.length,
+      chunkCount: planChunks(transcribing.durationMs).length,
+      live: true,
+    }
+  }
 
-  const done = await new DrizzleChunkStore(db).transcribedIndexes(episode.id)
+  // Nothing in flight. Offer the latest thing there is to read.
+  const [readable] = await db
+    .select({ id: episodes.id, title: episodes.title, durationMs: episodes.durationMs })
+    .from(episodes)
+    .innerJoin(chunkTranscripts, eq(chunkTranscripts.episodeId, episodes.id))
+    .groupBy(episodes.id, episodes.title, episodes.durationMs, episodes.createdAt)
+    .orderBy(desc(episodes.createdAt))
+    .limit(1)
+
+  if (readable === undefined) return null
+
+  const done = await chunks.transcribedIndexes(readable.id)
 
   return {
-    episodeId: episode.id,
-    title: episode.title,
+    episodeId: readable.id,
+    title: readable.title,
     chunksDone: done.length,
-    chunkCount: planChunks(episode.durationMs).length,
+    chunkCount: planChunks(readable.durationMs).length,
+    live: false,
   }
 }
 
