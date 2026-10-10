@@ -103,3 +103,59 @@ describe('DrizzleTranscriptSearch', () => {
     expect(statements[0]).toMatch(/limit/i)
   })
 })
+
+describe('DrizzleTranscriptSearch, in both languages', () => {
+  /*
+   * Two expression indexes, two expressions in the query.
+   *
+   * The archive now holds episodes in either language, and a Portuguese one
+   * is full of English loanwords either way. `portuguese` leaves `deploys`
+   * alone, so a search for `deploy` misses it; `english` reduces both.
+   */
+  it('searches with the expression each index was built on', async () => {
+    await search.search('deploy', 50)
+
+    expect(statements[0]).toContain(`to_tsvector('portuguese'`)
+    expect(statements[0]).toContain(`to_tsvector('english'`)
+    expect(statements[0]).toContain(`plainto_tsquery('portuguese'`)
+    expect(statements[0]).toContain(`plainto_tsquery('english'`)
+  })
+
+  it('still reads what was typed as words, not as query syntax', async () => {
+    await search.search('deploy & cachorro', 50)
+
+    const sql = statements[0] ?? ''
+    const all = sql.match(/to_tsquery/gu) ?? []
+    const plain = sql.match(/plainto_tsquery/gu) ?? []
+
+    // Two per configuration: one to gate the query, one to match on it.
+    expect(plain.length).toBe(4)
+    expect(all.length).toBe(plain.length)
+  })
+
+  /*
+   * A word one configuration treats as a stop word must not come back in
+   * through the other's list.
+   *
+   * `que` parses to nothing in Portuguese and to `'que'` in English, and the
+   * English index holds it for 2,172 of the archive's 6,952 segments. Without
+   * this gate, searching for `que` would turn "no results" into a third of
+   * every episode ever recorded — and `não` into a quarter. The same applies
+   * the other way for `the`, which Portuguese would happily match on an
+   * English episode.
+   */
+  it('discards a query that either configuration reduces to nothing', async () => {
+    await search.search('que', 50)
+
+    expect(statements[0]).toMatch(/length\(plainto_tsquery\('portuguese'/)
+    expect(statements[0]).toMatch(/length\(plainto_tsquery\('english'/)
+  })
+
+  // The two halves are OR-ed, not AND-ed: a loanword only the English index
+  // knows about still has to come back.
+  it('matches in either language', async () => {
+    await search.search('podcasts', 50)
+
+    expect(statements[0]).toMatch(/@@[\s\S]*\bor\b[\s\S]*@@/i)
+  })
+})
