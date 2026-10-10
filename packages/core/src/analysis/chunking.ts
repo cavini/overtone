@@ -70,6 +70,33 @@ export function planChunks(durationMs: number): AudioChunk[] {
 }
 
 /**
+ * Reads back how an episode was actually split.
+ *
+ * `planChunks` answers "how should this be split", which is a different
+ * question with a different answer the moment the target size changes — and
+ * it did, from twenty minutes to twelve, once the browser started producing
+ * uncompressed audio against a file cap. Re-deriving the plan for an
+ * episode that is already transcribed then invents chunks nobody uploaded.
+ *
+ * The chunks that exist are the record. This reads the plan off them.
+ */
+export function planFromTranscripts(
+  transcripts: readonly ChunkTranscript[],
+  durationMs: number,
+): AudioChunk[] {
+  const inOrder = [...transcripts].sort((a, b) => a.index - b.index)
+
+  return inOrder.map((chunk, position) => ({
+    index: chunk.index,
+    startMs: chunk.offsetMs,
+    // Each chunk runs until the next one starts; the last runs to the end.
+    // Clamped, because a duration shorter than the last offset would give a
+    // chunk that ends before it began.
+    endMs: Math.max(chunk.offsetMs, inOrder[position + 1]?.offsetMs ?? durationMs),
+  }))
+}
+
+/**
  * Reassembles an episode's words from its chunks.
  *
  * Each chunk is transcribed on its own, so its timings start at zero. Adding
