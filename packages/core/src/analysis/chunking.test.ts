@@ -1,3 +1,4 @@
+import type { ChunkTranscript } from '../domain/audio-chunk.js'
 // US-040 · ADR 0011, ADR 0020
 import { describe, expect, it } from 'vitest'
 import type { TimedWord } from '../domain/timed-word.js'
@@ -6,6 +7,7 @@ import {
   SINGLE_CHUNK_LIMIT_MS,
   missingChunks,
   planChunks,
+  planFromTranscripts,
   stitchChunks,
 } from './chunking.js'
 import { HOURLY_ALLOWANCE_MS } from './pacing.js'
@@ -263,5 +265,63 @@ describe('SINGLE_CHUNK_LIMIT_MS', () => {
 
   it("is shorter than one of this show's episodes, which is why splitting is M1's job", () => {
     expect(SINGLE_CHUNK_LIMIT_MS).toBeLessThan(100 * 60_000)
+  })
+})
+
+// US-046 · ADR 0020
+describe('planFromTranscripts', () => {
+  const at = (index: number, offsetMs: number): ChunkTranscript => ({ index, offsetMs, words: [] })
+
+  /*
+   * How an episode was actually split is a matter of record, not of
+   * recomputation. `planChunks` answers "how should this be split", which is
+   * a different question and gives a different answer the moment the target
+   * size changes — as it did, from twenty minutes to twelve. Re-deriving the
+   * plan for an already-finished episode then invents chunks nobody ever
+   * uploaded, and asking storage for one fails.
+   */
+  it('reads the plan back off the chunks that exist', () => {
+    const plan = planFromTranscripts([at(0, 0), at(1, 1_200_000)], 1_500_000)
+
+    expect(plan).toEqual([
+      { index: 0, startMs: 0, endMs: 1_200_000 },
+      { index: 1, startMs: 1_200_000, endMs: 1_500_000 },
+    ])
+  })
+
+  it('does not care what the current target size is', () => {
+    // One chunk covering twenty minutes, from when that was the target.
+    const plan = planFromTranscripts([at(0, 0)], 1_200_000)
+
+    expect(plan).toHaveLength(1)
+    expect(plan[0]?.endMs).toBe(1_200_000)
+  })
+
+  it('puts them in order however they come back', () => {
+    const plan = planFromTranscripts([at(2, 1_440_000), at(0, 0), at(1, 720_000)], 2_000_000)
+
+    expect(plan.map((chunk) => chunk.index)).toEqual([0, 1, 2])
+    expect(plan.map((chunk) => chunk.startMs)).toEqual([0, 720_000, 1_440_000])
+  })
+
+  it('tiles the episode with no gaps', () => {
+    const plan = planFromTranscripts([at(0, 0), at(1, 720_000), at(2, 1_440_000)], 2_000_000)
+
+    for (const [position, chunk] of plan.entries()) {
+      if (position > 0) expect(chunk.startMs).toBe(plan[position - 1]?.endMs)
+    }
+    expect(plan.at(-1)?.endMs).toBe(2_000_000)
+  })
+
+  it('has no plan for an episode with no chunks stored', () => {
+    expect(planFromTranscripts([], 1_000_000)).toEqual([])
+  })
+
+  // A duration shorter than the last offset would make an end before its
+  // start, and a negative-length chunk is worse than a wrong one.
+  it('never ends a chunk before it began', () => {
+    const plan = planFromTranscripts([at(0, 0), at(1, 900_000)], 500_000)
+
+    for (const chunk of plan) expect(chunk.endMs).toBeGreaterThanOrEqual(chunk.startMs)
   })
 })
