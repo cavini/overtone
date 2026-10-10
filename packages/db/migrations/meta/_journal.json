@@ -78,6 +78,13 @@
       "when": 1791523558350,
       "tag": "0010_recognise_the_same_audio",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1791523558351,
+      "tag": "0011_what_the_publisher_says",
+      "breakpoints": true
     }
   ]
 }
