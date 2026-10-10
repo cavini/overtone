@@ -64,10 +64,19 @@ export function TranscriptView({
   episodeId,
   labels,
   live,
+  focusChunk,
 }: {
   readonly episodeId: string
   readonly labels: Labels
   readonly live: boolean
+  /**
+   * Scroll to this part once it is on screen.
+   *
+   * Set when arriving from a search result, so clicking a moment lands in
+   * the script at roughly where it was said rather than at the top of a
+   * two-hour transcript.
+   */
+  readonly focusChunk?: number
 }) {
   const bodyId = useId()
   const reduced = usePrefersReducedMotion()
@@ -204,6 +213,24 @@ export function TranscriptView({
 
   const shown = visibleParts(parts, revealed)
 
+  /*
+   * Jump to the part a search result pointed at.
+   *
+   * Runs when the part arrives rather than when the request does: the
+   * transcript is fetched after mount, so at the moment of the click there
+   * is nothing on screen to scroll to yet.
+   */
+  useEffect(() => {
+    if (focusChunk === undefined || !open) return
+
+    const node = scroller.current?.querySelector(`[data-chunk="${focusChunk}"]`)
+    if (!(node instanceof HTMLElement)) return
+
+    // Stop following the newest text, or the jump is undone on the next tick.
+    following.current = false
+    node.scrollIntoView({ block: 'start', behavior: reduced ? 'auto' : 'smooth' })
+  }, [focusChunk, open, parts, reduced])
+
   return (
     <section
       className="mt-6 rounded-xl border p-5"
@@ -261,6 +288,7 @@ export function TranscriptView({
               {shown.map((part, position) => (
                 <p
                   key={part.index}
+                  data-chunk={part.index}
                   className="mb-3 text-sm leading-relaxed"
                   style={{ color: 'var(--prose)' }}
                 >

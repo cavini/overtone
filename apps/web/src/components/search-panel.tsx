@@ -25,7 +25,14 @@ interface Moment {
  * timestamps two seconds apart answers the question with noise. The one
  * someone wants is usually the longest stretch, so that is first.
  */
-export function SearchPanel({ labels }: { readonly labels: Labels }) {
+export function SearchPanel({
+  labels,
+  onOpen,
+}: {
+  readonly labels: Labels
+  /** Open this moment in the transcript below. */
+  readonly onOpen: (episodeId: string, startMs: number) => void
+}) {
   const [query, setQuery] = useState('')
   const [moments, setMoments] = useState<readonly Moment[] | undefined>(undefined)
   const [busy, setBusy] = useState(false)
@@ -94,11 +101,14 @@ export function SearchPanel({ labels }: { readonly labels: Labels }) {
         ) : (
           <ul className="mt-4 space-y-2">
             {moments.map((moment) => (
-              <li
-                key={`${moment.episodeId}-${moment.startMs}`}
-                className="rounded-md border px-3 py-2"
-                style={{ borderColor: 'var(--edge)' }}
-              >
+              <li key={`${moment.episodeId}-${moment.startMs}`}>
+                <button
+                  type="button"
+                  onClick={() => onOpen(moment.episodeId, moment.startMs)}
+                  title={labels.openInTranscript}
+                  className="w-full rounded-md border px-3 py-2 text-left transition-colors"
+                  style={{ borderColor: 'var(--edge)' }}
+                >
                 <div className="flex flex-wrap items-baseline justify-between gap-2">
                   <span className="text-sm font-medium">
                     {moment.episodeTitle}{' '}
@@ -130,7 +140,8 @@ export function SearchPanel({ labels }: { readonly labels: Labels }) {
                     ),
                   )}
                   {moment.quote.length > 220 ? '…' : ''}
-                </p>
+                  </p>
+                </button>
               </li>
             ))}
           </ul>
