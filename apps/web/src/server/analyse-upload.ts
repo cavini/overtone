@@ -17,8 +17,8 @@ import {
   topics,
   transcripts,
 } from '@overtone/db/schema'
-import { and, eq } from 'drizzle-orm'
-import { DrizzleAllowanceStore } from '@overtone/db/repositories'
+import { and, asc, eq } from 'drizzle-orm'
+import { DrizzleAllowanceStore, DrizzleChunkStore } from '@overtone/db/repositories'
 import { blobStore, database, pipelineDependencies } from './wiring.js'
 
 /**
@@ -129,6 +129,41 @@ export async function startEpisode(durationMs: number, title: string): Promise<S
   )
 
   return { episodeId, chunks }
+}
+
+export interface PendingEpisode {
+  readonly episodeId: string
+  readonly title: string
+  readonly chunksDone: number
+  readonly chunkCount: number
+}
+
+/**
+ * Whatever was left mid-transcription, so a reopened page can pick it up.
+ *
+ * One at a time: the allowance is shared and sending two episodes at once
+ * only makes both of them slower. The oldest unfinished one wins, so nothing
+ * can be starved by a newer upload.
+ */
+export async function pendingEpisode(): Promise<PendingEpisode | null> {
+  const db = database()
+  const [episode] = await db
+    .select({ id: episodes.id, title: episodes.title, durationMs: episodes.durationMs })
+    .from(episodes)
+    .where(eq(episodes.status, 'transcribing'))
+    .orderBy(asc(episodes.createdAt))
+    .limit(1)
+
+  if (episode === undefined) return null
+
+  const done = await new DrizzleChunkStore(db).transcribedIndexes(episode.id)
+
+  return {
+    episodeId: episode.id,
+    title: episode.title,
+    chunksDone: done.length,
+    chunkCount: planChunks(episode.durationMs).length,
+  }
 }
 
 export interface AdvancedEpisode {
