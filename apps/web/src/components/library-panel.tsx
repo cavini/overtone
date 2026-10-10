@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import type { UiKey } from '../i18n/ui.js'
 import { timestamp } from '../presenter/episode-view.js'
+import { episodesMatching } from '../presenter/library-filter.js'
 
 type Labels = Record<UiKey, string>
 
@@ -23,6 +24,10 @@ export interface LibraryEntry {
  * episode was touched last, which made a series of eleven into ten
  * transcripts nobody could open. Search already named the episode a moment
  * came from; this is what turns that name into something you can click.
+ *
+ * Typing narrows the list rather than asking for a narrower one. Storage
+ * holds about forty-five episodes, so the whole library is already here by
+ * the time anybody reaches for the box.
  */
 export function LibraryPanel({
   labels,
@@ -43,6 +48,7 @@ export function LibraryPanel({
   readonly onOpen: (episodeId: string) => void
 }) {
   const [episodes, setEpisodes] = useState<readonly LibraryEntry[]>([])
+  const [typed, setTyped] = useState('')
 
   useEffect(() => {
     let stopped = false
@@ -62,21 +68,7 @@ export function LibraryPanel({
     }
   }, [reloadToken])
 
-  if (episodes.length === 0) {
-    return (
-      <section
-        className="mt-6 rounded-xl border p-5"
-        style={{ borderColor: 'var(--edge)', background: 'var(--panel)' }}
-      >
-        <h2 className="text-xl" style={{ fontFamily: 'var(--font-display)' }}>
-          {labels.libraryHeading}
-        </h2>
-        <p className="mt-2 text-sm" style={{ color: 'var(--quiet)' }}>
-          {labels.libraryEmpty}
-        </p>
-      </section>
-    )
-  }
+  const shown = episodesMatching(episodes, typed)
 
   return (
     <section
@@ -87,41 +79,68 @@ export function LibraryPanel({
         {labels.libraryHeading}
       </h2>
 
-      <ul className="mt-4 space-y-1">
-        {episodes.map((episode) => {
-          const reading = episode.episodeId === selected
-          const unfinished = episode.chunksDone < episode.chunkCount
+      {episodes.length === 0 ? (
+        <p className="mt-2 text-sm" style={{ color: 'var(--quiet)' }}>
+          {labels.libraryEmpty}
+        </p>
+      ) : (
+        <>
+          <input
+            type="search"
+            value={typed}
+            onChange={(event) => setTyped(event.target.value)}
+            placeholder={labels.libraryFilter}
+            aria-label={labels.libraryFilter}
+            className="mt-4 w-full rounded-md border px-3 py-2 text-sm"
+            style={{ background: 'var(--ground)', borderColor: 'var(--edge)', color: 'var(--prose)' }}
+          />
 
-          return (
-            <li key={episode.episodeId}>
-              <button
-                type="button"
-                onClick={() => onOpen(episode.episodeId)}
-                className="flex w-full flex-wrap items-baseline justify-between gap-2 rounded-md border px-3 py-2 text-left text-sm transition-colors"
-                style={{
-                  borderColor: reading ? 'var(--accent)' : 'var(--edge)',
-                  background: reading ? 'var(--panel)' : 'transparent',
-                }}
-              >
-                <span className="min-w-0">
-                  <span className="font-medium">{episode.title}</span>
-                  <span className="tabular ml-2 text-xs" style={{ color: 'var(--quiet)' }}>
-                    {timestamp(episode.durationMs)}
-                  </span>
-                  {unfinished ? (
-                    <span className="ml-2 text-xs" style={{ color: 'var(--accent-quiet)' }}>
-                      {episode.chunksDone}/{episode.chunkCount} {labels.libraryUnfinished}
-                    </span>
-                  ) : null}
-                </span>
-                <span className="text-xs" style={{ color: reading ? 'var(--accent)' : 'var(--quiet)' }}>
-                  {reading ? labels.libraryReading : labels.libraryOpen}
-                </span>
-              </button>
-            </li>
-          )
-        })}
-      </ul>
+          {shown.length === 0 ? (
+            <p className="mt-4 text-sm" style={{ color: 'var(--quiet)' }}>
+              {labels.libraryNoMatch}
+            </p>
+          ) : (
+            <ul className="mt-4 space-y-1">
+              {shown.map((episode) => {
+                const reading = episode.episodeId === selected
+                const unfinished = episode.chunksDone < episode.chunkCount
+
+                return (
+                  <li key={episode.episodeId}>
+                    <button
+                      type="button"
+                      onClick={() => onOpen(episode.episodeId)}
+                      className="flex w-full flex-wrap items-baseline justify-between gap-2 rounded-md border px-3 py-2 text-left text-sm transition-colors"
+                      style={{
+                        borderColor: reading ? 'var(--accent)' : 'var(--edge)',
+                        background: reading ? 'var(--panel)' : 'transparent',
+                      }}
+                    >
+                      <span className="min-w-0">
+                        <span className="font-medium">{episode.title}</span>
+                        <span className="tabular ml-2 text-xs" style={{ color: 'var(--quiet)' }}>
+                          {timestamp(episode.durationMs)}
+                        </span>
+                        {unfinished ? (
+                          <span className="ml-2 text-xs" style={{ color: 'var(--accent-quiet)' }}>
+                            {episode.chunksDone}/{episode.chunkCount} {labels.libraryUnfinished}
+                          </span>
+                        ) : null}
+                      </span>
+                      <span
+                        className="text-xs"
+                        style={{ color: reading ? 'var(--accent)' : 'var(--quiet)' }}
+                      >
+                        {reading ? labels.libraryReading : labels.libraryOpen}
+                      </span>
+                    </button>
+                  </li>
+                )
+              })}
+            </ul>
+          )}
+        </>
+      )}
     </section>
   )
 }
