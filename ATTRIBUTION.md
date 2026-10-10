@@ -2,9 +2,9 @@
 
 ## Lemma dictionary
 
-Portuguese lemmatisation data from **[Lemmatization Lists](https://github.com/michmech/lemmatization-lists)** by Michal Měchura, available under the **[Open Database License (ODbL)](https://opendatacommons.org/licenses/odbl/)**. The Portuguese list derives upstream from Hunspell dictionaries published via OpenOffice.org.
+Portuguese **and English** lemmatisation data from **[Lemmatization Lists](https://github.com/michmech/lemmatization-lists)** by Michal Měchura, available under the **[Open Database License (ODbL)](https://opendatacommons.org/licenses/odbl/)**. The Portuguese list derives upstream from Hunspell dictionaries published via OpenOffice.org; the English list from **`e_lemma.txt` by Yasumasa Someya**, compiled from the British National Corpus word lists.
 
-This is what lets Overtone know that *falar*, *falei*, *falando* and *falou* are the same word, and — just as importantly — that *casa* and *casar* are not. No stemmer can tell those apart.
+This is what lets Overtone know that *falar*, *falei*, *falando* and *falou* are the same word, and — just as importantly — that *casa* and *casar* are not. No stemmer can tell those apart. The English half does the same job for *be*/*was*/*were*, *go*/*went* and *child*/*children*.
 
 **What the licence requires of us**
 
@@ -21,11 +21,15 @@ The list is loaded as-is apart from three transformations, all in `packages/adap
 2. Rows with no letters on either side are dropped. The published file's first row maps a word to `00`.
 3. 213 identity rows are **added**, for lemmas the fallback stemmer would otherwise corrupt. `país` appears in the list only as the lemma of `países`; without an entry of its own it would have been counted as `paí`.
 
-Roughly 824,978 of the original 850,264 pairs are kept.
+Roughly 824,978 of the original 850,264 Portuguese pairs are kept, and 41,480 of the 41,760 English ones.
 
-**A known limitation**
+The pruning in step 3 is done with **that language's own stemmer**, which is not a detail: judged by the Portuguese rules the English list needs 747 protective rows, and judged by the English ones it needs 21. The extra 726 would have been protecting English words from a stemmer that never runs on them.
 
-The list maps a spelling to a lemma with no part-of-speech disambiguation, so a form that belongs to two different verbs gets one of them arbitrarily. `aposto` — "I bet" — resolves to `apor` ("to append") rather than `apostar`. Occasional and visible rather than silent: the UI shows the spellings that were folded into a term, so a wrong grouping can be spotted and split with an alias. Worth knowing it exists.
+**Known limitations**
+
+The lists map a spelling to a lemma with no part-of-speech disambiguation, so a form that belongs to two different verbs gets one of them arbitrarily. `aposto` — "I bet" — resolves to `apor` ("to append") rather than `apostar`. Occasional and visible rather than silent: the UI shows the spellings that were folded into a term, so a wrong grouping can be spotted and split with an alias. Worth knowing it exists.
+
+The English list is **much smaller and thinner than the Portuguese one** — 41,480 pairs against 824,978, over 25,863 lemmas. English inflects far less, so that is not the whole story, but the gaps are real: 18,000 of its lemmas carry a single form, usually just the plural, which the stemmer would have grouped anyway. It holds nothing modern (`podcast` is absent entirely), `people` is missing as a form of `person`, and being corpus-derived it carries some dialect and some junk — `think`/`thinked`, and `'s` filed under both `be` and `have`. Its real value is the irregulars no stemmer can reach: `was`→`be`, `went`→`go`, `children`→`child`, `mice`→`mouse`, `better`→`good`.
 
 ## Transcription
 
