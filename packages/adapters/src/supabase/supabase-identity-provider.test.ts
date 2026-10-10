@@ -160,6 +160,39 @@ describe('SupabaseIdentityProvider', () => {
       expect((stub as unknown as { mock: { calls: unknown[] } }).mock.calls).toHaveLength(1)
     })
 
+    /*
+     * The whole path, with a key the stub really published and a token
+     * really signed by it. The pieces are tested apart; this is the one
+     * that proves they are wired to each other.
+     */
+    it('recognises a token signed by the key it published', async () => {
+      const pair = await crypto.subtle.generateKey({ name: 'ECDSA', namedCurve: 'P-256' }, true, [
+        'sign',
+        'verify',
+      ])
+      const published = await crypto.subtle.exportKey('jwk', pair.publicKey)
+
+      const b64 = (bytes: Uint8Array) =>
+        btoa(String.fromCodePoint(...bytes)).replaceAll('+', '-').replaceAll('/', '_').replaceAll('=', '')
+      const part = (value: unknown) => b64(new TextEncoder().encode(JSON.stringify(value)))
+
+      const signed = `${part({ alg: 'ES256', kid: 'live-key' })}.${part({
+        sub: 'user-9',
+        email: 'loen@example.test',
+        exp: Math.floor(Date.now() / 1000) + 3600,
+      })}`
+      const signature = await crypto.subtle.sign(
+        { name: 'ECDSA', hash: 'SHA-256' },
+        pair.privateKey,
+        new TextEncoder().encode(signed),
+      )
+
+      const serving = answering(200, { keys: [{ ...published, kid: 'live-key' }] })
+      const who = await provider(serving).whoIs(`${signed}.${b64(new Uint8Array(signature))}`)
+
+      expect(who).toEqual({ userId: 'user-9', email: 'loen@example.test' })
+    })
+
     it('answers with nobody for something that is not a token at all', async () => {
       expect(await provider(answering(200, jwks)).whoIs('made-up')).toBeUndefined()
     })
