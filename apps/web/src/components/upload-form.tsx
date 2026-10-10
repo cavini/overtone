@@ -168,6 +168,19 @@ export function UploadForm({
           return
         }
 
+        /*
+         * The schedule is mid-step on this very episode.
+         *
+         * Both drive the same loop now (ADR 0027) and they take turns under
+         * one lease, so this is not an error and not progress — it is "ask
+         * again shortly". There is no status to read, and reading one would
+         * be reading `undefined`.
+         */
+        if (payload['busy'] === true) {
+          await sleep(Number(payload['retryAfterMs'] ?? 3_000))
+          continue
+        }
+
         const status = payload['status'] as OutcomeView
         const analysis = payload['analysis'] as AnalysisView | undefined
         setResult(analysis === undefined ? { status } : { status, analysis })

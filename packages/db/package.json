@@ -21,7 +21,8 @@
     "db:load-lemmas": "tsx src/load-lemmas.mts",
     "db:smoke": "tsx src/smoke.mts",
     "test:integration": "vitest run -c vitest.integration.config.ts",
-    "db:rename-episodes": "tsx src/rename-episodes.mts"
+    "db:rename-episodes": "tsx src/rename-episodes.mts",
+    "schedule-advance": "tsx src/schedule-advance.mts"
   },
   "dependencies": {
     "@overtone/core": "workspace:*",
