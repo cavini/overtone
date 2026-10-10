@@ -21,7 +21,7 @@ import {
   topics,
   transcripts,
 } from '@overtone/db/schema'
-import { and, asc, desc, eq } from 'drizzle-orm'
+import { and, asc, desc, eq, sql } from 'drizzle-orm'
 import { DrizzleAllowanceStore, DrizzleChunkStore } from '@overtone/db/repositories'
 import { listTopics } from './topics.js'
 import { blobStore, database, pipelineDependencies } from './wiring.js'
@@ -142,6 +142,62 @@ export async function startEpisode(
   )
 
   return { episodeId, chunks }
+}
+
+export interface LibraryEpisode {
+  readonly episodeId: string
+  readonly number: number
+  readonly title: string
+  readonly durationMs: number
+  readonly status: string
+  readonly chunksDone: number
+  readonly chunkCount: number
+}
+
+/**
+ * Every episode, newest first, with how far each one got.
+ *
+ * The page could only ever show one transcript — whichever episode was last
+ * touched — so a series of eleven was ten transcripts you could not open.
+ * Search already names the episode a moment came from; this is what makes
+ * that name something you can click.
+ */
+export async function listEpisodes(): Promise<LibraryEpisode[]> {
+  const db = database()
+
+  const rows = await db
+    .select({
+      id: episodes.id,
+      number: episodes.number,
+      title: episodes.title,
+      durationMs: episodes.durationMs,
+      status: episodes.status,
+      /*
+       * Counted by joining, not by a correlated subquery.
+       *
+       * The subquery this replaces generated `where "episode_id" = "id"`
+       * with both sides unqualified, so inside the subquery `"id"` bound to
+       * the chunk's own id rather than the episode's. It compared a chunk's
+       * episode to the chunk itself, matched nothing, and reported every
+       * episode as having zero chunks — with no error, which is how it
+       * survived a green typecheck and a passing build.
+       */
+      chunksDone: sql<number>`count(${chunkTranscripts.id})::int`,
+    })
+    .from(episodes)
+    .leftJoin(chunkTranscripts, eq(chunkTranscripts.episodeId, episodes.id))
+    .groupBy(episodes.id, episodes.number, episodes.title, episodes.durationMs, episodes.status)
+    .orderBy(desc(episodes.number))
+
+  return rows.map((row) => ({
+    episodeId: row.id,
+    number: row.number,
+    title: row.title,
+    durationMs: row.durationMs,
+    status: row.status,
+    chunksDone: row.chunksDone,
+    chunkCount: planChunks(row.durationMs).length,
+  }))
 }
 
 export interface PendingEpisode {
