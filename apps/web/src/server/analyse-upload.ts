@@ -2,6 +2,8 @@ import {
   advanceEpisode,
   DAILY_ALLOWANCE_MS,
   planChunks,
+  asAudioLanguage,
+  type AudioLanguage,
   planFromTranscripts,
   type AdvanceEpisodeOutcome,
   type EpisodeAnalysis,
@@ -106,7 +108,11 @@ export interface StartedEpisode {
  * from the browser straight to storage and this hands out one short-lived
  * permission per chunk.
  */
-export async function startEpisode(durationMs: number, title: string): Promise<StartedEpisode> {
+export async function startEpisode(
+  durationMs: number,
+  title: string,
+  language: AudioLanguage,
+): Promise<StartedEpisode> {
   const seriesId = await sharedSeriesId()
   const [created] = await database()
     .insert(episodes)
@@ -117,6 +123,10 @@ export async function startEpisode(durationMs: number, title: string): Promise<S
       // Stored now because every later step re-derives the chunk plan from
       // it, and the plan has to come out the same every time.
       durationMs,
+      // Settled now, and never revisited. What an episode was transcribed
+      // as is a fact about the episode, not about who is reading it later
+      // (ADR 0022).
+      language,
     })
     .returning({ id: episodes.id })
 
@@ -223,7 +233,11 @@ export interface AdvancedEpisode {
 export async function advanceOnce(episodeId: string): Promise<AdvancedEpisode> {
   const db = database()
   const [episode] = await db
-    .select({ durationMs: episodes.durationMs, status: episodes.status })
+    .select({
+      durationMs: episodes.durationMs,
+      status: episodes.status,
+      language: episodes.language,
+    })
     .from(episodes)
     .where(eq(episodes.id, episodeId))
 
@@ -271,7 +285,13 @@ export async function advanceOnce(episodeId: string): Promise<AdvancedEpisode> {
   // hardcoded empty while the rest was being built, which meant the headline
   // feature counted nothing on every episode.
   const outcome = await advanceEpisode(
-    { episodeId, chunks: uploaded, topics: await listTopics() },
+    {
+      episodeId,
+      chunks: uploaded,
+      topics: await listTopics(),
+      // The episode's own language, not the reader's.
+      language: asAudioLanguage(episode.language),
+    },
     pipelineDependencies(),
   )
 
