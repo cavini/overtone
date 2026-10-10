@@ -7,8 +7,15 @@
  * few hundred milliseconds in, and answering "none" for a hit at the very
  * top would drop the reader in at the top with nothing marked.
  *
- * Linear rather than a binary search. A two-hour episode is a few hundred
- * lines and this runs when someone clicks a result, not on every tick.
+ * Scans all of them rather than stopping at the first line past the moment,
+ * because the line starts are only nearly sorted. A real ten-minute clip of
+ * the show comes back with two lines starting a few hundred milliseconds
+ * before the line above them — the transcriber overlaps its word timings —
+ * and stopping early would walk off at the first of those.
+ *
+ * Linear rather than a binary search, for the same reason and because a
+ * two-hour episode is a few hundred lines and this runs when someone clicks
+ * a result, not on every tick.
  */
 export function lineAtMoment(
   lines: readonly { readonly startMs: number }[],
@@ -18,8 +25,7 @@ export function lineAtMoment(
 
   let found = 0
   for (const [index, line] of lines.entries()) {
-    if (line.startMs > ms) break
-    found = index
+    if (line.startMs <= ms) found = index
   }
 
   return found
