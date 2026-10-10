@@ -1,14 +1,17 @@
 /**
- * One shared password, which is the whole access model for now.
+ * The shared password, kept only so the cutover to accounts is not an
+ * outage.
  *
- * Not about privacy — the group's episodes are not secret to each other. It
- * is about the **allowance**: `/api/episodes` spends seconds of audio from
- * one free-tier budget that every user of the app shares, three episodes a
- * day between them (ADR 0020). An open upload endpoint on a public URL is a
- * stranger emptying it.
+ * Accounts replaced this (ADR 0028), but switching over needs three things
+ * done by hand in the Supabase dashboard — Site URL, the callback in the
+ * redirect allow-list, and real SMTP — and until they are done nobody can
+ * sign in at all. Deleting this would have taken the app down for however
+ * long that took.
  *
- * Accounts arrive in M1. Until then this is the smallest thing that stops
- * that, and the roadmap says so in as many words.
+ * **It is off unless `OVERTONE_PASSWORD` is set.** Whoever holds it is
+ * treated as the owner of the library from before accounts, so the group's
+ * existing episodes keep reading exactly as they did. Unset the variable
+ * and this disappears; nothing else refers to it.
  */
 
 const encoder = new TextEncoder()

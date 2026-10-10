@@ -42,5 +42,13 @@ export interface TranscriptSearch {
    * does not need four hundred rows to tell someone where the conversation
    * about it was.
    */
-  search(query: string, limit: number): Promise<readonly TranscriptMatch[]>
+  /**
+   * `seriesId` is not optional, and that is deliberate.
+   *
+   * Search reads every stored segment there is. Once there is more than one
+   * library, an unscoped search is one person reading another's transcripts
+   * — so the scope is a required argument rather than a filter a caller
+   * might forget.
+   */
+  search(seriesId: string, query: string, limit: number): Promise<readonly TranscriptMatch[]>
 }

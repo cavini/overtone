@@ -42,7 +42,7 @@ gitignored and never leaves the machine.
 | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Safe in a browser; row-level security is what protects the data |
 | `SUPABASE_SECRET_KEY` | **Server only.** Bypasses row-level security. Never prefix it `NEXT_PUBLIC_` |
 | `GROQ_API_KEY` | `gsk_…` from console.groq.com |
-| `OVERTONE_PASSWORD` | The one the group types to get in |
+| `OVERTONE_INVITED` | The group's email addresses, comma-separated. Anyone else asking for a sign-in link is told it was sent and nothing is |
 | `CRON_SECRET` | Vercel sends it to the daily keep-alive as a bearer token. Any long random string; Vercel generates one if you leave it blank |
 
 **The two database URLs are not interchangeable, and getting it wrong takes
@@ -99,11 +99,30 @@ select jobname, schedule, active from cron.job;
 select status, (response).status_code from net._http_response order by created desc limit 5;
 ```
 
-**Changing the shared password** — edit it in Vercel and redeploy. Everyone's
-cookie stops matching immediately, because the cookie holds a hash of the
-password itself. That is the logout button.
+## Signing in
 
-**Leaving `OVERTONE_PASSWORD` unset removes the gate entirely.** Deliberate,
+Magic links, through Supabase Auth (ADR 0028). Three things have to be set up
+in the Supabase dashboard, and sign-in is broken until they are:
+
+1. **Authentication → URL Configuration → Site URL**: the deployed origin.
+2. **Redirect URLs**: add `https://<your-domain>/auth/callback`. A link whose
+   redirect is not allow-listed lands on the Supabase error page instead.
+3. **Custom SMTP** (Authentication → Emails). The built-in sender is rate
+   limited to a couple of messages an hour and is meant for development.
+   Resend and Brevo both have free tiers that cover a group this size.
+
+Then, once, so the episodes uploaded under the old shared password are not
+orphaned — they sit in a library owned by an id nobody can sign in as:
+
+```bash
+pnpm --filter @overtone/db claim-library you@example.com
+```
+
+Sign in first so the account exists, then run it. It is a script rather than
+something that happens on first sign-in on purpose: adopting the library
+automatically would hand the group's episodes to whoever signed in first.
+
+**Leaving `OVERTONE_INVITED` unset lets anybody sign in.** Deliberate,
 so a fresh checkout runs with no setup. Never do it in production: the thing
 the gate protects is the transcription allowance, which is three episodes a
 day shared by everyone.

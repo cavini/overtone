@@ -113,7 +113,7 @@ function matchedInAnyLanguage(query: string): SQL {
 export class DrizzleTranscriptSearch implements TranscriptSearch {
   constructor(private readonly db: Database) {}
 
-  async search(query: string, limit: number): Promise<readonly TranscriptMatch[]> {
+  async search(seriesId: string, query: string, limit: number): Promise<readonly TranscriptMatch[]> {
     const rows = await this.db
       .select({
         episodeId: episodes.id,
@@ -129,7 +129,13 @@ export class DrizzleTranscriptSearch implements TranscriptSearch {
       .innerJoin(transcripts, eq(transcripts.id, segments.transcriptId))
       .innerJoin(episodes, eq(episodes.id, transcripts.episodeId))
       .where(
-        and(matchedInAnyLanguage(query), eq(episodes.status, 'ready')),
+        and(
+          matchedInAnyLanguage(query),
+          eq(episodes.status, 'ready'),
+          // One library at a time. Search reads every stored segment, so
+          // without this it reads everybody's.
+          eq(episodes.seriesId, seriesId),
+        ),
       )
       /*
        * Busiest episode first, then newest, then in order within it.

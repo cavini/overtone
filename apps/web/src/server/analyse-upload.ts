@@ -25,7 +25,7 @@ import {
 } from '@overtone/db/schema'
 import { and, asc, desc, eq, sql } from 'drizzle-orm'
 import { DrizzleAllowanceStore, DrizzleChunkStore } from '@overtone/db/repositories'
-import { listTopics } from './topics.js'
+import { topicsOfSeries } from './topics.js'
 import { blobStore, database, episodeDirectory, pipelineDependencies } from './wiring.js'
 
 /**
@@ -38,14 +38,13 @@ const AUDIO_URL_TTL_SECONDS = 15 * 60
 
 
 /**
- * The series everything lands in until there is sign-in.
+ * The library that belonged to everybody before sign-in existed.
  *
- * M0 is deliberately crude here — one shared library, no accounts (see the
- * roadmap). It is a fixed id rather than a lookup by title so that restarting
- * the app does not quietly start a second library.
+ * Kept so the episodes uploaded under the shared password are not orphaned.
+ * Nothing creates it any more; it is adopted by whoever claims it, once.
  */
 export const M0_OWNER = '00000000-0000-0000-0000-0000000000m0'.replace('m0', '0a')
-const M0_SERIES_TITLE = 'Overtone'
+const SERIES_TITLE = 'Overtone'
 
 /**
  * Audio still affordable today, in hours.
@@ -60,24 +59,61 @@ export async function remainingDailyHours(): Promise<number> {
   return Math.max(0, Math.round(((DAILY_ALLOWANCE_MS - dailyUsedMs) / 3_600_000) * 10) / 10)
 }
 
-/** The shared library, created the first time anything is uploaded. */
-export async function sharedSeriesId(): Promise<string> {
+/**
+ * Refuses to go on unless this episode is in this person's library.
+ *
+ * The second half of the access model. Anything addressed by an episode id
+ * rather than derived from the signed-in user — reading a transcript,
+ * deleting, advancing from a tab — arrives with an id the caller chose, and
+ * a UUID in a URL is not a permission.
+ *
+ * Throws rather than returning a flag, so a caller cannot forget to look.
+ */
+export async function mustOwnEpisode(userId: string, episodeId: string): Promise<void> {
+  const [found] = await database()
+    .select({ id: episodes.id })
+    .from(episodes)
+    .innerJoin(series, eq(series.id, episodes.seriesId))
+    .where(and(eq(episodes.id, episodeId), eq(series.ownerId, userId)))
+    .limit(1)
+
+  if (found === undefined) throw new NotYours()
+}
+
+/** Thrown by `mustOwnEpisode`, turned into a 404 at the edge. */
+export class NotYours extends Error {
+  constructor() {
+    super('not yours')
+    this.name = 'NotYours'
+  }
+}
+
+/**
+ * This person's library, made the first time they upload anything.
+ *
+ * **Every query that reads or writes an episode hangs off the id this
+ * returns.** That is the whole of the access model: there is no filter to
+ * remember to add, because the series a caller can reach is derived from
+ * who they are rather than passed in alongside. A route that forgets to
+ * scope cannot — it has nothing to scope *to* until it asks for this.
+ */
+export async function seriesFor(userId: string): Promise<string> {
   const db = database()
   const [existing] = await db
     .select({ id: series.id })
     .from(series)
-    .where(and(eq(series.ownerId, M0_OWNER), eq(series.title, M0_SERIES_TITLE)))
+    .where(and(eq(series.ownerId, userId), eq(series.title, SERIES_TITLE)))
     .limit(1)
 
   if (existing) return existing.id
 
   const [created] = await db
     .insert(series)
-    .values({ ownerId: M0_OWNER, title: M0_SERIES_TITLE })
+    .values({ ownerId: userId, title: SERIES_TITLE })
     .returning({ id: series.id })
 
   const id = created?.id ?? ''
-  await db.insert(seriesMembers).values({ seriesId: id, userId: M0_OWNER, role: 'owner' })
+  await db.insert(seriesMembers).values({ seriesId: id, userId, role: 'owner' })
   return id
 }
 
@@ -121,12 +157,13 @@ export interface StartedEpisode {
  * permission per chunk.
  */
 export async function startEpisode(
+  userId: string,
   durationMs: number,
   filename: string,
   language: AudioLanguage,
   audioDigest?: string,
 ): Promise<StartedEpisode> {
-  const seriesId = await sharedSeriesId()
+  const seriesId = await seriesFor(userId)
   const db = database()
 
   // The same audio under a different name is the same episode.
@@ -228,7 +265,7 @@ export interface LibraryEpisode {
  * Search already names the episode a moment came from; this is what makes
  * that name something you can click.
  */
-export async function listEpisodes(): Promise<LibraryEpisode[]> {
+export async function listEpisodes(userId: string): Promise<LibraryEpisode[]> {
   const db = database()
 
   const rows = await db
@@ -252,6 +289,8 @@ export async function listEpisodes(): Promise<LibraryEpisode[]> {
     })
     .from(episodes)
     .leftJoin(chunkTranscripts, eq(chunkTranscripts.episodeId, episodes.id))
+    .innerJoin(series, eq(series.id, episodes.seriesId))
+    .where(eq(series.ownerId, userId))
     .groupBy(episodes.id, episodes.number, episodes.title, episodes.durationMs, episodes.status)
     .orderBy(desc(episodes.number))
 
@@ -278,7 +317,9 @@ export async function listEpisodes(): Promise<LibraryEpisode[]> {
  * episode is analysed. Removing what is already gone is the outcome this
  * wanted anyway, so it is not an error.
  */
-export async function deleteEpisode(episodeId: string): Promise<void> {
+export async function deleteEpisode(userId: string, episodeId: string): Promise<void> {
+  await mustOwnEpisode(userId, episodeId)
+
   const db = database()
 
   const [episode] = await db
@@ -327,14 +368,15 @@ export interface PendingEpisode {
  * way whatsoever to look at it, which made the whole feature invisible
  * unless you happened to be watching during the upload.
  */
-export async function pendingEpisode(): Promise<PendingEpisode | null> {
+export async function pendingEpisode(userId: string): Promise<PendingEpisode | null> {
   const db = database()
   const chunks = new DrizzleChunkStore(db)
 
   const [transcribing] = await db
     .select({ id: episodes.id, title: episodes.title, durationMs: episodes.durationMs })
     .from(episodes)
-    .where(eq(episodes.status, 'transcribing'))
+    .innerJoin(series, eq(series.id, episodes.seriesId))
+    .where(and(eq(episodes.status, 'transcribing'), eq(series.ownerId, userId)))
     .orderBy(asc(episodes.createdAt))
     .limit(1)
 
@@ -354,6 +396,8 @@ export async function pendingEpisode(): Promise<PendingEpisode | null> {
     .select({ id: episodes.id, title: episodes.title, durationMs: episodes.durationMs })
     .from(episodes)
     .innerJoin(chunkTranscripts, eq(chunkTranscripts.episodeId, episodes.id))
+    .innerJoin(series, eq(series.id, episodes.seriesId))
+    .where(eq(series.ownerId, userId))
     .groupBy(episodes.id, episodes.title, episodes.durationMs, episodes.createdAt)
     .orderBy(desc(episodes.createdAt))
     .limit(1)
@@ -383,11 +427,12 @@ export async function pendingEpisode(): Promise<PendingEpisode | null> {
  * re-stitches and re-analyses on the next step, so "recount" is simply
  * taking that step again.
  */
-export async function recountFinished(): Promise<number> {
+export async function recountFinished(userId: string): Promise<number> {
   const finished = await database()
     .select({ id: episodes.id })
     .from(episodes)
-    .where(eq(episodes.status, 'ready'))
+    .innerJoin(series, eq(series.id, episodes.seriesId))
+    .where(and(eq(episodes.status, 'ready'), eq(series.ownerId, userId)))
 
   let counted = 0
   for (const episode of finished) {
@@ -430,6 +475,9 @@ export async function advanceOnce(episodeId: string): Promise<AdvancedEpisode> {
       durationMs: episodes.durationMs,
       status: episodes.status,
       language: episodes.language,
+      // The scheduled step has no signed-in user, so the running jokes come
+      // from the episode's own library rather than from whoever is looking.
+      seriesId: episodes.seriesId,
     })
     .from(episodes)
     .where(eq(episodes.id, episodeId))
@@ -515,7 +563,7 @@ export async function advanceOnce(episodeId: string): Promise<AdvancedEpisode> {
     {
       episodeId,
       chunks: uploaded,
-      topics: await listTopics(),
+      topics: await topicsOfSeries(episode.seriesId),
       // The episode's own language, not the reader's.
       language: asAudioLanguage(episode.language),
     },

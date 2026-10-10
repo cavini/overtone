@@ -1,3 +1,4 @@
+import { NotSignedIn, requireUser } from '../../../server/session.js'
 import type { TopicProblem } from '@overtone/core'
 import {
   DEFAULT_LOCALE,
@@ -42,7 +43,7 @@ function explain(problem: TopicProblem, locale: Locale): string {
 }
 
 export async function GET(): Promise<Response> {
-  return Response.json({ topics: await listTopics() })
+  return Response.json({ topics: await listTopics((await requireUser()).userId) })
 }
 
 export async function POST(request: Request): Promise<Response> {
@@ -53,7 +54,7 @@ export async function POST(request: Request): Promise<Response> {
   }
   const locale = localeOf(body.locale)
 
-  const result = await createTopic({
+  const result = await createTopic((await requireUser()).userId, {
     name: String(body.name ?? ''),
     patterns: Array.isArray(body.patterns) ? body.patterns.map(String) : [],
   })
@@ -69,6 +70,6 @@ export async function DELETE(request: Request): Promise<Response> {
   const id = new URL(request.url).searchParams.get('id') ?? ''
   if (id.length === 0) return Response.json({ error: 'UNEXPECTED' }, { status: 400 })
 
-  await deleteTopic(id)
+  await deleteTopic((await requireUser()).userId, id)
   return Response.json({ ok: true })
 }

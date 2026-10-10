@@ -106,12 +106,26 @@ export function describeAllowanceStore(
       const subject = await setUp()
       await subject.reset()
       try {
+        /*
+         * Two stamps the store itself wrote, never one of its and one of
+         * this machine's.
+         *
+         * The real store stamps a stored row with the database's `now()` —
+         * a clock on another continent, measured at three milliseconds
+         * behind this laptop, which is enough to fail a comparison against
+         * `Date.now()` on every run. An empty bucket is stamped locally, so
+         * even the store's own first answer is from the wrong clock until
+         * something has been recorded. Hence recording twice.
+         */
+        await subject.store.record(CHUNK)
+        const before = (await subject.store.read()).asOfMs
+
         // The clock has to have moved, or a stamp that never moved is
         // indistinguishable from one set a moment ago.
-        const spentAt = awaitTick(() => subject.now())
+        awaitTick(() => subject.now())
         await subject.store.record(CHUNK)
 
-        expect((await subject.store.read()).asOfMs).toBeGreaterThanOrEqual(spentAt)
+        expect((await subject.store.read()).asOfMs).toBeGreaterThan(before)
       } finally {
         await subject.teardown?.()
       }

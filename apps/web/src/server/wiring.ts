@@ -1,7 +1,7 @@
 import type { AdvanceEpisodeDependencies } from '@overtone/core'
 import { GroqTranscriptionProvider } from '@overtone/adapters/groq'
 import { RssEpisodeDirectory } from '@overtone/adapters/feed'
-import { SupabaseBlobStore } from '@overtone/adapters/supabase'
+import { SupabaseBlobStore, SupabaseIdentityProvider } from '@overtone/adapters/supabase'
 import { lemmaQuery } from '@overtone/db/lemmas'
 import {
   DrizzleAllowanceStore,
@@ -31,6 +31,7 @@ function required(name: string): string {
 }
 
 let db: PostgresJsDatabase | undefined
+let identity: SupabaseIdentityProvider | undefined
 
 /**
  * One pool per process.
@@ -58,6 +59,20 @@ export function episodeDirectory(feedUrl?: string | null): RssEpisodeDirectory |
   const url = feedUrl ?? process.env['OVERTONE_FEED_URL']
 
   return url === undefined || url.length === 0 ? undefined : new RssEpisodeDirectory({ feedUrl: url })
+}
+
+/**
+ * Sign-in, with the publishable key.
+ *
+ * Never the secret one: these are the endpoints a browser would call, and
+ * the secret key bypasses row-level security entirely.
+ */
+export function identityProvider(): SupabaseIdentityProvider {
+  identity ??= new SupabaseIdentityProvider({
+    projectUrl: required('NEXT_PUBLIC_SUPABASE_URL'),
+    publishableKey: required('NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY'),
+  })
+  return identity
 }
 
 export function blobStore(): SupabaseBlobStore {

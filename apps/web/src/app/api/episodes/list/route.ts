@@ -1,3 +1,4 @@
+import { refusal, requireUser } from '../../../../server/session.js'
 import { deleteEpisode, listEpisodes } from '../../../../server/analyse-upload.js'
 
 export const runtime = 'nodejs'
@@ -5,8 +6,11 @@ export const runtime = 'nodejs'
 /** Every episode, so one can be chosen and read. */
 export async function GET(): Promise<Response> {
   try {
-    return Response.json({ episodes: await listEpisodes() })
+    return Response.json({ episodes: await listEpisodes((await requireUser()).userId) })
   } catch (error) {
+    const denied = refusal(error)
+    if (denied !== undefined) return denied
+
     console.error('could not list episodes', error)
     return Response.json({ episodes: [] }, { status: 200 })
   }
@@ -24,9 +28,12 @@ export async function DELETE(request: Request): Promise<Response> {
   if (id.length === 0) return Response.json({ error: 'UNEXPECTED' }, { status: 400 })
 
   try {
-    await deleteEpisode(id)
+    await deleteEpisode((await requireUser()).userId, id)
     return Response.json({ ok: true })
   } catch (error) {
+    const denied = refusal(error)
+    if (denied !== undefined) return denied
+
     console.error('could not delete the episode', error)
     return Response.json({ error: 'UNEXPECTED' }, { status: 500 })
   }

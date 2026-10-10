@@ -2,66 +2,65 @@ import createMiddleware from 'next-intl/middleware'
 import type { NextRequest } from 'next/server'
 import { NextResponse } from 'next/server'
 import { routing } from './i18n/routing.js'
-import { GATE_COOKIE, matches, tokenFor } from './server/gate.js'
+import { GATE_COOKIE } from './server/gate.js'
+import { ACCESS_COOKIE, REFRESH_COOKIE } from './server/session.js'
 
 const withLocale = createMiddleware(routing)
 
-/** Where the password is handed in. */
+/** Where somebody asks for a sign-in link. */
 const GATE_PAGE = '/entrar'
-const GATE_API = '/api/enter'
 
 /**
  * The licence notice, open to everyone.
  *
  * ODbL asks for the dictionary's attribution to be reachable by anyone the
- * work reaches (ADR 0019), and a notice you need a password to read is not
+ * work reaches (ADR 0019), and a notice you need an account to read is not
  * reachable. It holds nothing of anybody's anyway.
  */
 const CREDITS_PAGE = '/creditos'
 
 /**
- * The scheduled ping, which has no cookie and never will.
+ * Paths that have to answer without a session, each for its own reason.
  *
- * It guards itself with `CRON_SECRET` instead — the password gate exists to
- * protect the transcription allowance, and this endpoint reads one row and
- * spends none of it.
+ * `/auth/*` is how somebody gets one and `/api/auth/*` is the form behind
+ * it. The two scheduled endpoints are called by Postgres and by Vercel,
+ * which have no cookie and never will — they guard themselves with
+ * `CRON_SECRET` instead (ADR 0027).
  */
-const KEEP_ALIVE_API = '/api/keep-alive'
-
-/** The scheduled transcription step. Same reasoning, same guard. */
-const ADVANCE_API = '/api/episodes/advance-pending'
-
-async function carriesTheCookie(request: NextRequest, password: string): Promise<boolean> {
-  return matches(request.cookies.get(GATE_COOKIE)?.value, await tokenFor(password))
-}
+const OPEN_PREFIXES = ['/auth/', '/api/auth/'] as const
+const OPEN_PATHS = ['/api/keep-alive', '/api/episodes/advance-pending', '/api/enter'] as const
 
 /**
- * Two jobs, in order: keep strangers out, then put the page in a language.
+ * Two jobs, in order: send strangers to the door, then put the page in a
+ * language.
  *
- * The gate comes first because the thing being protected is the transcription
- * allowance — one free-tier budget of three episodes a day, shared by
- * everyone (ADR 0020). An open upload endpoint on a public URL is a stranger
- * emptying it.
+ * **This is a redirect, not the lock.** It only looks for the *presence* of
+ * a session cookie, because verifying one costs a signature check and this
+ * runs on very nearly every request. The enforcement is `requireUser()` in
+ * each route, and the fact that a library is reached through its owner's id
+ * rather than through a parameter: a forged cookie gets past this and then
+ * has nothing it can read.
  */
-export default async function middleware(request: NextRequest): Promise<Response> {
+export default function middleware(request: NextRequest): Response {
   const { pathname } = request.nextUrl
-  const password = process.env['OVERTONE_PASSWORD']
   const isApi = pathname.startsWith('/api/')
 
   // An API route never gets a locale prefix. Letting the i18n middleware see
-  // one rewrites `/api/enter` to `/pt/api/enter`, which is a 404 wearing a
-  // redirect.
+  // one rewrites `/api/auth/link` to `/pt/api/auth/link`, which is a 404
+  // wearing a redirect.
   const onward = (): Response => (isApi ? NextResponse.next() : withLocale(request))
 
-  // No password configured means no gate. Deliberate, so a fresh checkout
-  // runs with no setup — production is where it is set.
-  if (password === undefined || password.length === 0) return onward()
+  if (OPEN_PATHS.includes(pathname as (typeof OPEN_PATHS)[number])) return onward()
+  if (OPEN_PREFIXES.some((prefix) => pathname.startsWith(prefix))) return onward()
+  if (pathname.endsWith(GATE_PAGE) || pathname.endsWith(CREDITS_PAGE)) return onward()
 
-  if (pathname === GATE_API || pathname.endsWith(GATE_PAGE)) return onward()
-  if (pathname === KEEP_ALIVE_API || pathname === ADVANCE_API) return onward()
-  if (pathname.endsWith(CREDITS_PAGE)) return onward()
+  const carriesSomething =
+    request.cookies.has(ACCESS_COOKIE) ||
+    request.cookies.has(REFRESH_COOKIE) ||
+    // The shared password, while it is still set. See `gate.ts`.
+    request.cookies.has(GATE_COOKIE)
 
-  if (await carriesTheCookie(request, password)) return onward()
+  if (carriesSomething) return onward()
 
   // A status for a program, a page for a person. A fetch that followed a
   // redirect would get HTML where it expected JSON and report nonsense.
