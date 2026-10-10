@@ -18,6 +18,7 @@ import { countTerms } from '../analysis/count-terms.js'
 import { findMentions } from '../analysis/find-mentions.js'
 import { nextChunkToSend } from '../analysis/pacing.js'
 import { PIPELINE_VERSION } from '../analysis/pipeline-version.js'
+import { precedingTail } from '../analysis/preceding-tail.js'
 import { toSegments } from '../analysis/to-segments.js'
 import { tokeniseTimed } from '../analysis/tokenise-timed.js'
 import { VOCABULARY_VERSION } from '../analysis/vocabulary.js'
@@ -119,9 +120,15 @@ export async function advanceEpisode(
 
     await store.setStatus(request.episodeId, 'transcribing')
 
+    // What the chunk before this one said, so it does not start the
+    // conversation over at the join. One row, not the whole episode.
+    const before = await chunks.transcript(request.episodeId, chunk.index - 1)
+    const preceding = precedingTail(before === undefined ? [] : [before], chunk.index)
+
     const transcribed = await transcription.transcribe({
       audioUrl: uploaded.audioUrl,
       language: request.language ?? DEFAULT_AUDIO_LANGUAGE,
+      ...(preceding === undefined ? {} : { precedingText: preceding }),
     })
 
     if (!transcribed.ok) {

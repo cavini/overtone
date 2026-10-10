@@ -9,7 +9,22 @@ import { readAllowance } from './rate-limit-headers.js'
 import { groqTranscriptionResponse } from './transcription-response.js'
 
 const ENDPOINT = 'https://api.groq.com/openai/v1/audio/transcriptions'
-const MODEL = 'whisper-large-v3-turbo'
+/**
+ * The full model, not the distilled `-turbo`.
+ *
+ * Both carry the same free allowance — measured, 7,200 audio-seconds an hour
+ * each, and in separate buckets — so the faster one buys nothing here. What
+ * pacing costs is governed by the allowance refilling at two audio-seconds
+ * per wall-second, never by how long the provider takes to answer: ninety
+ * seconds of audio came back in two seconds against the turbo model's one
+ * and a half.
+ *
+ * And turbo is measurably worse on this show. On a real ninety-second slice
+ * it rendered a plain, very common sentence as `Mas tem marucu!`, where the
+ * full model heard it correctly. A wrong word is not a small cost in a
+ * product whose entire output is counts of words.
+ */
+const MODEL = 'whisper-large-v3'
 
 /** Used when a rate-limited response does not say when to come back. */
 const FALLBACK_RETRY_MS = 60_000
@@ -91,6 +106,20 @@ export class GroqTranscriptionProvider implements TranscriptionProvider {
     fields.set('model', this.model)
     fields.set('language', request.language)
     fields.set('response_format', 'verbose_json')
+    // Greedy decoding. Sampling is a way of guessing, and a count built on a
+    // guess is worse than a gap in one.
+    fields.set('temperature', '0')
+    /*
+     * What the chunk before this one said, when there was one.
+     *
+     * Only ever the preceding transcript. A glossary of the show's names was
+     * measured here too and made things worse: the model copies the shape of
+     * whatever it is handed, so a list came back as a list, with labels
+     * stamped through the speech.
+     */
+    if (request.precedingText !== undefined && request.precedingText.length > 0) {
+      fields.set('prompt', request.precedingText)
+    }
     fields.append('timestamp_granularities[]', 'word')
     fields.append('timestamp_granularities[]', 'segment')
 

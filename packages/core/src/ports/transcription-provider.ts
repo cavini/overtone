@@ -84,6 +84,22 @@ export interface TranscriptionRequest {
    * property of whoever is reading.
    */
   readonly language: AudioLanguage
+  /**
+   * What the chunk before this one ended up saying, if there was one.
+   *
+   * An episode is longer than the hourly allowance, so it is cut into chunks
+   * and each is sent on its own (ADR 0020) — which means every chunk but the
+   * first starts mid-conversation knowing nothing about it. Measured on a
+   * real episode: the same chunk transcribed cold lost a whole clause that
+   * the prompted run recovered, and its punctuation and casing restarted
+   * from scratch at the join.
+   *
+   * Only ever the preceding transcript, never a glossary of names. A list of
+   * vocabulary was measured too and made the output worse — the model copies
+   * the *shape* of what it is given, so a list came back as a list, with
+   * labels stamped through the speech.
+   */
+  readonly precedingText?: string | undefined
 }
 
 export interface TranscriptionProvider {
