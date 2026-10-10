@@ -60,4 +60,23 @@ describe('the generated migrations', () => {
   it('indexes the lemma dictionary by the column it is looked up on', () => {
     expect(sql).toMatch(/CREATE TABLE "lemmas"[\s\S]*?"form" text PRIMARY KEY/)
   })
+
+  /*
+   * And then widens that key, because a spelling is not unique across
+   * languages. 760 forms sit in both halves of the dictionary with different
+   * lemmas — `aches` is `achar` in Portuguese and `ache` in English — so
+   * under the original single-column key whichever half loaded second would
+   * have overwritten the other, silently.
+   */
+  it('keys the lemma dictionary by language and form once there are two', () => {
+    expect(sql).toMatch(/ALTER TABLE "lemmas" ADD COLUMN IF NOT EXISTS "language"/)
+    expect(sql).toMatch(/PRIMARY KEY \("language", "form"\)/)
+  })
+
+  // Postgres only uses an expression index when the query's expression
+  // matches it exactly, so the configuration names are load-bearing.
+  it('indexes the transcripts under both text-search configurations', () => {
+    expect(sql).toMatch(/using gin \(to_tsvector\('portuguese', "text"\)\)/)
+    expect(sql).toMatch(/using gin \(to_tsvector\('english', "text"\)\)/)
+  })
 })
