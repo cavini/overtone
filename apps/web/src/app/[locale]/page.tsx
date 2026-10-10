@@ -4,6 +4,7 @@ import { setRequestLocale } from 'next-intl/server'
 import { notFound } from 'next/navigation'
 import { JokesPanel } from '../../components/jokes-panel.js'
 import { LocaleSwitcher } from '../../components/locale-switcher.js'
+import { SearchPanel } from '../../components/search-panel.js'
 import { Link } from '../../i18n/navigation.js'
 import { UploadForm } from '../../components/upload-form.js'
 import { routing } from '../../i18n/routing.js'
@@ -36,6 +37,8 @@ export default async function HomePage({
         </div>
         <LocaleSwitcher label={labels.language} />
       </header>
+
+      <SearchPanel labels={labels} />
 
       <JokesPanel locale={locale} labels={labels} />
 
