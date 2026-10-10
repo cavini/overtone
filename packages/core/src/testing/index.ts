@@ -16,3 +16,4 @@ export { describeAllowanceStore, type AllowanceStoreUnderTest } from './allowanc
 export { describeChunkStore, type ChunkStoreUnderTest } from './chunk-store.contract.js'
 export { describeBlobStore, type BlobStoreUnderTest } from './blob-store.contract.js'
 export { FakeBlobStore } from './fake-blob-store.js'
+export { describeEpisodeDirectory, type EpisodeDirectoryUnderTest } from './episode-directory.contract.js'
