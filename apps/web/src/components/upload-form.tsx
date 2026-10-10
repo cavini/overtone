@@ -2,6 +2,7 @@
 
 import type { Locale } from '@overtone/messages'
 import { useEffect, useRef, useState } from 'react'
+import { audioDigest } from '../audio/audio-digest.js'
 import { audioTypeOf, FILE_INPUT_ACCEPT } from '../audio/audio-type.js'
 import { measureDuration } from '../audio/measure-duration.js'
 import { splitAndUpload, type ChunkTarget } from '../audio/split-and-upload.js'
@@ -61,11 +62,17 @@ export function UploadForm({
   // library and the search results can change it too.
   const [error, setError] = useState('')
   const [result, setResult] = useState<Result | undefined>(undefined)
+  /**
+   * The title this audio is already filed under, when it turned out to be
+   * an episode we have. Undefined when the upload was new.
+   */
+  const [alreadyHere, setAlreadyHere] = useState<string | undefined>(undefined)
 
   async function send(file: File): Promise<void> {
     setBusy(true)
     setError('')
     setResult(undefined)
+    setAlreadyHere(undefined)
     setProgress({ headline: labels.preparing, done: 0, total: 0 })
 
     try {
@@ -77,15 +84,19 @@ export function UploadForm({
 
       const durationMs = await measureDuration(file, contentType)
 
-      // Only numbers cross the wire here. The audio goes straight to storage
-      // from the browser, because the server cannot accept a file this size.
+      // Only numbers and names cross the wire here. The audio goes straight
+      // to storage from the browser, because the server cannot accept a file
+      // this size — which is also why the fingerprint is taken here.
       const startResponse = await fetch('/api/episodes/start', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
           durationMs,
           locale,
-          title: file.name.replace(/\.[^.]+$/u, ''),
+          // Whole, extension included: the server reads a presentable title
+          // and the episode number out of it.
+          title: file.name,
+          audioDigest: await audioDigest(file),
         }),
       })
 
@@ -95,8 +106,25 @@ export function UploadForm({
         return
       }
 
-      const chunks = started['chunks'] as ChunkTarget[]
       const episodeId = String(started['episodeId'])
+
+      /*
+       * The same audio, whatever it was called this time.
+       *
+       * Nothing is uploaded and nothing is driven: re-transcribing a
+       * two-hour episode spends about a third of a day's free allowance to
+       * arrive at the transcript that is already in the database. So the
+       * episode is simply opened, and the reader is told why pressing the
+       * button did nothing.
+       */
+      if (started['alreadyHave'] === true) {
+        const title = started['title']
+        setAlreadyHere(typeof title === 'string' ? title : '')
+        onEpisode(episodeId, false)
+        return
+      }
+
+      const chunks = started['chunks'] as ChunkTarget[]
       onEpisode(episodeId, true)
 
       await splitAndUpload(file, chunks, ({ done, total }) => {
@@ -281,7 +309,19 @@ export function UploadForm({
 
       {progress ? <ProgressPanel progress={progress} labels={labels} /> : null}
 
-      
+      {alreadyHere !== undefined ? (
+        <p
+          role="status"
+          className="mt-4 rounded-lg border px-4 py-3 text-sm"
+          style={{ borderColor: 'var(--accent-quiet)', color: 'var(--prose)' }}
+        >
+          {labels.episodeAlreadyHere}
+          {alreadyHere === '' ? null : (
+            <span className="mt-1 block font-medium">{alreadyHere}</span>
+          )}
+        </p>
+      ) : null}
+
       {error !== '' ? (
         <p
           role="alert"
