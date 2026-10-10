@@ -34,6 +34,7 @@ export async function POST(request: Request): Promise<Response> {
   const body = (await request.json().catch(() => ({}))) as {
     durationMs?: number
     title?: string
+    audioDigest?: string
     locale?: string
   }
 
@@ -74,7 +75,19 @@ export async function POST(request: Request): Promise<Response> {
      * for an episode already transcribed — this is recorded on the episode
      * at upload and never revisited (ADR 0022).
      */
-    const started = await startEpisode(durationMs, title, asAudioLanguage(locale))
+    /*
+     * The filename goes in, not a title.
+     *
+     * `startEpisode` reads a presentable name out of it — and the episode
+     * number, when the filename carries one. Storing the filename verbatim
+     * gave a library that read like a directory listing.
+     */
+    const started = await startEpisode(
+      durationMs,
+      title,
+      asAudioLanguage(locale),
+      typeof body.audioDigest === 'string' ? body.audioDigest : undefined,
+    )
 
     return Response.json({
       ...started,
