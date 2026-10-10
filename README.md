@@ -32,7 +32,25 @@ That design has a useful side effect. Once per-episode aggregates are stored que
 
 ## Status
 
-**Planning complete, implementation not started.** The docs below are the plan of record.
+**It runs.** Live on Vercel behind a shared password, against Supabase and Groq, on free tiers with no payment method anywhere.
+
+**What works today**
+
+- Upload a full-length episode. The browser decodes it, splits it on the chunk plan and uploads each piece straight to object storage — a serverless function only accepts about 4.5 MB of body, so the audio never passes through the server.
+- Transcription paced against the provider's allowance, which refills continuously rather than resetting hourly. A two-hour episode is ten chunks; against a full balance it finishes in minutes. Closing the tab no longer strands it.
+- Word and term counts with Brazilian Portuguese lemmatisation — diacritics preserved, enclitics split, dictionary before stemmer, and a short hand-written override list for the words a general dictionary gets right about the language and wrong about how people talk.
+- Running jokes: name a bit, list the spellings the transcriber actually produces, and get counts with a timestamp behind each one. Recounting past episodes is free, because the transcripts are kept.
+- Full-text search over every transcript, returning the handful of *moments* a conversation happened in rather than a column of near-identical timestamps.
+- Bilingual throughout, Portuguese and English.
+
+**What is not finished**
+
+- **The analysis is still Portuguese-only.** The language of an episode is now chosen at upload ([`ADR 0022`](docs/adr/0022-the-language-is-chosen-per-episode.md)), but the stop words, fillers, stemmer and lemma dictionary are all pt-BR. An episode transcribed as English would be counted with Portuguese stop words, so its numbers are not yet trustworthy.
+- **There is no speaker dimension**, and it is cut rather than deferred — only the final mixed file is uploaded ([`ADR 0015`](docs/adr/0015-no-speaker-attribution.md)). "Who said it" is not a question this can answer.
+- **Search matches words, not meaning.** Finding a story about a dog requires someone to have said a word you can guess.
+- The assistant that answers questions in plain English is still the last thing to build ([`ADR 0007`](docs/adr/0007-assistant-is-tool-use-not-rag.md)).
+
+21 ADRs record why the code looks the way it does, including the decisions that were reversed. The docs below remain the plan of record for what has not been built.
 
 ## Documentation
 
