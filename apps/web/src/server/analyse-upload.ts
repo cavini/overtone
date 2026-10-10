@@ -581,14 +581,17 @@ export async function advanceOnce(episodeId: string): Promise<AdvancedEpisode> {
 
   return {
     outcome,
-    analysis: await readAnalysis(episodeId, episode.durationMs),
+    analysis: await readAnalysisOf(episodeId, episode.durationMs),
     chunkCount: plan.length,
     chunksDone,
   }
 }
 
 /** Reads back what the pipeline stored, which is what the page renders. */
-async function readAnalysis(episodeId: string, durationMs: number): Promise<EpisodeAnalysis> {
+export async function readAnalysisOf(
+  episodeId: string,
+  durationMs: number,
+): Promise<EpisodeAnalysis> {
   const db = database()
 
   const [insight] = await db.select().from(insights).where(eq(insights.episodeId, episodeId))
@@ -598,7 +601,13 @@ async function readAnalysis(episodeId: string, durationMs: number): Promise<Epis
     .where(eq(transcripts.episodeId, episodeId))
   const counts = await db.select().from(termCounts).where(eq(termCounts.episodeId, episodeId))
   const found = await db.select().from(mentions).where(eq(mentions.episodeId, episodeId))
-  const named = await db.select({ id: topics.id, name: topics.name }).from(topics)
+  // This episode's own library. Reading every topic there is would be
+  // wasteful at best and, once there is more than one group, theirs.
+  const named = await db
+    .select({ id: topics.id, name: topics.name })
+    .from(topics)
+    .innerJoin(episodes, eq(episodes.seriesId, topics.seriesId))
+    .where(eq(episodes.id, episodeId))
 
   const byTopic = new Map(named.map((topic) => [topic.id, topic.name]))
 

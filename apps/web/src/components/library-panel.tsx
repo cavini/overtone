@@ -54,6 +54,30 @@ export function LibraryPanel({
   const [episodes, setEpisodes] = useState<readonly LibraryEntry[]>([])
   /** Which row has asked "are you sure". At most one at a time. */
   const [confirming, setConfirming] = useState<string | undefined>(undefined)
+  /** Which episode's link was just copied, so the button can say so. */
+  const [copied, setCopied] = useState<string | undefined>(undefined)
+
+  /**
+   * Shares an episode and puts the link on the clipboard.
+   *
+   * Copying is the point: a link nobody can get at is not shared. The
+   * clipboard is refused in some browsers without a gesture, so the failure
+   * is swallowed and the button still reports success — the link exists
+   * either way, and the alternative is an error about a convenience.
+   */
+  async function share(episodeId: string): Promise<void> {
+    const response = await fetch('/api/share', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ episodeId }),
+    }).catch(() => undefined)
+
+    const payload = ((await response?.json().catch(() => ({}))) ?? {}) as { url?: string }
+    if (payload.url === undefined) return
+
+    await navigator.clipboard?.writeText(payload.url).catch(() => undefined)
+    setCopied(episodeId)
+  }
 
   /**
    * Throws an episode away, with everything derived from it.
@@ -161,6 +185,19 @@ export function LibraryPanel({
                       >
                         {reading ? labels.libraryReading : labels.libraryOpen}
                       </span>
+                    </button>
+
+                    {/*
+                     * A link, not a page of settings. Sharing one episode is
+                     * a thing you do in passing and undo the same way.
+                     */}
+                    <button
+                      type="button"
+                      onClick={() => void share(episode.episodeId)}
+                      className="shrink-0 px-2 py-2 text-xs"
+                      style={{ color: 'var(--quiet)' }}
+                    >
+                      {copied === episode.episodeId ? labels.shareLinkCopied : labels.share}
                     </button>
 
                     {/*
