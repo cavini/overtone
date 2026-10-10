@@ -1,5 +1,5 @@
 import type { Token } from '../domain/token.js'
-import { languagePack, type PackedLanguage } from './language-pack.js'
+import { languagePack, type AudioLanguage } from './language-pack.js'
 
 const HAS_WORD_CHARACTER = /[\p{L}\p{N}]/u
 
@@ -18,7 +18,7 @@ const HAS_WORD_CHARACTER = /[\p{L}\p{N}]/u
  * Expects normalised text, but tolerates stray punctuation rather than
  * trusting its caller.
  */
-export function surfacesOf(text: string, language: PackedLanguage): string[] {
+export function surfacesOf(text: string, language: AudioLanguage): string[] {
   const { splitWord } = languagePack(language)
   const surfaces: string[] = []
 
@@ -35,6 +35,6 @@ export function surfacesOf(text: string, language: PackedLanguage): string[] {
 }
 
 /** Splits normalised text into the token stream everything else counts over. */
-export function tokenise(text: string, language: PackedLanguage): Token[] {
+export function tokenise(text: string, language: AudioLanguage): Token[] {
   return surfacesOf(text, language).map((surface, index) => ({ surface, index }))
 }
