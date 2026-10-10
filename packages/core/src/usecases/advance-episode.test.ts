@@ -79,7 +79,13 @@ const harness = (
     stored,
     deps: {
       transcription: { transcribe },
-      lemmas: { lookup: () => Promise.resolve(new Map<string, string>()) },
+      lemmas: {
+        lookup: () => Promise.resolve(new Map<string, string>()),
+        // Nothing known as a verb form. With no dictionary entries either,
+        // every token keeps its own spelling, which is what these tests
+        // assert on.
+        verbForms: () => Promise.resolve(new Set<string>()),
+      },
       clock: { now: () => NOW },
       chunks: {
         transcribedIndexes: () => Promise.resolve([...stored.keys()]),

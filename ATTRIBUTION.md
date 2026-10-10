@@ -31,6 +31,35 @@ The lists map a spelling to a lemma with no part-of-speech disambiguation, so a 
 
 The English list is **much smaller and thinner than the Portuguese one** — 41,480 pairs against 824,978, over 25,863 lemmas. English inflects far less, so that is not the whole story, but the gaps are real: 18,000 of its lemmas carry a single form, usually just the plural, which the stemmer would have grouped anyway. It holds nothing modern (`podcast` is absent entirely), `people` is missing as a form of `person`, and being corpus-derived it carries some dialect and some junk — `think`/`thinked`, and `'s` filed under both `be` and `have`. Its real value is the irregulars no stemmer can reach: `was`→`be`, `went`→`go`, `children`→`child`, `mice`→`mouse`, `better`→`good`.
 
+
+## Verb forms
+
+Portuguese verb morphology from **[UniMorph](https://github.com/unimorph/por)**,
+available under the **[Creative Commons Attribution-ShareAlike 3.0 licence
+(CC-BY-SA 3.0)](https://creativecommons.org/licenses/by-sa/3.0/)**.
+
+It is here to stop the lemma dictionary inventing verbs. That list is
+mechanically generated and maps plain nouns onto infinitives that barely
+exist — *gato* onto *gatar*, *filho* onto *filhar*, *bebê* onto *beber* — so
+a quarter of the words on screen were ones nobody had said. The list cannot
+be corrected from its own contents, because it generated a full paradigm for
+each invention. UniMorph contains **only** verbs and has no entry for *gato*
+at all, which is exactly the signal needed.
+
+**What the licence requires of us**
+
+- This notice.
+- The data, and any modified version of it we publish, stays under CC-BY-SA 3.0.
+
+It places no condition on Overtone's own source code.
+
+**What we changed**
+
+Only the spellings are kept — the rows marked as verbs, lower-cased, with
+duplicates removed. The morphological features are discarded: which tense a
+form is in answers a question nothing here asks, and keeping them triples the
+size of a table that sits on a 500 MB tier.
+
 ## Transcription
 
 Speech recognition by **Whisper** (`whisper-large-v3-turbo`), served by [Groq](https://groq.com). Transcripts are produced from audio uploaded by the people who recorded it.

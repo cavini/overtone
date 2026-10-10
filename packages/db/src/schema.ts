@@ -219,6 +219,21 @@ export const advanceLease = pgTable('advance_lease', {
   heldUntil: timestamp('held_until', { withTimezone: true }).notNull().defaultNow(),
 })
 
+/**
+ * Spellings that are verb forms, from a source that contains only verbs.
+ *
+ * Its own table rather than a column on `lemmas`: a different source, a
+ * different licence, answering a different question. See ADR 0029.
+ */
+export const verbForms = pgTable(
+  'verb_forms',
+  {
+    language: text('language', { enum: AUDIO_LANGUAGES }).notNull().default('pt'),
+    form: text('form').notNull(),
+  },
+  (table) => [primaryKey({ name: 'verb_forms_pk', columns: [table.language, table.form] })],
+)
+
 export const chunkTranscripts = pgTable(
   'chunk_transcripts',
   {

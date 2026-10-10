@@ -3,11 +3,13 @@ import { GroqTranscriptionProvider } from '@overtone/adapters/groq'
 import { RssEpisodeDirectory } from '@overtone/adapters/feed'
 import { SupabaseBlobStore, SupabaseIdentityProvider } from '@overtone/adapters/supabase'
 import { lemmaQuery } from '@overtone/db/lemmas'
+import { verbForms } from '@overtone/db/schema'
 import {
   DrizzleAllowanceStore,
   DrizzleChunkStore,
   DrizzleEpisodeStore,
 } from '@overtone/db/repositories'
+import { and, eq, inArray } from 'drizzle-orm'
 import { drizzle, type PostgresJsDatabase } from 'drizzle-orm/postgres-js'
 import postgres from 'postgres'
 
@@ -94,6 +96,17 @@ export function pipelineDependencies(): AdvanceEpisodeDependencies {
       // functions never touch a database.
       lookup: async (forms, language) =>
         new Map((await lemmaQuery(connection)(forms, language)).map((row) => [row.form, row.lemma])),
+      // The same forms again, against the verbs-only source. How an
+      // invented verb is told from a real one (ADR 0029).
+      verbForms: async (forms, language) =>
+        new Set(
+          (
+            await connection
+              .select({ form: verbForms.form })
+              .from(verbForms)
+              .where(and(eq(verbForms.language, language), inArray(verbForms.form, [...forms])))
+          ).map((row) => row.form),
+        ),
     },
     chunks: new DrizzleChunkStore(connection),
     allowance: new DrizzleAllowanceStore(connection),

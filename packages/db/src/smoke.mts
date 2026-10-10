@@ -28,8 +28,8 @@ import { lemmaQuery } from './lemmas/lemma-query.js'
 import { DrizzleAllowanceStore } from './repositories/drizzle-allowance-store.js'
 import { DrizzleChunkStore } from './repositories/drizzle-chunk-store.js'
 import { DrizzleEpisodeStore } from './repositories/drizzle-episode-store.js'
-import { allowance, chunkTranscripts, episodes, insights, mentions, series, seriesMembers, termCounts, topics, topicTerms, transcripts } from './schema.js'
-import { eq } from 'drizzle-orm'
+import { allowance, chunkTranscripts, episodes, insights, mentions, series, seriesMembers, termCounts, topics, topicTerms, transcripts, verbForms } from './schema.js'
+import { and, eq, inArray } from 'drizzle-orm'
 
 const here = dirname(fileURLToPath(import.meta.url))
 const envFile = resolve(here, '../../../.env.local')
@@ -134,8 +134,18 @@ try {
 
   const deps = {
     transcription: replay,
-    lemmas: { lookup: async (forms: readonly string[], language: AudioLanguage) =>
+    lemmas: {
+      lookup: async (forms: readonly string[], language: AudioLanguage) =>
         new Map((await lemmaQuery(db)(forms, language)).map((r) => [r.form, r.lemma])),
+      verbForms: async (forms: readonly string[], language: AudioLanguage) =>
+        new Set(
+          (
+            await db
+              .select({ form: verbForms.form })
+              .from(verbForms)
+              .where(and(eq(verbForms.language, language), inArray(verbForms.form, [...forms])))
+          ).map((row) => row.form),
+        ),
     },
     chunks: new DrizzleChunkStore(db),
     allowance: new DrizzleAllowanceStore(db),
