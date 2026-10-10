@@ -41,6 +41,7 @@ export class DrizzleChunkStore implements ChunkStore {
         index: chunkTranscripts.index,
         offsetMs: chunkTranscripts.offsetMs,
         words: chunkTranscripts.words,
+        segmentStartsMs: chunkTranscripts.segmentStartsMs,
       })
       .from(chunkTranscripts)
       .where(eq(chunkTranscripts.episodeId, episodeId))
@@ -50,6 +51,7 @@ export class DrizzleChunkStore implements ChunkStore {
       index: row.index,
       offsetMs: row.offsetMs,
       words: (row.words ?? []) as readonly StoredWord[],
+      segmentStartsMs: row.segmentStartsMs ?? [],
     }))
   }
 
@@ -61,6 +63,7 @@ export class DrizzleChunkStore implements ChunkStore {
         index: chunkTranscripts.index,
         offsetMs: chunkTranscripts.offsetMs,
         words: chunkTranscripts.words,
+        segmentStartsMs: chunkTranscripts.segmentStartsMs,
       })
       .from(chunkTranscripts)
       .where(and(eq(chunkTranscripts.episodeId, episodeId), eq(chunkTranscripts.index, index)))
@@ -72,6 +75,7 @@ export class DrizzleChunkStore implements ChunkStore {
       index: row.index,
       offsetMs: row.offsetMs,
       words: (row.words ?? []) as readonly StoredWord[],
+      segmentStartsMs: row.segmentStartsMs ?? [],
     }
   }
 

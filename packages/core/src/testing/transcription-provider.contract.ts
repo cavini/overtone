@@ -54,6 +54,27 @@ export function describeTranscriptionProvider(
       expect(outcome.ok).toBe(true)
     })
 
+    /*
+     * Where each run of speech started, which is the only thing in a
+     * response that knows a different person began talking. A provider that
+     * reported none would still work — the lines fall back to punctuation —
+     * but one that reported nonsense would put the breaks in the wrong
+     * place, so the times have to sit inside the audio.
+     */
+    it('reports where each run of speech started, inside the audio it heard', async () => {
+      const { provider, knownAudioUrl } = await create()
+      const outcome = await provider.transcribe({ audioUrl: knownAudioUrl, language: 'pt' })
+
+      if (!outcome.ok) throw new Error('expected a transcript')
+      const { segmentStartsMs, durationMs } = outcome.transcript
+
+      expect(Array.isArray(segmentStartsMs)).toBe(true)
+      for (const start of segmentStartsMs) {
+        expect(start).toBeGreaterThanOrEqual(0)
+        expect(start).toBeLessThanOrEqual(durationMs)
+      }
+    })
+
     it('echoes the language it was asked for, never one it guessed', async () => {
       const { provider, knownAudioUrl } = await create()
       const outcome = await provider.transcribe({

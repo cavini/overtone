@@ -13,7 +13,7 @@ import type {
 import type { LemmaRepository } from '../ports/lemma-repository.js'
 import type { TranscriptionProvider } from '../ports/transcription-provider.js'
 import { annotate } from '../analysis/annotate.js'
-import { stitchChunks } from '../analysis/chunking.js'
+import { stitchBoundaries, stitchChunks } from '../analysis/chunking.js'
 import { countTerms } from '../analysis/count-terms.js'
 import { findMentions } from '../analysis/find-mentions.js'
 import { nextChunkToSend } from '../analysis/pacing.js'
@@ -144,6 +144,7 @@ export async function advanceEpisode(
       index: chunk.index,
       offsetMs: uploaded.startMs,
       words: transcribed.transcript.words,
+      segmentStartsMs: transcribed.transcript.segmentStartsMs,
     })
     // Hand the provider's own reading straight through. It is ground truth
     // about a balance we otherwise only estimate, and it costs nothing
@@ -164,13 +165,16 @@ export async function advanceEpisode(
 
   const stored = await chunks.transcripts(request.episodeId)
   const words = stitchChunks(stored)
+  // The transcriber's own line breaks, moved into episode time alongside the
+  // words they belong to.
+  const boundaries = stitchBoundaries(stored)
   const tokens = tokeniseTimed(words, language)
 
   const distinctForms = [...new Set(tokens.map((token) => token.surface))]
   const annotated = annotate(tokens, await lemmas.lookup(distinctForms, language), language)
 
   const counts = countTerms(annotated)
-  const segments = toSegments(words, annotated)
+  const segments = toSegments(words, annotated, undefined, boundaries)
   const durationMs = words.at(-1)?.endMs ?? 0
 
   const mentions: StoredMention[] = request.topics.flatMap((topic) =>

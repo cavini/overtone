@@ -19,6 +19,29 @@ const HAS_LETTER = /\p{L}/u
 const endsASentence = (text: string): boolean =>
   HAS_LETTER.test(text) && SENTENCE_END.test(text)
 
+/**
+ * How far a boundary may sit from a word's start and still be its boundary.
+ *
+ * The transcriber's segment starts and its word starts are produced by
+ * different passes and disagree slightly — measured on a real episode, by
+ * twenty to a few hundred milliseconds. Matching exactly would drop most
+ * boundaries; matching loosely would attach one boundary to two different
+ * gaps, which is worse.
+ */
+const BOUNDARY_TOLERANCE_MS = 300
+
+/**
+ * A line this short, mid-sentence, is a tail rather than a turn.
+ *
+ * The transcriber puts a boundary before a trailing `né?` as readily as
+ * before a new speaker. Honouring that one splits a single spoken line in
+ * two, which reads worse than the running-together it is meant to fix — so
+ * a very short line that continues an unfinished sentence goes back where
+ * it came from. A short line *after* a full stop is left alone: that is a
+ * real turn, and those are the ones that were being lost.
+ */
+const SHORT_TAIL_WORDS = 2
+
 /** A run of words that belong on one line, and the span it covers. */
 export interface WordGroup {
   readonly startMs: number
@@ -35,15 +58,39 @@ export interface WordGroup {
  * last chunk lands. Two implementations of "where does a line start" would
  * mean a search result pointing at a line the reader never drew.
  *
+ * Breaks at three things, in the order they matter: a boundary the
+ * transcriber itself drew, a full stop, and a word cap for the stretches
+ * where neither arrives. The transcriber's boundaries are the only one of
+ * the three that knows a *different person* started talking — reported from
+ * a real episode, three turns ran onto one line because no full stop was
+ * written between them.
+ *
  * Every word comes back in exactly one group — the page shows the whole
  * transcript, so dropping one here would lose it from the screen.
  */
 export function groupWords(
   words: readonly TimedWord[],
   maxWords: number = DEFAULT_MAX_WORDS,
+  boundariesMs: readonly number[] = [],
 ): WordGroup[] {
   const groups: WordGroup[] = []
   let current: TimedWord[] = []
+
+  /*
+   * Which words begin a line because the transcriber said so.
+   *
+   * Each boundary is attached to the first word that reaches it, rather than
+   * compared against the previous word's end — the timings overlap when two
+   * people talk over each other, so the end of the last word is routinely
+   * *after* the start of the next one and says nothing about where the break
+   * belongs. A boundary before the first word, or past the last, has no gap
+   * to fall in and is ignored.
+   */
+  const startsALine = new Set<number>()
+  for (const boundary of boundariesMs) {
+    const at = words.findIndex((word) => word.startMs >= boundary - BOUNDARY_TOLERANCE_MS)
+    if (at > 0) startsALine.add(at)
+  }
 
   const flush = (): void => {
     const first = current[0]
@@ -54,11 +101,42 @@ export function groupWords(
     current = []
   }
 
-  for (const word of words) {
+  words.forEach((word, at) => {
+    if (startsALine.has(at)) flush()
+
     current.push(word)
     if (endsASentence(word.text) || current.length >= maxWords) flush()
-  }
+  })
 
   flush()
-  return groups
+  return joinStrandedTails(groups, maxWords)
+}
+
+/** Puts a short mid-sentence line back on the end of the one it came from. */
+function joinStrandedTails(groups: readonly WordGroup[], maxWords: number): WordGroup[] {
+  const joined: WordGroup[] = []
+
+  for (const group of groups) {
+    const previous = joined.at(-1)
+    const continuesASentence =
+      previous !== undefined && !endsASentence(previous.words.at(-1)?.text ?? '')
+
+    if (
+      previous !== undefined &&
+      continuesASentence &&
+      group.words.length <= SHORT_TAIL_WORDS &&
+      previous.words.length + group.words.length <= maxWords
+    ) {
+      joined[joined.length - 1] = {
+        startMs: previous.startMs,
+        endMs: group.endMs,
+        words: [...previous.words, ...group.words],
+      }
+      continue
+    }
+
+    joined.push(group)
+  }
+
+  return joined
 }

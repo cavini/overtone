@@ -31,11 +31,21 @@ export function transcriptFromText(
 
   const lastWord = words.at(-1)
 
+  /*
+   * A boundary where each sentence starts, which is roughly what the real
+   * transcriber reports. The fake has to produce these or every test using
+   * it would exercise a transcript shape the real adapter never returns.
+   */
+  const segmentStartsMs = words
+    .filter((_, position) => position === 0 || /[.!?…]$/u.test(words[position - 1]?.text ?? ''))
+    .map((word) => word.startMs)
+
   return {
     provider: 'fake',
     providerModel: 'fixture',
     text: spellings.join(' '),
     words,
+    segmentStartsMs,
     language: 'pt',
     durationMs: lastWord ? lastWord.endMs : startMs,
     raw: { provider: 'fake', words },

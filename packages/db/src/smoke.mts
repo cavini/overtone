@@ -77,13 +77,16 @@ const replay = {
       ok: true as const,
       transcript: {
         provider: 'groq',
-        providerModel: 'whisper-large-v3-turbo',
+        providerModel: 'whisper-large-v3',
         text: mine.map((w) => w.text).join(' '),
         words: mine.map((w) => ({
           text: w.text,
           startMs: w.startMs - chunk.startMs,
           endMs: w.endMs - chunk.startMs,
         })),
+        // The fixture is a word list with no segment boundaries in it, so
+        // this replays the case where the transcriber reported none.
+        segmentStartsMs: [],
         language: 'pt',
         durationMs: chunk.endMs - chunk.startMs,
         raw: { replayedChunk: index },

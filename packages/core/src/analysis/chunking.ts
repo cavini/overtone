@@ -126,6 +126,19 @@ export function stitchChunks(chunks: readonly ChunkTranscript[]): TimedWord[] {
 }
 
 /**
+ * The same reassembly, for the transcriber's own boundaries.
+ *
+ * Its own function rather than a field on `stitchChunks`, which answers a
+ * question about words — but the arithmetic is the same arithmetic and it
+ * fails the same silent way, so it lives beside it where the warning is.
+ */
+export function stitchBoundaries(chunks: readonly ChunkTranscript[]): number[] {
+  return [...chunks]
+    .sort((a, b) => a.index - b.index)
+    .flatMap((chunk) => (chunk.segmentStartsMs ?? []).map((start) => start + chunk.offsetMs))
+}
+
+/**
  * Which planned chunks have not come back.
  *
  * One failed chunk costs one chunk — but only if somebody notices. Analysing

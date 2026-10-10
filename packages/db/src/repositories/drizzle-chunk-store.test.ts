@@ -11,9 +11,13 @@ let store: DrizzleChunkStore
 
 const rowsFor = (sql: string): unknown[][] => {
   if (!sql.toLowerCase().startsWith('select')) return []
-  // index, offset_ms, words — in select order
+  // index, offset_ms, words, segment_starts_ms — in select order
   if (sql.includes('offset_ms')) {
-    return [[0, 0, [{ text: 'olá', startMs: 0, endMs: 400 }]], [1, 1_200_000, []]]
+    return [
+      [0, 0, [{ text: 'olá', startMs: 0, endMs: 400 }], [0]],
+      // Null, the way every chunk stored before that column existed reads.
+      [1, 1_200_000, [], null],
+    ]
   }
   return [[0], [1]]
 }

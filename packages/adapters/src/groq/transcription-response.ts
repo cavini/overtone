@@ -23,6 +23,15 @@ export const groqTranscriptionResponse = z.object({
       }),
     )
     .min(1),
+  /*
+   * The transcriber's own view of where one run of speech stops and the next
+   * begins. Optional, unlike `words`: a response without them is a worse
+   * transcript, not an unusable one, so it degrades to breaking on
+   * punctuation alone rather than failing the chunk.
+   */
+  segments: z
+    .array(z.object({ start: z.number() }))
+    .optional(),
   duration: z.number().optional(),
   language: z.string().optional(),
 })
