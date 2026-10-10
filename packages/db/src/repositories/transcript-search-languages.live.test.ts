@@ -9,9 +9,11 @@
 import { existsSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { eq } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/postgres-js'
 import postgres from 'postgres'
-import { describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { episodes, segments, series, seriesMembers, transcripts } from '../schema.js'
 import { DrizzleTranscriptSearch } from './drizzle-transcript-search.js'
 
 const here = dirname(fileURLToPath(import.meta.url))
@@ -20,26 +22,110 @@ if (existsSync(envFile)) process.loadEnvFile(envFile)
 
 const url = process.env['DATABASE_URL']
 
+/** An owner id no real account can have, so the cleanup cannot reach real rows. */
+const OWNER = '00000000-0000-0000-0000-000000001a46'
+
+/*
+ * What these tests measure, seeded rather than assumed.
+ *
+ * The numbers in the comments below were measured against the archive, and
+ * the assertions used to read it directly — so deleting an episode turned
+ * them red without a line of code changing. The sentences here carry the
+ * same cases the archive did:
+ *
+ * - `podcast` **singular**, because the loanword case is a reader typing the
+ *   English plural at text that does not have it;
+ * - `anos`, because the reader types `ano` and Portuguese stemming leaves a
+ *   short plural joined;
+ * - the Portuguese stop words, so the English half really does hold them.
+ */
+const SPOKEN = [
+  'O cachorro do Dex latiu a noite inteira.',
+  'A gente grava um podcast toda semana, e esse é o melhor.',
+  'Faz dois anos que isso aconteceu e ainda falam disso.',
+  'Ele não quis falar para ninguém depois daquilo.',
+  'Eu falei que ia comer em casa depois do trabalho.',
+  'Que coisa, né? Essa coisa toda de falar de casa.',
+] as const
+
 if (url === undefined || url.length === 0) {
   describe('searching in both languages', () => {
     it.skip('needs DATABASE_URL', () => {})
   })
 } else {
   const client = postgres(url, { prepare: false, max: 2, onnotice: () => {} })
-  const search = new DrizzleTranscriptSearch(drizzle(client))
+  const db = drizzle(client)
+  const search = new DrizzleTranscriptSearch(db)
 
-  /** How many segments one configuration alone would match. */
+  let episodeId = ''
+  let transcriptId = ''
+
+  /**
+   * How many of **these** segments one configuration alone would match.
+   *
+   * Scoped to the seeded transcript. Counting the whole table would make
+   * every number here a report on what happens to be in a shared database.
+   */
   const inOneLanguage = async (configuration: 'portuguese' | 'english', query: string) => {
     const rows = await client`
       select count(*)::int as n from segments s
-       where to_tsvector(${client.unsafe(`'${configuration}'`)}, s.text)
+       where s.transcript_id = ${transcriptId}
+         and to_tsvector(${client.unsafe(`'${configuration}'`)}, s.text)
           @@ plainto_tsquery(${client.unsafe(`'${configuration}'`)}, ${query})`
     return rows[0]?.n ?? 0
   }
 
   describe('searching in both languages', () => {
+    /** Only what this test seeded. The database is shared with real episodes. */
+    const mine = <T extends { readonly episodeId: string }>(found: readonly T[]): T[] =>
+      found.filter((match) => match.episodeId === episodeId)
+
+    beforeAll(async () => {
+      await db.delete(series).where(eq(series.ownerId, OWNER))
+
+      const [created] = await db
+        .insert(series)
+        .values({ ownerId: OWNER, title: 'Languages' })
+        .returning({ id: series.id })
+      const seriesId = created?.id ?? ''
+      await db.insert(seriesMembers).values({ seriesId, userId: OWNER, role: 'owner' })
+
+      const [episode] = await db
+        .insert(episodes)
+        .values({ seriesId, number: 1, title: 'Seeded', status: 'ready' })
+        .returning({ id: episodes.id })
+      episodeId = episode?.id ?? ''
+
+      const [transcript] = await db
+        .insert(transcripts)
+        .values({
+          episodeId,
+          provider: 'fake',
+          providerModel: 'seed',
+          rawProviderPayload: [],
+          fullText: SPOKEN.join(' '),
+        })
+        .returning({ id: transcripts.id })
+      transcriptId = transcript?.id ?? ''
+
+      await db.insert(segments).values(
+        SPOKEN.map((text, position) => ({
+          transcriptId,
+          position,
+          startMs: position * 5_000,
+          endMs: position * 5_000 + 4_000,
+          text,
+          words: [],
+        })),
+      )
+    })
+
+    afterAll(async () => {
+      await db.delete(series).where(eq(series.ownerId, OWNER))
+    })
+
     it('still finds a word that was actually said in Portuguese', async () => {
-      expect((await search.search('cachorro', 50)).length).toBeGreaterThan(0)
+      expect(mine(await search.search('cachorro', 300))).toHaveLength(1)
     })
 
     /*
@@ -53,10 +139,10 @@ if (url === undefined || url.length === 0) {
     it('finds an English loanword the Portuguese stemmer cannot reach', async () => {
       expect(await inOneLanguage('portuguese', 'podcasts')).toBe(0)
 
-      const found = await search.search('podcasts', 50)
+      const found = mine(await search.search('podcasts', 300))
 
       expect(found.length).toBeGreaterThan(0)
-      expect(found.some((match) => /podcast/iu.test(match.text))).toBe(true)
+      expect(found.every((match) => /podcast/iu.test(match.text))).toBe(true)
     })
 
     /*
@@ -70,10 +156,13 @@ if (url === undefined || url.length === 0) {
      */
     it('finds a short Portuguese plural that Portuguese stemming leaves joined', async () => {
       const throughPortuguese = await inOneLanguage('portuguese', 'ano')
-      const found = await search.search('ano', 300)
+      const found = mine(await search.search('ano', 300))
 
+      // Nothing at all through Portuguese alone; the English half is the
+      // only reason this word is findable.
+      expect(throughPortuguese).toBe(0)
       expect(found.length).toBeGreaterThan(throughPortuguese)
-      expect(found.some((match) => /anos/iu.test(match.text))).toBe(true)
+      expect(found.every((match) => /anos/iu.test(match.text))).toBe(true)
     })
 
     /*
@@ -89,14 +178,14 @@ if (url === undefined || url.length === 0) {
       'returns nothing for the Portuguese stop word %s',
       async (word) => {
         expect(await inOneLanguage('english', word)).toBeGreaterThan(0)
-        expect(await search.search(word, 50)).toEqual([])
+        expect(mine(await search.search(word, 300))).toEqual([])
       },
     )
 
     // Symmetrically. `the` is a content word to the Portuguese configuration,
     // so on an English episode it would match every segment.
     it.each(['the', 'and', 'that'])('returns nothing for the English stop word %s', async (word) => {
-      expect(await search.search(word, 50)).toEqual([])
+      expect(mine(await search.search(word, 300))).toEqual([])
     })
 
     /*
@@ -112,7 +201,7 @@ if (url === undefined || url.length === 0) {
       'never loses a segment a Portuguese search already found: %s',
       async (word) => {
         const throughPortuguese = await inOneLanguage('portuguese', word)
-        const found = await search.search(word, 1_000)
+        const found = mine(await search.search(word, 1_000))
 
         expect(found.length).toBeGreaterThanOrEqual(throughPortuguese)
       },
