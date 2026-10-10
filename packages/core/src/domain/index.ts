@@ -60,3 +60,4 @@ export {
   DEFAULT_AUDIO_LANGUAGE,
   type AudioLanguage,
 } from './audio-language.js'
+export { readEpisodeName, type EpisodeName } from './episode-name.js'
