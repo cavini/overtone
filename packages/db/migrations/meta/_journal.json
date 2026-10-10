@@ -43,6 +43,13 @@
       "when": 1791523558345,
       "tag": "0005_watery_power_man",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1791523558346,
+      "tag": "0006_search_the_transcripts",
+      "breakpoints": true
     }
   ]
 }
