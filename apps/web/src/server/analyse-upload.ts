@@ -313,18 +313,52 @@ export async function advanceOnce(episodeId: string): Promise<AdvancedEpisode> {
    * defined today gets counted in last month's episode, for free.
    */
   const transcribed = new Set(await chunks.transcribedIndexes(episodeId))
+
+  /*
+   * Only chunks still to be sent get a URL, and a missing one is survivable.
+   *
+   * Signing is refused for a key that is not there — deliberately, so a
+   * failure happens here where the key is in hand rather than at the
+   * provider where a 404 says nothing. But an upload can stop halfway: close
+   * the browser after chunk three of ten and chunks four onward were never
+   * stored. Letting that throw made every later attempt fail with a 500, so
+   * an interrupted upload could never be resumed and the episode was stuck
+   * in `transcribing` for good.
+   */
   const uploaded: UploadedChunk[] = await Promise.all(
-    plan.map(async (chunk) => ({
-      ...chunk,
-      audioUrl: transcribed.has(chunk.index)
-        ? ''
-        : await blobs.readUrl(chunkKey(episodeId, chunk.index), AUDIO_URL_TTL_SECONDS),
-    })),
+    plan.map(async (chunk) => {
+      if (transcribed.has(chunk.index)) return { ...chunk, audioUrl: '' }
+
+      try {
+        return {
+          ...chunk,
+          audioUrl: await blobs.readUrl(chunkKey(episodeId, chunk.index), AUDIO_URL_TTL_SECONDS),
+        }
+      } catch {
+        // Nothing stored under that key. Reported below rather than thrown.
+        return { ...chunk, audioUrl: '' }
+      }
+    }),
   )
 
-  // The running jokes, which are the reason this product exists. They were
-  // hardcoded empty while the rest was being built, which meant the headline
-  // feature counted nothing on every episode.
+  /*
+   * The next chunk to send has no audio, so there is nothing to be done
+   * except say so. `AUDIO_NOT_FOUND` reads as "the upload was interrupted —
+   * nothing was lost, just try again", which is both true and actionable.
+   */
+  const next = plan.find((chunk) => !transcribed.has(chunk.index))
+  const nextHasAudio =
+    next === undefined ||
+    (uploaded.find((chunk) => chunk.index === next.index)?.audioUrl ?? '') !== ''
+
+  if (!nextHasAudio) {
+    return {
+      outcome: { state: 'failed', failure: { code: 'AUDIO_NOT_FOUND' } },
+      chunkCount: plan.length,
+      chunksDone: transcribed.size,
+    }
+  }
+
   const outcome = await advanceEpisode(
     {
       episodeId,
