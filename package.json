@@ -7,6 +7,7 @@
     "node": ">=22"
   },
   "scripts": {
+    "dev": "sh -c 'set -a; [ -f .env.local ] && . ./.env.local; set +a; pnpm --filter @overtone/web dev'",
     "test": "pnpm -r --parallel test",
     "test:unit": "pnpm -r test:unit",
     "test:integration": "pnpm -r --if-present test:integration",

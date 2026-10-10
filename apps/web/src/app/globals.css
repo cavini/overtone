@@ -33,6 +33,9 @@
   --accent-quiet: #c98a2a;
   --link: #10559a;
   --alarm: #a63c17;
+  /* Behind the line a search result landed on. Tinted from the accent so the
+     mark reads as the same gesture as the highlighted word inside it. */
+  --mark: #f8eed8;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -46,6 +49,7 @@
     --accent-quiet: #a8741c;
     --link: #6cb6ff;
     --alarm: #e5774e;
+    --mark: #33280f;
   }
 }
 
@@ -59,6 +63,7 @@
   --accent-quiet: #a8741c;
   --link: #6cb6ff;
   --alarm: #e5774e;
+  --mark: #33280f;
 }
 
 /*

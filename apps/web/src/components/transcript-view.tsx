@@ -2,13 +2,15 @@
 
 import { useEffect, useId, useRef, useState } from 'react'
 import type { UiKey } from '../i18n/ui.js'
+import { timestamp } from '../presenter/episode-view.js'
+import { lineAtMoment } from '../presenter/line-at-moment.js'
 import {
   REVEAL_TICK_MS,
   revealAfterTick,
   totalChars,
-  visibleParts,
+  visibleLines,
 } from '../presenter/transcript-reveal.js'
-import type { TranscriptPart, TranscriptSoFar } from '../presenter/transcript-text.js'
+import type { TranscriptLine, TranscriptSoFar } from '../presenter/transcript-text.js'
 
 type Labels = Record<UiKey, string>
 
@@ -64,19 +66,20 @@ export function TranscriptView({
   episodeId,
   labels,
   live,
-  focusChunk,
+  focusMs,
 }: {
   readonly episodeId: string
   readonly labels: Labels
   readonly live: boolean
   /**
-   * Scroll to this part once it is on screen.
+   * Scroll to the line said at this moment, and mark it.
    *
-   * Set when arriving from a search result, so clicking a moment lands in
-   * the script at roughly where it was said rather than at the top of a
-   * two-hour transcript.
+   * Set when arriving from a search result. It used to be a chunk index,
+   * which meant a hit forty minutes into a chunk scrolled to the top of
+   * that chunk — and for an episode short enough to be a single chunk, to
+   * the top of the episode. A moment is what the result actually knows.
    */
-  readonly focusChunk?: number
+  readonly focusMs?: number
 }) {
   const bodyId = useId()
   const reduced = usePrefersReducedMotion()
@@ -90,7 +93,7 @@ export function TranscriptView({
    * words are the thing this product is for. They do not go behind a click.
    */
   const [open, setOpen] = useState(true)
-  const [parts, setParts] = useState<readonly TranscriptPart[]>([])
+  const [lines, setLines] = useState<readonly TranscriptLine[]>([])
   const [revealed, setRevealed] = useState(0)
 
   // The cursor never reaches the page, so it is not state. Keeping it out of
@@ -102,7 +105,7 @@ export function TranscriptView({
   // Follow the newest text only while the reader is already at the bottom.
   const following = useRef(true)
 
-  const total = totalChars(parts)
+  const total = totalChars(lines)
   /*
    * Typed out whether or not transcription is still running.
    *
@@ -115,15 +118,24 @@ export function TranscriptView({
    * Reduced motion still turns it off, and the reveal paces off the backlog
    * so a long transcript fills quickly rather than crawling.
    */
-  const typing = !reduced
+  /*
+   * ...but not when the reader came here to see one particular moment. A
+   * search result is a request to read that line, and typing an hour of
+   * talking out in front of it is standing in the way of the thing they
+   * asked for.
+   */
+  const typing = !reduced && focusMs === undefined
   const caughtUp = revealed >= total
+
+  /** The line the search result pointed at, if this view is showing one. */
+  const focused = focusMs === undefined ? undefined : lineAtMoment(lines, focusMs)
 
   // A second upload reuses this component with a different episode. Without
   // this, its first chunk is appended to the last episode's transcript.
   useEffect(() => {
     cursor.current = 0
     following.current = true
-    setParts([])
+    setLines([])
     setRevealed(0)
   }, [episodeId])
 
@@ -156,9 +168,9 @@ export function TranscriptView({
         const payload = (await response.json()) as Partial<TranscriptSoFar>
         if (stopped) return
 
-        const arrived = payload.parts ?? []
+        const arrived = payload.lines ?? []
         cursor.current = payload.nextFrom ?? cursor.current
-        if (arrived.length > 0) setParts((held) => [...held, ...arrived])
+        if (arrived.length > 0) setLines((held) => [...held, ...arrived])
       } finally {
         fetching.current = false
       }
@@ -211,25 +223,25 @@ export function TranscriptView({
     node.scrollTop = node.scrollHeight
   }, [revealed, live])
 
-  const shown = visibleParts(parts, revealed)
+  const shown = visibleLines(lines, revealed)
 
   /*
-   * Jump to the part a search result pointed at.
+   * Jump to the line a search result pointed at.
    *
-   * Runs when the part arrives rather than when the request does: the
+   * Runs when the line arrives rather than when the request does: the
    * transcript is fetched after mount, so at the moment of the click there
    * is nothing on screen to scroll to yet.
    */
   useEffect(() => {
-    if (focusChunk === undefined || !open) return
+    if (focused === undefined || !open) return
 
-    const node = scroller.current?.querySelector(`[data-chunk="${focusChunk}"]`)
+    const node = scroller.current?.querySelector(`[data-line="${focused}"]`)
     if (!(node instanceof HTMLElement)) return
 
     // Stop following the newest text, or the jump is undone on the next tick.
     following.current = false
-    node.scrollIntoView({ block: 'start', behavior: reduced ? 'auto' : 'smooth' })
-  }, [focusChunk, open, parts, reduced])
+    node.scrollIntoView({ block: 'center', behavior: reduced ? 'auto' : 'smooth' })
+  }, [focused, open, reduced])
 
   return (
     <section
@@ -248,7 +260,7 @@ export function TranscriptView({
             // Opening shows what is already there rather than replaying it.
             // The reveal is for words arriving now, not for a transcript the
             // reader has been waiting to see.
-            if (!open) setRevealed(totalChars(parts))
+            if (!open) setRevealed(totalChars(lines))
             setOpen(!open)
           }}
           className="rounded-md border px-3 py-1.5 text-sm font-medium"
@@ -285,15 +297,28 @@ export function TranscriptView({
               }}
               className="mt-4 max-h-96 overflow-y-auto"
             >
-              {shown.map((part, position) => (
+              {shown.map((line, position) => (
                 <p
-                  key={part.index}
-                  data-chunk={part.index}
-                  className="mb-3 text-sm leading-relaxed"
-                  style={{ color: 'var(--prose)' }}
+                  key={`${line.chunk}:${line.position}`}
+                  data-line={position}
+                  className="mb-2 flex gap-3 rounded-md px-2 py-1 text-sm leading-relaxed"
+                  style={
+                    position === focused
+                      ? { color: 'var(--prose)', background: 'var(--mark)' }
+                      : { color: 'var(--prose)' }
+                  }
                 >
-                  {part.text}
-                  {typing && !caughtUp && position === shown.length - 1 ? <Caret /> : null}
+                  <span
+                    aria-hidden
+                    className="shrink-0 pt-px font-mono text-xs tabular-nums"
+                    style={{ color: 'var(--quiet)' }}
+                  >
+                    {timestamp(line.startMs)}
+                  </span>
+                  <span>
+                    {line.text}
+                    {typing && !caughtUp && position === shown.length - 1 ? <Caret /> : null}
+                  </span>
                 </p>
               ))}
             </div>

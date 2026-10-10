@@ -1,4 +1,3 @@
-import type { TranscriptPart } from './transcript-text.js'
 
 /** How often the reveal advances. Twenty times a second reads as motion. */
 export const REVEAL_TICK_MS = 50
@@ -47,37 +46,39 @@ export function revealAfterTick(shown: number, total: number): number {
 }
 
 /** How much there is to reveal in total. */
-export function totalChars(parts: readonly TranscriptPart[]): number {
-  return parts.reduce((count, part) => count + part.text.length, 0)
+export function totalChars<T extends { readonly text: string }>(lines: readonly T[]): number {
+  return lines.reduce((count, line) => count + line.text.length, 0)
 }
 
 /**
- * The parts to put on the page, with the one being read cut short.
+ * The lines to put on the page, with the one being read cut short.
  *
- * A part that is fully revealed comes back as the object it was given. The
+ * Generic over what a line is, because the reveal is about characters and
+ * nothing else — the timing a line carries is the reader's business, not
+ * this module's.
+ *
+ * A line that is fully revealed comes back as the object it was given. The
  * reveal advances twenty times a second over a transcript that reaches
  * twenty thousand words, so a fresh object for settled text would have
- * React rebuild the whole thing on every tick — only the paragraph being
- * typed has any business changing.
+ * React rebuild the whole thing on every tick — only the line being typed
+ * has any business changing.
  */
-export function visibleParts(
-  parts: readonly TranscriptPart[],
+export function visibleLines<T extends { readonly text: string }>(
+  lines: readonly T[],
   revealed: number,
-): TranscriptPart[] {
-  const visible: TranscriptPart[] = []
+): T[] {
+  const visible: T[] = []
   let budget = revealed
 
-  for (const part of parts) {
+  for (const line of lines) {
     if (budget <= 0) break
 
     // A chunk of silence or music. An empty paragraph is a hole in the page
     // that nothing on it explains.
-    if (part.text.length === 0) continue
+    if (line.text.length === 0) continue
 
-    visible.push(
-      budget >= part.text.length ? part : { index: part.index, text: part.text.slice(0, budget) },
-    )
-    budget -= part.text.length
+    visible.push(budget >= line.text.length ? line : { ...line, text: line.text.slice(0, budget) })
+    budget -= line.text.length
   }
 
   return visible

@@ -1,6 +1,7 @@
+import type { TimedWord } from '@overtone/core/domain'
 import { chunkTranscripts } from '@overtone/db/schema'
 import { and, asc, eq, gte } from 'drizzle-orm'
-import { partsAfter, type TranscriptSoFar } from '../presenter/transcript-text.js'
+import { linesAfter, type TranscriptSoFar } from '../presenter/transcript-text.js'
 import { database } from './wiring.js'
 
 /**
@@ -23,15 +24,20 @@ export async function transcriptSoFar(
   const since = Math.max(0, Math.trunc(from))
 
   const rows = await database()
-    .select({ index: chunkTranscripts.index, words: chunkTranscripts.words })
+    .select({
+      index: chunkTranscripts.index,
+      offsetMs: chunkTranscripts.offsetMs,
+      words: chunkTranscripts.words,
+    })
     .from(chunkTranscripts)
     .where(and(eq(chunkTranscripts.episodeId, episodeId), gte(chunkTranscripts.index, since)))
     .orderBy(asc(chunkTranscripts.index))
 
-  return partsAfter(
+  return linesAfter(
     rows.map((row) => ({
       index: row.index,
-      words: (row.words ?? []) as readonly { readonly text: string }[],
+      offsetMs: row.offsetMs,
+      words: (row.words ?? []) as readonly TimedWord[],
     })),
     since,
   )
