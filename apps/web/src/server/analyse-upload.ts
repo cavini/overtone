@@ -266,6 +266,36 @@ export async function listEpisodes(): Promise<LibraryEpisode[]> {
   }))
 }
 
+/**
+ * Removes an episode and everything derived from it.
+ *
+ * The audio goes first. Deleting the row cascades to the transcripts,
+ * counts and mentions, but storage knows nothing about foreign keys — a row
+ * deleted without its blobs leaves audio nobody can reach and nothing will
+ * ever clean up, on a tier that holds about a gigabyte.
+ *
+ * Most finished episodes have no audio left: it is removed as soon as an
+ * episode is analysed. Removing what is already gone is the outcome this
+ * wanted anyway, so it is not an error.
+ */
+export async function deleteEpisode(episodeId: string): Promise<void> {
+  const db = database()
+
+  const [episode] = await db
+    .select({ durationMs: episodes.durationMs })
+    .from(episodes)
+    .where(eq(episodes.id, episodeId))
+    .limit(1)
+
+  if (episode === undefined) return
+
+  await blobStore().remove(
+    planChunks(episode.durationMs).map((chunk) => chunkKey(episodeId, chunk.index)),
+  )
+
+  await db.delete(episodes).where(eq(episodes.id, episodeId))
+}
+
 export interface PendingEpisode {
   readonly episodeId: string
   readonly title: string
