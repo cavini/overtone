@@ -27,7 +27,14 @@ export interface FoundMoment {
   readonly endMs: number
   /** How much of the moment was about it. */
   readonly hitCount: number
-  /** What was said, so the reader can see why it matched. */
+  /**
+   * What was said, with the matching words wrapped in `MATCH_OPEN` and
+   * `MATCH_CLOSE`.
+   *
+   * Marked by the database, which is the only layer that knows why a
+   * segment matched — the search stems, so `ano` matches `anos`. The page
+   * splits on the markers and emits its own elements.
+   */
   readonly quote: string
 }
 
@@ -79,7 +86,7 @@ export async function searchTranscripts(
         startMs: moment.startMs,
         endMs: moment.endMs,
         hitCount: moment.hitCount,
-        quote: inside.map((match) => match.text.trim()).join(' ').trim(),
+        quote: inside.map((match) => match.highlighted.trim()).join(' ').trim(),
       })
     }
   }

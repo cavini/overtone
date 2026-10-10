@@ -7,6 +7,7 @@ const match = (
   episodeNumber: number,
   startMs: number,
   text = 'falamos do cachorro',
+  highlighted = text,
 ): TranscriptMatch => ({
   episodeId: `ep-${episodeNumber}`,
   episodeNumber,
@@ -14,6 +15,7 @@ const match = (
   startMs,
   endMs: startMs + 3_000,
   text,
+  highlighted,
 })
 
 const searching = (matches: readonly TranscriptMatch[]) => ({
@@ -56,6 +58,17 @@ describe('searchTranscripts', () => {
 
     expect(found).toHaveLength(2)
     expect(found.map((moment) => moment.episodeNumber).sort()).toEqual([3, 7])
+  })
+
+  // The marks come from the database, which is the only layer that knows
+  // which words made the segment match.
+  it('carries the marked-up text through, not the plain text', async () => {
+    const found = await searchTranscripts(
+      { query: 'cachorro' },
+      { search: searching([match(1, 0, 'o cachorro', `o \u0002cachorro\u0003`)]) },
+    )
+
+    expect(found[0]?.quote).toBe(`o \u0002cachorro\u0003`)
   })
 
   it('shows what was said, so the reader can see why it matched', async () => {
