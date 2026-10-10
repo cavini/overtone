@@ -67,6 +67,16 @@ describe('SupabaseIdentityProvider', () => {
       expect(outcome).toEqual({ ok: false, failure: { code: 'EMAIL_REJECTED' } })
     })
 
+    /*
+     * The same 400 means different things on the two paths. Answering a
+     * mistyped address with "that link is no longer good" sends somebody
+     * hunting their inbox for a link that was never sent.
+     */
+    it('reads a plain refusal as a bad address, not an expired link', async () => {
+      const outcome = await provider(answering(400)).sendLink('not-an-address', '/')
+      expect(outcome).toEqual({ ok: false, failure: { code: 'EMAIL_REJECTED' } })
+    })
+
     it('survives the service being unreachable', async () => {
       const dead = vi.fn(() => Promise.reject(new Error('offline'))) as unknown as typeof globalThis.fetch
       expect(await provider(dead).sendLink('dex@example.test', '/')).toEqual({

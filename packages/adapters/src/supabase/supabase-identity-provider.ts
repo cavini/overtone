@@ -69,16 +69,26 @@ export class SupabaseIdentityProvider implements IdentityProvider {
   }
 
   /**
-   * What went wrong, from a status code.
+   * What went wrong, from a status code and what was being attempted.
    *
-   * `429` is its own code rather than folded into unavailable: the free tier
-   * rate-limits sign-in emails hard, and "ask again in a minute" is a
-   * different thing to say than "it is broken".
+   * The same 400 means different things on the two paths, and saying the
+   * wrong one is worse than saying nothing: a mistyped address answered
+   * with *"that link is no longer good"* sends somebody looking through
+   * their inbox for a link that was never sent. Asking for a link can fail
+   * because the address is unusable or the redirect is not allow-listed;
+   * redeeming one fails because it is spent or expired.
+   *
+   * `429` is its own code either way — the free tier rate-limits sign-in
+   * emails hard, and "ask again in a minute" is not "it is broken".
    */
-  private static failureFor(status: number): IdentityFailure {
+  private static failureFor(status: number, doing: 'sending' | 'redeeming'): IdentityFailure {
     if (status === 429) return { code: 'TOO_MANY_LINKS' }
-    if (status === 400 || status === 401 || status === 403) return { code: 'LINK_EXPIRED' }
     if (status === 422) return { code: 'EMAIL_REJECTED' }
+
+    if (status === 400 || status === 401 || status === 403) {
+      return doing === 'sending' ? { code: 'EMAIL_REJECTED' } : { code: 'LINK_EXPIRED' }
+    }
+
     return { code: 'PROVIDER_UNAVAILABLE' }
   }
 
@@ -120,7 +130,14 @@ export class SupabaseIdentityProvider implements IdentityProvider {
       return { ok: false, failure: { code: 'PROVIDER_UNAVAILABLE' } }
     }
 
-    if (!response.ok) return { ok: false, failure: SupabaseIdentityProvider.failureFor(response.status) }
+    if (!response.ok) {
+      // The body says which of the several 400s this is, and there is no
+      // other way to find out from outside.
+      console.error('could not send a sign-in link', response.status, await response.text().catch(() => ''))
+
+      return { ok: false, failure: SupabaseIdentityProvider.failureFor(response.status, 'sending') }
+    }
+
     return { ok: true }
   }
 
@@ -137,7 +154,7 @@ export class SupabaseIdentityProvider implements IdentityProvider {
     }
 
     if (!response.ok) {
-      return { ok: false, failure: SupabaseIdentityProvider.failureFor(response.status) }
+      return { ok: false, failure: SupabaseIdentityProvider.failureFor(response.status, 'redeeming') }
     }
 
     const payload = (await response.json().catch(() => ({}))) as TokenResponse
