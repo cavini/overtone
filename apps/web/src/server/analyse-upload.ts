@@ -2,6 +2,7 @@ import {
   advanceEpisode,
   DAILY_ALLOWANCE_MS,
   planChunks,
+  planFromTranscripts,
   type AdvanceEpisodeOutcome,
   type EpisodeAnalysis,
   type UploadedChunk,
@@ -19,6 +20,7 @@ import {
 } from '@overtone/db/schema'
 import { and, asc, eq } from 'drizzle-orm'
 import { DrizzleAllowanceStore, DrizzleChunkStore } from '@overtone/db/repositories'
+import { listTopics } from './topics.js'
 import { blobStore, database, pipelineDependencies } from './wiring.js'
 
 /**
@@ -54,7 +56,7 @@ export async function remainingDailyHours(): Promise<number> {
 }
 
 /** The shared library, created the first time anything is uploaded. */
-async function sharedSeriesId(): Promise<string> {
+export async function sharedSeriesId(): Promise<string> {
   const db = database()
   const [existing] = await db
     .select({ id: series.id })
@@ -166,6 +168,35 @@ export async function pendingEpisode(): Promise<PendingEpisode | null> {
   }
 }
 
+/**
+ * Counts the running jokes again across everything already transcribed.
+ *
+ * Free, and that is the point. The chunk transcripts are kept, so defining a
+ * joke today can count it in an episode from last month without sending a
+ * second of audio anywhere — which matters when the budget is three
+ * episodes a day (ADR 0005).
+ *
+ * It is `advanceOnce` under another name: an episode whose chunks are all in
+ * re-stitches and re-analyses on the next step, so "recount" is simply
+ * taking that step again.
+ */
+export async function recountFinished(): Promise<number> {
+  const finished = await database()
+    .select({ id: episodes.id })
+    .from(episodes)
+    .where(eq(episodes.status, 'ready'))
+
+  let counted = 0
+  for (const episode of finished) {
+    // One at a time. They share a database connection pool of three, and a
+    // recount is not urgent enough to starve an upload that is.
+    await advanceOnce(episode.id)
+    counted += 1
+  }
+
+  return counted
+}
+
 export interface AdvancedEpisode {
   readonly outcome: AdvanceEpisodeOutcome
   readonly analysis?: EpisodeAnalysis
@@ -192,27 +223,55 @@ export interface AdvancedEpisode {
 export async function advanceOnce(episodeId: string): Promise<AdvancedEpisode> {
   const db = database()
   const [episode] = await db
-    .select({ durationMs: episodes.durationMs })
+    .select({ durationMs: episodes.durationMs, status: episodes.status })
     .from(episodes)
     .where(eq(episodes.id, episodeId))
 
   if (episode === undefined) throw new Error(`no episode ${episodeId}`)
 
   const blobs = blobStore()
-  const plan = planChunks(episode.durationMs)
+  const chunks = pipelineDependencies().chunks
 
-  // Signed fresh each time rather than stored. A read URL lasts minutes and
-  // the work lasts hours, so a stored one would be expired by the time the
-  // last chunk is reached.
+  /*
+   * A finished episode's plan is read off the chunks it actually has.
+   *
+   * Recomputing it would answer "how should this be split today", and the
+   * answer changed when the target went from twenty minutes to twelve. For
+   * an episode already transcribed that invents chunks nobody uploaded, and
+   * re-deriving it — which is how a running joke defined today gets counted
+   * in last month's episode — fails trying to find audio that was deleted
+   * on purpose.
+   */
+  const plan =
+    episode.status === 'ready'
+      ? planFromTranscripts(await chunks.transcripts(episodeId), episode.durationMs)
+      : planChunks(episode.durationMs)
+
+  /*
+   * Only the chunks still to be sent get a URL.
+   *
+   * Signed fresh rather than stored, because a read URL lasts minutes and
+   * the work lasts hours. And signed *selectively*, because the audio is
+   * deleted once an episode finishes: asking storage to sign a chunk that
+   * is no longer there fails, which would make re-deriving a finished
+   * episode impossible — and re-deriving is exactly how a running joke
+   * defined today gets counted in last month's episode, for free.
+   */
+  const transcribed = new Set(await chunks.transcribedIndexes(episodeId))
   const uploaded: UploadedChunk[] = await Promise.all(
     plan.map(async (chunk) => ({
       ...chunk,
-      audioUrl: await blobs.readUrl(chunkKey(episodeId, chunk.index), AUDIO_URL_TTL_SECONDS),
+      audioUrl: transcribed.has(chunk.index)
+        ? ''
+        : await blobs.readUrl(chunkKey(episodeId, chunk.index), AUDIO_URL_TTL_SECONDS),
     })),
   )
 
+  // The running jokes, which are the reason this product exists. They were
+  // hardcoded empty while the rest was being built, which meant the headline
+  // feature counted nothing on every episode.
   const outcome = await advanceEpisode(
-    { episodeId, chunks: uploaded, topics: [] },
+    { episodeId, chunks: uploaded, topics: await listTopics() },
     pipelineDependencies(),
   )
 
@@ -221,7 +280,8 @@ export async function advanceOnce(episodeId: string): Promise<AdvancedEpisode> {
   if (outcome.state !== 'ready') return { outcome, chunkCount: plan.length, chunksDone }
 
   // The audio has done its job: the provider's payload is what re-derivation
-  // reads, and 1 GB of storage is the ceiling that arrives first.
+  // reads, and 1 GB of storage is the ceiling that arrives first. Harmless
+  // to repeat — removing what is already gone is the outcome it wanted.
   await blobs.remove(plan.map((chunk) => chunkKey(episodeId, chunk.index)))
 
   return {
