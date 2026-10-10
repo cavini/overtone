@@ -5,9 +5,8 @@ import { notFound } from 'next/navigation'
 import { JokesPanel } from '../../components/jokes-panel.js'
 import { LanguageNotice } from '../../components/language-notice.js'
 import { LocaleSwitcher } from '../../components/locale-switcher.js'
-import { SearchPanel } from '../../components/search-panel.js'
 import { Link } from '../../i18n/navigation.js'
-import { UploadForm } from '../../components/upload-form.js'
+import { Workspace } from '../../components/workspace.js'
 import { routing } from '../../i18n/routing.js'
 import { UI } from '../../i18n/ui.js'
 
@@ -41,11 +40,9 @@ export default async function HomePage({
 
       <LanguageNotice labels={labels} />
 
-      <SearchPanel labels={labels} />
-
       <JokesPanel locale={locale} labels={labels} />
 
-      <UploadForm locale={locale} labels={labels} />
+      <Workspace locale={locale} labels={labels} />
 
       {/* Said once, plainly: these counts describe the edit, not the room. */}
       <footer className="mt-14 border-t pt-5 text-xs" style={{ borderColor: 'var(--edge)', color: 'var(--quiet)' }}>
