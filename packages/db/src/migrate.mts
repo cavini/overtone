@@ -18,7 +18,9 @@ const here = dirname(fileURLToPath(import.meta.url))
 const envFile = resolve(here, '../../../.env.local')
 if (existsSync(envFile)) process.loadEnvFile(envFile)
 
-const url = process.env['DATABASE_URL']
+// Session mode: DDL and prepared statements need a connection that
+// stays put, which the transaction pooler the app uses does not give.
+const url = process.env['MIGRATION_DATABASE_URL'] ?? process.env['DATABASE_URL']
 if (url === undefined || url.length === 0) {
   console.error('DATABASE_URL is not set. See .env.example.')
   process.exit(1)
