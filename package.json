@@ -16,7 +16,8 @@
     "lint:deps": "depcruise packages --config .dependency-cruiser.cjs",
     "fetch:lemmas": "tsx scripts/fetch-lemmas.mts",
     "prepare": "husky",
-    "fetch:episode": "tsx scripts/fetch-episode.mts"
+    "fetch:episode": "tsx scripts/fetch-episode.mts",
+    "fetch:verb-forms": "tsx scripts/fetch-verb-forms.mts"
   },
   "devDependencies": {
     "@rolldown/binding-darwin-arm64": "^1.2.13",

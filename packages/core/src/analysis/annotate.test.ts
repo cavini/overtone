@@ -136,4 +136,78 @@ describe('annotate, in English', () => {
     const [token] = annotate([{ surface: 'fala', index: 0 }], new Map([['fala', 'falar']]), 'pt')
     expect(token).toMatchObject({ lemma: 'falar', lemmaSource: 'dictionary' })
   })
+
+  /*
+   * The bundled list is mechanically generated and maps plain nouns onto
+   * infinitives that barely exist: `gato` onto `gatar`, `filho` onto
+   * `filhar`, `bebê` onto `beber`. A quarter of all mentions on a real
+   * episode were labelled with a word nobody had said.
+   *
+   * What separates an invented verb from a real one is a second source
+   * containing only verbs. A lemma shaped like an infinitive, for a form
+   * that source has never heard of, is an invention.
+   */
+  it('refuses a verb lemma for a word that is not a verb form', () => {
+    const [token] = annotate(
+      [{ surface: 'gato', index: 0 }],
+      new Map([['gato', 'gatar']]),
+      'pt',
+      // Loaded, and `gato` is not in it.
+      new Set(['fala', 'falou']),
+    )
+
+    expect(token).toMatchObject({ lemma: 'gato', lemmaSource: 'surface' })
+  })
+
+  it('keeps a verb lemma for a word that really is one', () => {
+    const [token] = annotate(
+      [{ surface: 'fala', index: 0 }],
+      new Map([['fala', 'falar']]),
+      'pt',
+      new Set(['fala']),
+    )
+
+    expect(token).toMatchObject({ lemma: 'falar', lemmaSource: 'dictionary' })
+  })
+
+  // Only lemmas shaped like an infinitive are suspect. A plural folding
+  // into its singular is not, and neither is anything else.
+  it('leaves a lemma that is not shaped like an infinitive alone', () => {
+    const [token] = annotate(
+      [{ surface: 'filhos', index: 0 }],
+      new Map([['filhos', 'filho']]),
+      'pt',
+      new Set(['fala']),
+    )
+
+    expect(token?.lemma).toBe('filho')
+  })
+
+  // Knowing nothing is not the same as knowing it is not a verb. With no
+  // second source the dictionary is all there is, and it was right more
+  // often than not.
+  it('trusts the dictionary when there is no second source at all', () => {
+    const [token] = annotate([{ surface: 'gato', index: 0 }], new Map([['gato', 'gatar']]), 'pt')
+
+    expect(token?.lemma).toBe('gatar')
+  })
+
+  /*
+   * The guard that matters. Portuguese speech always contains verb forms,
+   * so nothing matching across a whole episode means the table was never
+   * loaded — not that the language has no verbs. Read the other way it
+   * rejects every verb lemma and destroys the grouping the dictionary
+   * exists for. It did exactly that in the integration suite the first
+   * time this ran.
+   */
+  it('treats an empty verb list as a missing one, not as a language with no verbs', () => {
+    const [token] = annotate(
+      [{ surface: 'fala', index: 0 }],
+      new Map([['fala', 'falar']]),
+      'pt',
+      new Set(),
+    )
+
+    expect(token?.lemma).toBe('falar')
+  })
 })

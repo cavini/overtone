@@ -56,6 +56,20 @@ serverless. Migrations are the exception: they take advisory locks and run
 statements that the transaction pooler will not carry, so they get their own
 URL on 5432 and run from a laptop, once.
 
+## The dictionaries
+
+Two of them, both fetched and loaded once:
+
+```bash
+pnpm fetch:lemmas && pnpm --filter @overtone/db db:load-lemmas
+pnpm fetch:verb-forms && pnpm --filter @overtone/db db:load-verb-forms
+```
+
+The second is what stops the first inventing verbs — `gato` counted as
+`gatar`, `bebê` as `beber` (ADR 0029). Skipping it is safe: the rule turns
+itself off rather than mangling anything, because an empty verb list is read
+as a missing one and not as a language with no verbs.
+
 ## Keeping the database awake
 
 Supabase pauses a free project after **seven idle days**, and a paused project

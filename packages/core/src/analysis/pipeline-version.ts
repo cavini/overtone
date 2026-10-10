@@ -22,5 +22,10 @@
  * not only at punctuation. Three people's turns used to run onto one line
  * whenever no full stop was written between them, so every segment boundary
  * — and every citation that points at one — moves.
+ *
+ * **5** — a verb lemma is refused for a word no morphology knows as a verb
+ * form. `gato` was counted as `gatar`, `bebê` as `beber`, `esperança` as
+ * `esperançar`. Nineteen terms move on a measured episode and every real
+ * verb form is untouched.
  */
-export const PIPELINE_VERSION = 4
+export const PIPELINE_VERSION = 5

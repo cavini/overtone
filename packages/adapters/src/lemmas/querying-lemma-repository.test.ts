@@ -1,5 +1,6 @@
 // US-016 · ADR 0014, 0019
-import { describe, expect, it } from 'vitest'
+import type { AudioLanguage } from '@overtone/core'
+import { describe, expect, it, vi } from 'vitest'
 import {
   LOOKUP_BATCH_SIZE,
   QueryingLemmaRepository,
@@ -115,5 +116,63 @@ describe('QueryingLemmaRepository, across two languages', () => {
     await repository.lookup(['move', 'serve'], 'en')
 
     expect(asked).toEqual(['en'])
+  })
+})
+
+describe('QueryingLemmaRepository, deciding what is a verb', () => {
+  const asking = (known: readonly string[]) =>
+    vi.fn((forms: readonly string[], _language: AudioLanguage) =>
+      Promise.resolve(forms.filter((form) => known.includes(form))),
+    )
+
+  it('answers with the forms the source knows', async () => {
+    const verbs = asking(['fala', 'falou'])
+    const repository = new QueryingLemmaRepository(async () => [], verbs)
+
+    expect(await repository.verbForms(['fala', 'gato', 'falou'], 'pt')).toEqual(
+      new Set(['fala', 'falou']),
+    )
+  })
+
+  /*
+   * No source is not the same as a source that knows nothing. An app with
+   * no verb table loaded still works — it simply trusts the dictionary,
+   * which was right more often than it was wrong (ADR 0029).
+   */
+  it('answers with nothing at all when there is no source', async () => {
+    const repository = new QueryingLemmaRepository(async () => [])
+
+    expect(await repository.verbForms(['fala'], 'pt')).toEqual(new Set())
+  })
+
+  it('does not ask when there is nothing to ask about', async () => {
+    const verbs = asking([])
+    await new QueryingLemmaRepository(async () => [], verbs).verbForms([], 'pt')
+
+    expect(verbs).not.toHaveBeenCalled()
+  })
+
+  // An episode has a few thousand distinct forms, and an enormous array
+  // parameter makes a query plan worse rather than better.
+  it('asks in batches', async () => {
+    const many = Array.from({ length: LOOKUP_BATCH_SIZE + 10 }, (_, at) => `w${at}`)
+    const verbs = asking([])
+    await new QueryingLemmaRepository(async () => [], verbs).verbForms(many, 'pt')
+
+    expect(verbs).toHaveBeenCalledTimes(2)
+  })
+
+  it('ignores a form it never asked about', async () => {
+    const stray = vi.fn(() => Promise.resolve(['something-else']))
+    const repository = new QueryingLemmaRepository(async () => [], stray)
+
+    expect(await repository.verbForms(['fala'], 'pt')).toEqual(new Set())
+  })
+
+  it('asks about one language at a time', async () => {
+    const verbs = asking(['fala'])
+    await new QueryingLemmaRepository(async () => [], verbs).verbForms(['fala'], 'en')
+
+    expect(verbs.mock.calls[0]?.[1]).toBe('en')
   })
 })

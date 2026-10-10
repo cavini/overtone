@@ -172,7 +172,14 @@ export async function advanceEpisode(
   const tokens = tokeniseTimed(words, language)
 
   const distinctForms = [...new Set(tokens.map((token) => token.surface))]
-  const annotated = annotate(tokens, await lemmas.lookup(distinctForms, language), language)
+  // Both in one step, over the same forms. The second is how an invented
+  // verb is told from a real one (ADR 0029).
+  const annotated = annotate(
+    tokens,
+    await lemmas.lookup(distinctForms, language),
+    language,
+    await lemmas.verbForms(distinctForms, language),
+  )
 
   const counts = countTerms(annotated)
   const segments = toSegments(words, annotated, undefined, boundaries)
