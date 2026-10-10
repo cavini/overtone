@@ -6,6 +6,10 @@
  * the use case above it knows that five hits ten seconds apart are one
  * conversation rather than five answers.
  */
+/** Wraps each matching word. Control characters: no transcript contains them. */
+export const MATCH_OPEN = '\u0002'
+export const MATCH_CLOSE = '\u0003'
+
 export interface TranscriptMatch {
   readonly episodeId: string
   readonly episodeNumber: number
@@ -14,6 +18,20 @@ export interface TranscriptMatch {
   readonly endMs: number
   /** What was said there, for showing the reader why it matched. */
   readonly text: string
+  /**
+   * The same text with the matching words marked.
+   *
+   * Marked by the database, not by the page, because only the database
+   * knows *why* a segment matched: the search stems, so a query for `ano`
+   * matches `anos` and a query for `falar` matches `falou`. Highlighting by
+   * string comparison in the browser would bold neither, and would quietly
+   * bold the wrong thing in the cases it did hit.
+   *
+   * Delimited with control characters rather than markup, so the page can
+   * split on them and emit its own elements. Nothing has to trust, or
+   * sanitise, HTML built in SQL.
+   */
+  readonly highlighted: string
 }
 
 export interface TranscriptSearch {

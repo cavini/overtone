@@ -25,3 +25,4 @@ export type {
 } from './transcription-provider.js'
 export type { BlobStore } from './blob-store.js'
 export type { TranscriptMatch, TranscriptSearch } from './transcript-search.js'
+export { MATCH_CLOSE, MATCH_OPEN } from './transcript-search.js'
