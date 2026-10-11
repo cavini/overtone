@@ -130,7 +130,7 @@ export const UI = {
     shareLinkCopied: 'Link copiado',
     stopSharing: 'Parar de compartilhar',
     shared: 'Compartilhado',
-    transcriptionCredit: 'Transcrição pelo Whisper large-v3-turbo, rodando na Groq. O áudio é sempre tratado como português do Brasil.',
+    transcriptionCredit: 'Transcrição pelo Whisper large-v3, rodando na Groq. O áudio é sempre tratado como português do Brasil.',
   },
   en: {
     appName: 'Overtone',
@@ -252,7 +252,7 @@ export const UI = {
     shareLinkCopied: 'Link copied',
     stopSharing: 'Stop sharing',
     shared: 'Shared',
-    transcriptionCredit: 'Transcribed by Whisper large-v3-turbo running on Groq. The audio is always treated as Brazilian Portuguese.',
+    transcriptionCredit: 'Transcribed by Whisper large-v3 running on Groq. The audio is always treated as Brazilian Portuguese.',
   },
 } as const satisfies Record<Locale, Record<string, string>>
 
