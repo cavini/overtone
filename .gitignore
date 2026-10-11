@@ -66,3 +66,6 @@ next-env.d.ts
 .next/
 .vercel
 .env*
+
+# A note to self, not part of the project.
+TODO-ARTHUR.md
