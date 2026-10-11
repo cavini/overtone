@@ -126,8 +126,12 @@ select status, (response).status_code from net._http_response order by created d
 
 ## Signing in
 
-Magic links, through Supabase Auth (ADR 0028). Three things have to be set up
-in the Supabase dashboard, and sign-in is broken until they are:
+**Today: one shared password**, in `OVERTONE_PASSWORD`. That is the access
+model, not a leftover — see ADR 0028. Nothing below needs doing unless you
+want per-person libraries.
+
+Magic links are built and dormant. To switch them on, three things have to be
+set up in the Supabase dashboard, and sign-in is broken until they are:
 
 1. **Authentication → URL Configuration → Site URL**: the deployed origin.
 2. **Redirect URLs**: add `https://<your-domain>/auth/callback`. A link whose
@@ -136,7 +140,7 @@ in the Supabase dashboard, and sign-in is broken until they are:
    limited to a couple of messages an hour and is meant for development.
    Resend and Brevo both have free tiers that cover a group this size.
 
-Then, once, so the episodes uploaded under the old shared password are not
+Then, once, so the episodes uploaded under the shared password are not
 orphaned — they sit in a library owned by an id nobody can sign in as:
 
 ```bash
