@@ -177,7 +177,16 @@ export function LibraryPanel({
                 return (
                   <li
                     key={episode.episodeId}
-                    className="flex items-stretch gap-1 rounded-md border transition-colors"
+                    /*
+                     * Wraps on a phone, so the title keeps its own line.
+                     *
+                     * Three actions and a title on one row needs about four
+                     * hundred pixels. Measured at 360: the row overflowed
+                     * and the title button was squeezed to twenty-four
+                     * pixels, which is an episode you cannot read the name
+                     * of. The actions drop underneath instead.
+                     */
+                    className="flex flex-wrap items-stretch gap-1 rounded-md border transition-colors"
                     style={{
                       borderColor: asking
                         ? 'var(--alarm)'
@@ -190,7 +199,7 @@ export function LibraryPanel({
                     <button
                       type="button"
                       onClick={() => onOpen(episode.episodeId)}
-                      className="flex min-w-0 flex-1 flex-wrap items-baseline justify-between gap-2 px-3 py-2 text-left text-sm"
+                      className="flex min-w-0 flex-1 basis-full flex-wrap items-baseline justify-between gap-2 px-3 py-2 text-left text-sm sm:basis-auto"
                     >
                       <span className="min-w-0">
                         <span className="font-medium">{episode.title}</span>
