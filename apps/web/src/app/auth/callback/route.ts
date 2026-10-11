@@ -17,15 +17,21 @@ export async function GET(request: Request): Promise<Response> {
 
   const home = new URL(`/${locale}`, request.url)
 
-  if (token.length === 0) {
-    return Response.redirect(new URL(`/${locale}/entrar`, request.url), 303)
-  }
+  /** Back to the form, saying what went wrong rather than just arriving. */
+  const backWith = (trouble: string): Response =>
+    Response.redirect(new URL(`/${locale}/entrar?trouble=${trouble}`, request.url), 303)
+
+  if (token.length === 0) return backWith('LINK_EXPIRED')
 
   const outcome = await identityProvider().redeem(token)
   if (!outcome.ok) {
-    // Back to the form rather than an error page: the only thing to do
-    // about a spent or expired link is ask for another one.
-    return Response.redirect(new URL(`/${locale}/entrar`, request.url), 303)
+    /*
+     * Back to the form rather than an error page — the only thing to do
+     * about a spent link is ask for another — but *saying so*. Landing on
+     * a blank sign-in form after clicking a link reads as the click having
+     * missed, so people click it again, which cannot work.
+     */
+    return backWith(outcome.failure.code)
   }
 
   await keepSignedIn(outcome.session)
