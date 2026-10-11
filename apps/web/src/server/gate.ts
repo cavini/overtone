@@ -1,17 +1,18 @@
 /**
- * The shared password, kept only so the cutover to accounts is not an
- * outage.
+ * One shared password, which is the access model (ADR 0028).
  *
- * Accounts replaced this (ADR 0028), but switching over needs three things
- * done by hand in the Supabase dashboard — Site URL, the callback in the
- * redirect allow-list, and real SMTP — and until they are done nobody can
- * sign in at all. Deleting this would have taken the app down for however
- * long that took.
+ * Magic-link sign-in is built and dormant beside it. Turning that on needs
+ * an email provider — Supabase's own sender only reliably reaches the
+ * project owner, so friends would never receive a link — and the group is
+ * four people who are content sharing one password. "One login everybody
+ * shares" and "magic link" are different things anyway: a link arrives in
+ * somebody's inbox, and whoever owns that inbox is the account.
  *
- * **It is off unless `OVERTONE_PASSWORD` is set.** Whoever holds it is
- * treated as the owner of the library from before accounts, so the group's
- * existing episodes keep reading exactly as they did. Unset the variable
- * and this disappears; nothing else refers to it.
+ * So this is **not scaffolding awaiting removal**. It is off only when
+ * `OVERTONE_PASSWORD` is unset, and whoever holds it is the owner of the
+ * one library. Everything behind it — per-user scoping, ownership checks,
+ * the isolation suite — is already in place and starts applying the day
+ * sign-in is switched on.
  */
 
 const encoder = new TextEncoder()

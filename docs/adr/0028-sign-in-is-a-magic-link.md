@@ -70,20 +70,39 @@ and nothing is sent, because "you are not invited" confirms both that the list
 exists and that they found a real deployment. Unset means no list, so a fresh
 checkout still runs with no setup — the same bargain the password made.
 
-## The cutover is not an outage
+## Not switched on yet, and that is a decision
 
-Switching over needs three things done by hand in the Supabase dashboard, and
-until they are done **nobody can sign in at all**. Deleting the password with
-them undone would have taken the app down for however long that took, on a
-deploy that looked like a feature.
+**The shared password is the access model today.** Magic-link sign-in is
+built, tested and deployed, and it is dormant.
 
-So the password still works, and whoever holds it is treated as the owner of
-the library from before accounts — the group's existing episodes keep reading
-exactly as they did, and a browser that already has the cookie is not signed
-out. It is **off unless `OVERTONE_PASSWORD` is set**: unset the variable and
-the whole path disappears.
+Turning it on needs an email provider — Supabase's built-in sender only
+reliably reaches the project's own owner, so friends would never receive a
+link — and that means signing up with Resend or Brevo and, for anything but
+your own address, proving you own a domain. That is a real afternoon, for a
+group of four who are happy sharing one password.
 
-That is the one piece of this to delete on purpose, once sign-in works.
+It is also worth saying plainly: **"one login everybody shares" and "magic
+link" are different things.** A magic link arrives in *somebody's* inbox, and
+whoever owns that inbox is the account. One shared account reached by magic
+link would mean one shared inbox. The password is the honest shape for what
+the group actually wants right now.
+
+So: the password path below is **not transitional scaffolding to be tidied
+away**. It is the live access model until somebody decides per-person
+libraries are worth an email provider. Everything behind it — per-user
+scoping, ownership checks, the isolation suite — is already in place and will
+simply start applying the day sign-in is switched on.
+
+## The cutover, when it comes
+
+Whoever holds the password is treated as the owner of the library from before
+accounts, so the group's episodes keep reading exactly as they did. It is
+**off unless `OVERTONE_PASSWORD` is set**: unset the variable and the whole
+path disappears.
+
+When sign-in is switched on: set the Supabase Site URL and redirect, add an
+SMTP provider, sign in once by link, run `claim-library` to move the existing
+episodes to that account, and only then unset the password.
 
 ## Consequences
 
