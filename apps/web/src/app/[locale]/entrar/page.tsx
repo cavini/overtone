@@ -15,10 +15,14 @@ import { UI } from '../../../i18n/ui.js'
  */
 export default async function EnterPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ locale: string }>
+  searchParams: Promise<{ trouble?: string }>
 }) {
   const { locale } = await params
+  // Why they were sent back here, when they were sent back here.
+  const { trouble } = await searchParams
   if (!hasLocale(routing.locales, locale)) notFound()
   setRequestLocale(locale)
 
@@ -33,7 +37,11 @@ export default async function EnterPage({
         {labels.tagline}
       </p>
 
-      <SignInForm locale={locale} labels={labels} />
+      <SignInForm
+        locale={locale}
+        labels={labels}
+        {...(trouble === undefined ? {} : { trouble })}
+      />
     </main>
   )
 }

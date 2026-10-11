@@ -1,18 +1,28 @@
 'use client'
 
+import type { IdentityFailure } from '@overtone/core'
 import type { Locale } from '@overtone/messages'
 import { useId, useState } from 'react'
 import type { UiKey } from '../i18n/ui.js'
 
 type Labels = Record<UiKey, string>
 
-/** Which label explains each refusal the server can send back. */
-const TROUBLE: Record<string, UiKey> = {
+/**
+ * Which label explains each refusal.
+ *
+ * Keyed on the port's own union rather than on `string`, so a code added
+ * there fails the build here instead of quietly becoming "could not send
+ * it just now".
+ */
+const TROUBLE: Record<IdentityFailure['code'], UiKey> = {
   LINK_EXPIRED: 'linkExpired',
   EMAIL_REJECTED: 'emailRejected',
   TOO_MANY_LINKS: 'tooManyLinks',
   PROVIDER_UNAVAILABLE: 'signInUnavailable',
 }
+
+const explain = (code: string | undefined): UiKey | undefined =>
+  code === undefined ? undefined : (TROUBLE[code as IdentityFailure['code']] ?? 'signInUnavailable')
 
 /**
  * Asks for a sign-in link.
@@ -21,12 +31,21 @@ const TROUBLE: Record<string, UiKey> = {
  * answer that differed would turn this form into a way of finding out who
  * is in the group, for anybody who can load the page.
  */
-export function SignInForm({ locale, labels }: { readonly locale: Locale; readonly labels: Labels }) {
+export function SignInForm({
+  locale,
+  labels,
+  trouble: arrivedWith,
+}: {
+  readonly locale: Locale
+  readonly labels: Labels
+  /** Why a clicked link sent them back here, if one did. */
+  readonly trouble?: string
+}) {
   const emailId = useId()
   const [email, setEmail] = useState('')
   const [sending, setSending] = useState(false)
   const [sent, setSent] = useState(false)
-  const [trouble, setTrouble] = useState<UiKey | undefined>(undefined)
+  const [trouble, setTrouble] = useState<UiKey | undefined>(explain(arrivedWith))
 
   async function ask(event: React.FormEvent): Promise<void> {
     event.preventDefault()
@@ -47,7 +66,7 @@ export function SignInForm({ locale, labels }: { readonly locale: Locale; readon
         return
       }
 
-      setTrouble(TROUBLE[payload.error ?? ''] ?? 'signInUnavailable')
+      setTrouble(explain(payload.error))
     } finally {
       setSending(false)
     }

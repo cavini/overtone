@@ -20,8 +20,15 @@ export interface Session {
  * language the reader wants (ADR 0017).
  */
 export type IdentityFailure =
+  /**
+   * Expired, spent, or never ours — the three are one answer.
+   *
+   * There was a separate `LINK_ALREADY_USED`, and nothing could ever
+   * produce it: the service answers a reused link and an expired one with
+   * the same status, so telling them apart would have meant inventing the
+   * difference. A code nothing emits is a case nothing tests.
+   */
   | { readonly code: 'LINK_EXPIRED' }
-  | { readonly code: 'LINK_ALREADY_USED' }
   | { readonly code: 'EMAIL_REJECTED' }
   /** Too many links asked for, too fast. The free tier is strict about this. */
   | { readonly code: 'TOO_MANY_LINKS' }
