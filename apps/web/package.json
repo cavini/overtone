@@ -9,7 +9,8 @@
     "start": "next start",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test:unit": "vitest run --coverage",
-    "test:integration": "vitest run --config vitest.integration.config.ts"
+    "test:integration": "vitest run --config vitest.integration.config.ts",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "@overtone/adapters": "workspace:*",
@@ -24,6 +25,7 @@
     "react-dom": "^19.1.1"
   },
   "devDependencies": {
+    "@playwright/test": "^1.64.0",
     "@tailwindcss/postcss": "^4.1.14",
     "@types/node": "^22.18.1",
     "@types/react": "^19.1.11",

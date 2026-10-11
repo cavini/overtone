@@ -69,3 +69,5 @@ next-env.d.ts
 
 # A note to self, not part of the project.
 TODO-ARTHUR.md
+.playwright/
+test-results/
