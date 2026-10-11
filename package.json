@@ -17,7 +17,8 @@
     "fetch:lemmas": "tsx scripts/fetch-lemmas.mts",
     "prepare": "husky",
     "fetch:episode": "tsx scripts/fetch-episode.mts",
-    "fetch:verb-forms": "tsx scripts/fetch-verb-forms.mts"
+    "fetch:verb-forms": "tsx scripts/fetch-verb-forms.mts",
+    "test:e2e": "pnpm --filter @overtone/web test:e2e"
   },
   "devDependencies": {
     "@rolldown/binding-darwin-arm64": "^1.2.13",
