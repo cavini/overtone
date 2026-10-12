@@ -23,7 +23,19 @@ export interface BlobStoreUnderTest {
    * get there.
    */
   write(url: string, bytes: Uint8Array, contentType: string): Promise<void>
-  teardown?(): Promise<void>
+  /**
+   * Removes what the test just wrote.
+   *
+   * Handed every key the test named, rather than a list the harness keeps
+   * for itself. The Supabase harness kept its own, it drifted from what the
+   * contract actually writes, and `outside.opus` and `inside/one.opus` were
+   * still sitting in the production bucket from runs days earlier — a test
+   * suite quietly filling the storage tier it is meant to protect.
+   *
+   * A key may not exist: several cases name one precisely to prove it is
+   * absent. Removing what was never written has to be allowed.
+   */
+  teardown?(keys: readonly string[]): Promise<void>
 }
 
 const OPUS = 'audio/ogg'
@@ -41,10 +53,16 @@ export function describeBlobStore(
       body: (subject: BlobStoreUnderTest, key: (name: string) => string) => Promise<void>,
     ): Promise<void> => {
       const subject = await setUp()
+      // Every key the test asked for, so teardown cannot miss one.
+      const named = new Set<string>()
       try {
-        await body(subject, (name) => `${subject.prefix}/${name}`)
+        await body(subject, (name) => {
+          const key = `${subject.prefix}/${name}`
+          named.add(key)
+          return key
+        })
       } finally {
-        await subject.teardown?.()
+        await subject.teardown?.([...named])
       }
     }
 

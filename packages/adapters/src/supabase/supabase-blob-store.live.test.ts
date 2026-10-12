@@ -26,14 +26,10 @@ if (projectUrl === undefined || secretKey === undefined) {
 } else {
   const store = new SupabaseBlobStore({ projectUrl, secretKey, bucket: 'episode-audio' })
 
-  // A prefix per run, so a leftover object from a failed run cannot make the
-  // next one pass. Not random — `Math.random` is banned in this repo and the
-  // process id is just as unique for the purpose.
+  // A prefix per run, so a leftover object from a failed run cannot make
+  // the next one pass. Not random — `Math.random` is banned in this repo and
+  // the process id is just as unique for the purpose.
   const prefix = `contract/${process.pid}`
-  const written = [
-    'one.opus', 'two.opus', 'a.opus', 'b.opus', 'gone.opus', 'x.opus', 'y.opus',
-    'direct.opus', 'new.opus', 'p.opus', 'q.opus',
-  ].map((name) => `${prefix}/${name}`)
 
   describeBlobStore('SupabaseBlobStore', () =>
     Promise.resolve({
@@ -57,8 +53,16 @@ if (projectUrl === undefined || secretKey === undefined) {
         }
       },
       prefix,
-      // Leaving audio behind would eat a 1 GB tier an object at a time.
-      teardown: () => store.remove(written),
+      /*
+       * Whatever the contract named, not a list kept here.
+       *
+       * This was a hardcoded eleven names, and the contract had grown past
+       * it: `outside.opus` and `inside/one.opus` were never removed, and
+       * were still in the production bucket from runs days before. Small
+       * objects, but an unbounded count, from the suite whose own comment
+       * says leaving audio behind eats the tier an object at a time.
+       */
+      teardown: (keys) => store.remove(keys),
     }),
   )
 }
