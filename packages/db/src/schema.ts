@@ -201,10 +201,15 @@ export const episodes = pgTable(
  * the mistake most worth designing against — so it is durable immediately,
  * before the spend is even recorded.
  *
- * `offsetMs` is where the chunk actually began, not where the plan said it
- * would: the encoder moves each boundary to the nearest silence, and stitching
- * must use the real offset or every timestamp after the join points at the
- * wrong moment.
+ * `offsetMs` is where the chunk actually began. Today that is always what
+ * the plan said, because the encoder cuts at exactly the planned
+ * millisecond — the silence-seeking this column was shaped for (US-040,
+ * "Splitting never cuts a word in half") was never built.
+ *
+ * The column stays per-chunk rather than being derived from the index,
+ * because the moment boundaries do move, stitching must use the real offset
+ * or every timestamp after a join points at the wrong place. Storing it is
+ * the cheap half of that; it is already here and already correct.
  */
 /**
  * Whoever is currently allowed to advance an episode.
