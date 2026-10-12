@@ -36,9 +36,26 @@ export const MIN_TAIL_MS = 60_000
  * the file is (ADR 0020). Splitting is not an optimisation; it is the only
  * way the episode goes through at all.
  *
- * The boundaries are a target. Whatever does the encoding moves each one to
- * the nearest silence first, because a cut through the middle of a word
- * produces two garbage fragments and corrupts the counts at the join.
+ * **These boundaries are where the audio is actually cut**, to the
+ * millisecond. `splitAndUpload` slices `samples.subarray(from, to)` at
+ * exactly the sample these numbers name.
+ *
+ * That is not what this comment used to say. It claimed the encoder moved
+ * each boundary to the nearest silence first — and nothing in the
+ * repository has ever looked for silence. The consequence is real but
+ * narrow, and worth stating precisely rather than leaving as a promise:
+ *
+ * - Offsets are **not** corrupted. The plan and the cut are the same
+ *   numbers, so stitching lines up and every timestamp is honest. The
+ *   round-trip property test in `chunking.test.ts` covers that.
+ * - What does suffer is the join itself. A cut at an arbitrary instant
+ *   lands mid-word most of the time, and Whisper renders each half as a
+ *   whole word it can pronounce. Those invented words enter the counts.
+ *   A two-hour episode has about ten of these seams.
+ *
+ * Moving the cut to the nearest quiet point is still the right design, and
+ * it needs the actual boundary reported back so the stored offset matches
+ * where the knife fell. Until that exists, this says what the code does.
  */
 /**
  * The longest episode that still fits in a single chunk.
