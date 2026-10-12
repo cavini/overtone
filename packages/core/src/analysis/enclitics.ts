@@ -13,6 +13,8 @@ const ENCLITICS: ReadonlySet<string> = new Set([
   'lo', 'la', 'los', 'las', 'no', 'na',
 ])
 
+const TRAILING_PUNCTUATION = /[^\p{L}\p{N}]+$/u
+
 /**
  * Peels trailing enclitics off a word, one at a time.
  *
@@ -35,5 +37,16 @@ export function splitEnclitics(word: string): string[] {
     head = head.slice(0, hyphen)
   }
 
-  return [head, ...clitics]
+  /*
+   * `diga--me` leaves `diga-`, and a trailing hyphen makes it a different
+   * term from the same verb written cleanly — two buckets for one word.
+   *
+   * `normalize` trims punctuation at the *edges* of a token, so a lone
+   * `diga-` never arrives here; a doubled inner hyphen does, because its
+   * edges are letters. Rare — there is none in the episode we have — but
+   * the tokeniser's stated position is that it tolerates stray punctuation
+   * rather than trusting its caller, and this is the same promise one layer
+   * down.
+   */
+  return [head.replace(TRAILING_PUNCTUATION, ''), ...clitics]
 }
