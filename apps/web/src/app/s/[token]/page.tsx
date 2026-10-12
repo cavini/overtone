@@ -1,7 +1,9 @@
+import { headers } from 'next/headers'
 import { notFound } from 'next/navigation'
 import { CountsTable, JokeList, StatStrip } from '../../../components/counts-table.js'
 import { presentAnalysis } from '../../../presenter/episode-view.js'
 import { UI } from '../../../i18n/ui.js'
+import { preferredLocale } from '../../../presenter/preferred-locale.js'
 import { sharedEpisode } from '../../../server/sharing.js'
 
 /**
@@ -41,8 +43,18 @@ export default async function SharedPage({
   // it was is not the visitor's business.
   if (shared === undefined) notFound()
 
-  const labels = UI.pt
-  const view = presentAnalysis(shared.analysis, 'pt')
+  /*
+   * In the reader's language, which is the promise the share link makes
+   * (M4). It was hardcoded to Portuguese, so sharing a result with somebody
+   * who reads English handed them a Portuguese interface — on the one screen
+   * in the app aimed at people outside the group.
+   *
+   * The numbers are the same either way; only their labels change, and the
+   * quotes are never touched, because they are what was said.
+   */
+  const locale = preferredLocale((await headers()).get('accept-language'))
+  const labels = UI[locale]
+  const view = presentAnalysis(shared.analysis, locale)
 
   return (
     <main className="mx-auto max-w-3xl px-5 py-10">

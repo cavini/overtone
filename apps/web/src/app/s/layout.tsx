@@ -1,5 +1,7 @@
+import { headers } from 'next/headers'
 import { Fraunces, IBM_Plex_Mono, IBM_Plex_Sans } from 'next/font/google'
 import type { ReactNode } from 'react'
+import { preferredLocale } from '../../presenter/preferred-locale.js'
 import '../globals.css'
 
 /*
@@ -36,15 +38,24 @@ const mono = IBM_Plex_Mono({
   display: 'swap',
 })
 
-/** The show is in Brazilian Portuguese, and so are the quotes. */
 export const metadata = {
   title: 'Overtone',
   robots: { index: false, follow: false },
 }
 
-export default function SharedLayout({ children }: { readonly children: ReactNode }) {
+/*
+ * `lang` has to match what is actually on the page.
+ *
+ * It said pt-BR unconditionally, which is what a screen reader uses to pick
+ * how to pronounce the words — so an English page was being read out with
+ * Portuguese phonetics. The quotes stay Brazilian whatever the labels do,
+ * but the page as a whole is in the reader's language now.
+ */
+export default async function SharedLayout({ children }: { readonly children: ReactNode }) {
+  const locale = preferredLocale((await headers()).get('accept-language'))
+
   return (
-    <html lang="pt-BR" suppressHydrationWarning>
+    <html lang={locale === 'pt' ? 'pt-BR' : 'en'} suppressHydrationWarning>
       <body className={`${display.variable} ${body.variable} ${mono.variable}`}>{children}</body>
     </html>
   )

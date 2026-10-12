@@ -1,7 +1,7 @@
 'use client'
 
 import type { Locale } from '@overtone/messages'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import { audioDigest } from '../audio/audio-digest.js'
 import { audioTypeOf, FILE_INPUT_ACCEPT } from '../audio/audio-type.js'
 import { measureDuration } from '../audio/measure-duration.js'
@@ -58,6 +58,8 @@ export function UploadForm({
    */
   readonly onEpisode: (episodeId: string, live: boolean) => void
 }) {
+  const fileId = useId()
+  const hintId = useId()
   const input = useRef<HTMLInputElement>(null)
   const resumed = useRef(false)
   const [filename, setFilename] = useState('')
@@ -290,16 +292,31 @@ export function UploadForm({
             if (file) void send(file)
           }}
         >
-          <p className="mt-1 text-sm" style={{ color: 'var(--quiet)' }}>
+          <p id={hintId} className="mt-1 text-sm" style={{ color: 'var(--quiet)' }}>
             {labels.uploadHint}
           </p>
 
           <div className="mt-4 flex flex-wrap items-center gap-3">
+            {/*
+              * The app's main action had no accessible name at all: a screen
+              * reader announced it as an unlabelled file button, so the one
+              * thing you come here to do was the one control that did not
+              * say what it was for.
+              *
+              * Hidden rather than drawn, because the heading and the hint
+              * already say it on screen; `aria-describedby` carries the hint
+              * so the format advice is read out too, after the name.
+              */}
+            <label htmlFor={fileId} className="sr-only">
+              {labels.uploadFileLabel}
+            </label>
             <input
+              id={fileId}
               ref={input}
               type="file"
               name="audio"
               accept={FILE_INPUT_ACCEPT}
+              aria-describedby={hintId}
               required
               disabled={busy}
               onChange={(event) => setFilename(event.target.files?.[0]?.name ?? '')}
