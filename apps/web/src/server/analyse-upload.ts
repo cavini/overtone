@@ -2,6 +2,7 @@ import {
   advanceEpisode,
   DAILY_ALLOWANCE_MS,
   planChunks,
+  type AudioChunk,
   asAudioLanguage,
   readEpisodeName,
   type PublishedEpisode,
@@ -54,6 +55,45 @@ const SERIES_TITLE = 'Overtone'
  * out of it. The daily cap is the one limit the provider does not report, so
  * it comes from our own tally (ADR 0021).
  */
+
+/**
+ * The chunks this episode was actually cut into.
+ *
+ * The planned boundaries come from arithmetic on the duration, and were
+ * recomputed at six call sites that all agreed because they all did the same
+ * sum. That holds only while the cuts land where the sum says — and the
+ * browser now moves each seam into the nearest gap between words (US-040),
+ * so the real boundaries have to be read rather than derived.
+ *
+ * A stored list stands in for the plan entirely. Falling back to the plan
+ * for a *missing* list is right; falling back for one chunk of a list that
+ * exists would mix planned and settled offsets in one episode, which is the
+ * silent corruption both ADRs warn about — so it is all or nothing, and a
+ * list of the wrong length is treated as absent rather than patched.
+ */
+export function chunksFor(episode: {
+  readonly durationMs: number
+  /*
+   * Required, not optional. Optional would let a query that forgot to
+   * select the column compile and silently fall back to the plan — the
+   * whole feature doing nothing, with nothing to show for it. Spelling
+   * `null` is a decision; omitting it was an accident waiting to look like
+   * one.
+   */
+  readonly chunkStartsMs: readonly number[] | null
+}): AudioChunk[] {
+  const planned = planChunks(episode.durationMs)
+  const settled = episode.chunkStartsMs
+
+  if (settled === null || settled.length !== planned.length) return planned
+
+  return planned.map((chunk, at) => ({
+    ...chunk,
+    startMs: settled[at] ?? chunk.startMs,
+    endMs: settled[at + 1] ?? episode.durationMs,
+  }))
+}
+
 export async function remainingDailyHours(): Promise<number> {
   const { dailyUsedMs } = await new DrizzleAllowanceStore(database()).read()
 
@@ -239,7 +279,7 @@ export async function startEpisode(
   const blobs = blobStore()
 
   const chunks = await Promise.all(
-    planChunks(durationMs).map(async (chunk) => ({
+    chunksFor({ durationMs, chunkStartsMs: null }).map(async (chunk) => ({
       ...chunk,
       uploadUrl: await blobs.uploadUrl(chunkKey(episodeId, chunk.index), AUDIO_URL_TTL_SECONDS),
     })),
@@ -282,6 +322,7 @@ export async function listEpisodes(userId: string): Promise<LibraryEpisode[]> {
       number: episodes.number,
       title: episodes.title,
       durationMs: episodes.durationMs,
+      chunkStartsMs: episodes.chunkStartsMs,
       status: episodes.status,
       shareToken: episodes.shareToken,
       /*
@@ -318,7 +359,7 @@ export async function listEpisodes(userId: string): Promise<LibraryEpisode[]> {
     status: row.status,
     shared: row.shareToken !== null,
     chunksDone: row.chunksDone,
-    chunkCount: planChunks(row.durationMs).length,
+    chunkCount: chunksFor(row).length,
   }))
 }
 
@@ -340,7 +381,7 @@ export async function deleteEpisode(userId: string, episodeId: string): Promise<
   const db = database()
 
   const [episode] = await db
-    .select({ durationMs: episodes.durationMs })
+    .select({ durationMs: episodes.durationMs, chunkStartsMs: episodes.chunkStartsMs })
     .from(episodes)
     .where(eq(episodes.id, episodeId))
     .limit(1)
@@ -348,7 +389,7 @@ export async function deleteEpisode(userId: string, episodeId: string): Promise<
   if (episode === undefined) return
 
   await blobStore().remove(
-    planChunks(episode.durationMs).map((chunk) => chunkKey(episodeId, chunk.index)),
+    chunksFor(episode).map((chunk) => chunkKey(episodeId, chunk.index)),
   )
 
   await db.delete(episodes).where(eq(episodes.id, episodeId))
@@ -390,7 +431,12 @@ export async function pendingEpisode(userId: string): Promise<PendingEpisode | n
   const chunks = new DrizzleChunkStore(db)
 
   const [transcribing] = await db
-    .select({ id: episodes.id, title: episodes.title, durationMs: episodes.durationMs })
+    .select({
+      id: episodes.id,
+      title: episodes.title,
+      durationMs: episodes.durationMs,
+      chunkStartsMs: episodes.chunkStartsMs,
+    })
     .from(episodes)
     .innerJoin(series, eq(series.id, episodes.seriesId))
     .where(and(eq(episodes.status, 'transcribing'), eq(series.ownerId, userId)))
@@ -403,14 +449,19 @@ export async function pendingEpisode(userId: string): Promise<PendingEpisode | n
       episodeId: transcribing.id,
       title: transcribing.title,
       chunksDone: done.length,
-      chunkCount: planChunks(transcribing.durationMs).length,
+      chunkCount: chunksFor(transcribing).length,
       live: true,
     }
   }
 
   // Nothing in flight. Offer the latest thing there is to read.
   const [readable] = await db
-    .select({ id: episodes.id, title: episodes.title, durationMs: episodes.durationMs })
+    .select({
+      id: episodes.id,
+      title: episodes.title,
+      durationMs: episodes.durationMs,
+      chunkStartsMs: episodes.chunkStartsMs,
+    })
     .from(episodes)
     .innerJoin(chunkTranscripts, eq(chunkTranscripts.episodeId, episodes.id))
     .innerJoin(series, eq(series.id, episodes.seriesId))
@@ -427,7 +478,7 @@ export async function pendingEpisode(userId: string): Promise<PendingEpisode | n
     episodeId: readable.id,
     title: readable.title,
     chunksDone: done.length,
-    chunkCount: planChunks(readable.durationMs).length,
+    chunkCount: chunksFor(readable).length,
     live: false,
   }
 }
@@ -490,6 +541,7 @@ export async function advanceOnce(episodeId: string): Promise<AdvancedEpisode> {
   const [episode] = await db
     .select({
       durationMs: episodes.durationMs,
+      chunkStartsMs: episodes.chunkStartsMs,
       status: episodes.status,
       language: episodes.language,
       // The scheduled step has no signed-in user, so the running jokes come
@@ -519,7 +571,7 @@ export async function advanceOnce(episodeId: string): Promise<AdvancedEpisode> {
   const plan =
     episode.status === 'ready'
       ? planFromTranscripts(await chunks.transcripts(episodeId), episode.durationMs)
-      : planChunks(episode.durationMs)
+      : chunksFor(episode)
 
   /*
    * Only the chunks still to be sent get a URL.

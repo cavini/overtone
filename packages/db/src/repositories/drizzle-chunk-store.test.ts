@@ -63,11 +63,10 @@ describe('DrizzleChunkStore', () => {
       expect(transcripts[1]).toMatchObject({ index: 1, offsetMs: 1_200_000 })
     })
 
-    // The offset the encoder actually used, which today is always the one
-    // the plan predicted: the silence-seeking that would move a boundary
-    // (US-040) was never built. The round trip is asserted anyway, because
-    // the day a boundary does move, stitching with the planned offset puts
-    // every later timestamp in the wrong place.
+    // The offset the encoder actually used, not the one the plan predicted.
+    // Boundaries move to the nearest gap between words (US-040), and
+    // stitching with the planned offset would put every later timestamp in
+    // the wrong place.
     it('brings back the real offset', async () => {
       const transcripts = await store.transcripts(EPISODE)
       expect(transcripts.map((t) => t.offsetMs)).toEqual([0, 1_200_000])
