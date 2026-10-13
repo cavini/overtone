@@ -94,6 +94,51 @@ describe('settleChunks', () => {
     expect(settle(planned, profile(['loud', durationMs]))).toEqual(planned)
   })
 
+  /*
+   * Two seams both drawn towards the same gap.
+   *
+   * `planChunks` spaces its boundaries twelve minutes apart, so with a
+   * ninety-second radius they can never reach each other — the guard cannot
+   * bind on a real plan, and a test built from one passes whether the guard
+   * is there or not. I wrote that test first and it proved nothing.
+   *
+   * This builds the plan by hand instead, because `settleChunks` takes a
+   * list of chunks rather than a duration and is not entitled to assume
+   * who made it. Hundred-second chunks with one gap at 150 s: both seams
+   * can reach it, and without the guard both land on it and the chunk
+   * between them disappears.
+   */
+  it('will not pull two seams onto the same gap', () => {
+    const tight = [
+      { index: 0, startMs: 0, endMs: 100_000 },
+      { index: 1, startMs: 100_000, endMs: 200_000 },
+      { index: 2, startMs: 200_000, endMs: 300_000 },
+    ]
+    const loudness = profile(['loud', 149_000], ['quiet', 2_000], ['loud', 149_000])
+
+    const settled = settleChunks(tight, loudness, FRAME_MS)
+
+    const starts = settled.map((chunk) => chunk.startMs)
+    expect(new Set(starts).size, `two seams landed together: ${starts.join(', ')}`).toBe(
+      starts.length,
+    )
+    for (const chunk of settled) {
+      expect(chunk.endMs - chunk.startMs, `chunk ${String(chunk.index)} was squeezed to nothing`)
+        .toBeGreaterThan(0)
+    }
+  })
+
+  // A seam with no room either side simply stays where the plan put it.
+  it('leaves a seam alone when there is no room to move it', () => {
+    const tight = [
+      { index: 0, startMs: 0, endMs: 70_000 },
+      { index: 1, startMs: 70_000, endMs: 140_000 },
+    ]
+    const gapFarAway = profile(['loud', 10_000], ['quiet', 2_000], ['loud', 128_000])
+
+    expect(settleChunks(tight, gapFarAway, FRAME_MS)).toEqual(tight)
+  })
+
   it('returns nothing for nothing', () => {
     expect(settleChunks([], [], FRAME_MS)).toEqual([])
   })
