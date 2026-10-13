@@ -2,6 +2,7 @@ import { hasLocale } from 'next-intl'
 import { setRequestLocale } from 'next-intl/server'
 import { notFound } from 'next/navigation'
 import { GateForm } from '../../../components/gate-form.js'
+import { OvertoneMark } from '../../../components/overtone-mark.js'
 import { SignInForm } from '../../../components/sign-in-form.js'
 import { whichDoor } from '../../../presenter/which-door.js'
 import { routing } from '../../../i18n/routing.js'
@@ -36,10 +37,14 @@ export default async function EnterPage({
 
   return (
     <main className="mx-auto flex min-h-screen max-w-md flex-col justify-center px-5">
-      <h1 className="text-4xl" style={{ fontFamily: 'var(--font-display)' }}>
+      <OvertoneMark className="block h-8 w-auto" />
+      <h1 className="mt-3 text-5xl leading-none" style={{ fontFamily: 'var(--font-display)' }}>
         {labels.appName}
       </h1>
-      <p className="mt-1 text-sm" style={{ color: 'var(--quiet)' }}>
+      <p
+        className="mt-2 text-base italic"
+        style={{ fontFamily: 'var(--font-display)', color: 'var(--prose-2)' }}
+      >
         {labels.tagline}
       </p>
 
