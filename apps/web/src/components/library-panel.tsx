@@ -7,6 +7,7 @@ import { episodesMatching } from '../presenter/library-filter.js'
 import { renderMessage, type Locale } from '@overtone/messages'
 import { ConfirmDialog } from './confirm-dialog.js'
 import { Panel } from './panel.js'
+import { Spinner } from './spinner.js'
 import { TrashCan } from './trash-can.js'
 
 type Labels = Record<UiKey, string>
@@ -163,18 +164,31 @@ export function LibraryPanel({
                         <span className="tabular ml-2 text-xs" style={{ color: 'var(--quiet)' }}>
                           {timestamp(episode.durationMs)}
                         </span>
-                        {unfinished ? (
-                          <span className="ml-2 text-xs" style={{ color: 'var(--accent-quiet)' }}>
-                            {episode.chunksDone}/{episode.chunkCount} {labels.libraryUnfinished}
+                      </span>
+                      {/*
+                        A spinner while it is still being transcribed, and
+                        nothing at all once it is done. The row already says
+                        which episode is open, by being the one with a
+                        border around it — a word for that was both
+                        redundant and, as "Lendo", ambiguous about who was
+                        doing the reading.
+
+                        The chunk count stays. It is not a label for a state,
+                        it is how far along a job is, and on a two-hour
+                        episode that is the difference between "working" and
+                        "nearly there".
+                      */}
+                      {unfinished ? (
+                        <span
+                          className="flex shrink-0 items-center gap-2 text-xs"
+                          style={{ color: 'var(--accent-quiet)' }}
+                        >
+                          <span className="tabular">
+                            {episode.chunksDone}/{episode.chunkCount}
                           </span>
-                        ) : null}
-                      </span>
-                      <span
-                        className="text-xs"
-                        style={{ color: reading ? 'var(--accent)' : 'var(--quiet)' }}
-                      >
-                        {reading ? labels.libraryReading : labels.libraryOpen}
-                      </span>
+                          <Spinner label={labels.transcribing} />
+                        </span>
+                      ) : null}
                     </button>
                     {/*
                       A trash can, in red, and the question in a dialog.
