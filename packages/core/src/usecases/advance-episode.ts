@@ -159,7 +159,16 @@ export async function advanceEpisode(
     }
   }
 
-  // Every chunk is in. Stitch, analyse, store.
+  /*
+   * Every chunk is in. Stitch, analyse, store.
+   *
+   * Once, here, rather than after each chunk. Re-analysing on every step
+   * would be `O(chunks²)` in the work — chunk one analysing a thirteenth of
+   * the episode, chunk thirteen analysing all of it, for about seven times
+   * the total — and each step runs inside a serverless invocation with a
+   * ceiling on it. A per-chunk step therefore costs one transcription and
+   * nothing else; the whole analysis is paid for once, at the end.
+   */
   await store.setStatus(request.episodeId, 'analyzing')
 
   const language = request.language ?? DEFAULT_AUDIO_LANGUAGE
