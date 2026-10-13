@@ -1,5 +1,10 @@
 // US-040 · ADR 0020, ADR 0021
 import { describe, expect, it } from 'vitest'
+import {
+  DECODE_BUDGET_BYTES,
+  MAX_EPISODE_MS,
+  decodedBytesFor,
+} from '../domain/episode-length.js'
 import type { AllowanceState } from '../domain/allowance.js'
 import type { AudioChunk } from '../domain/audio-chunk.js'
 import { ALLOWANCE_REFILL_RATE } from '../domain/observed-allowance.js'
@@ -243,4 +248,25 @@ describe('a whole episode', () => {
     expect(waitedMs).toBe(195_500)
     expect(waitedMs).toBeLessThan(4 * MINUTE)
   })
+
+/*
+ * Two limits on how long an episode may be, and which of them bites.
+ *
+ * Here rather than beside `MAX_EPISODE_MS`, because the domain may depend
+ * on nothing and cannot see the allowance. Analysis can see both.
+ */
+describe('the allowance against the browser', () => {
+  it('lets the browser refuse first', () => {
+    expect(MAX_EPISODE_MS).toBeLessThan(DAILY_ALLOWANCE_MS)
+  })
+
+  /*
+   * The length the allowance used to permit, which is what the check
+   * actually compared against: eight hours is about 5.5 GB at the peak of
+   * the decode. Not a slow upload — the tab disappears, with nothing said.
+   */
+  it('would have let through an episode no tab can hold', () => {
+    expect(decodedBytesFor(DAILY_ALLOWANCE_MS)).toBeGreaterThan(DECODE_BUDGET_BYTES * 2)
+  })
+})
 })

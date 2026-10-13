@@ -56,30 +56,39 @@ export function toSegments(
    * including a token that lands in two overlapping windows and belongs to
    * both, and tokens in no window being left out.
    */
-  const windows = groups.map((group) => ({
+  /*
+   * One object per group, carrying its own window and its own tokens —
+   * rather than three arrays indexed in step. Parallel arrays would need an
+   * `undefined` guard at every lookup that can never fire, which is both
+   * noise and a line no test can reach.
+   */
+  const lines = groups.map((group) => ({
+    group,
     from: group.startMs,
-    to: group.words.at(-1)?.startMs ?? 0,
+    // `groupWords` never emits an empty group — its flush returns early on
+    // one — so the last word is always there.
+    to: group.words[group.words.length - 1]?.startMs ?? group.startMs,
+    held: [] as TranscriptSegment['words'][number][],
   }))
 
-  const bySlot = new Map<number, number[]>()
-  for (const [at, window] of windows.entries()) {
-    const first = Math.floor(window.from / SLOT_MS)
-    const last = Math.floor(window.to / SLOT_MS)
+  const bySlot = new Map<number, Array<(typeof lines)[number]>>()
+  for (const line of lines) {
+    const first = Math.floor(line.from / SLOT_MS)
+    const last = Math.floor(line.to / SLOT_MS)
     for (let slot = first; slot <= last; slot += 1) {
       const already = bySlot.get(slot)
-      if (already === undefined) bySlot.set(slot, [at])
-      else already.push(at)
+      if (already === undefined) bySlot.set(slot, [line])
+      else already.push(line)
     }
   }
 
-  const held: Array<TranscriptSegment['words'][number][]> = groups.map(() => [])
   for (const token of tokens) {
-    for (const at of bySlot.get(Math.floor(token.startMs / SLOT_MS)) ?? []) {
-      const window = windows[at]
-      if (window === undefined) continue
-      if (token.startMs < window.from || token.startMs > window.to) continue
+    for (const line of bySlot.get(Math.floor(token.startMs / SLOT_MS)) ?? []) {
+      // The slot is a coarse ten seconds and a window is not, so landing in
+      // the slot is not yet belonging to the line.
+      if (token.startMs < line.from || token.startMs > line.to) continue
 
-      held[at]?.push({
+      line.held.push({
         surface: token.surface,
         lemma: token.lemma,
         startMs: token.startMs,
@@ -90,13 +99,13 @@ export function toSegments(
   }
 
   return (
-    groups
-      .map((group, position) => ({
+    lines
+      .map(({ group, held }, position) => ({
         position,
         startMs: group.startMs,
         endMs: group.endMs,
         text: group.words.map((word) => word.text).join(' '),
-        words: held[position] ?? [],
+        words: held,
       }))
       // A segment can end up with no countable words at all — a stretch of pure
       // punctuation. Keeping it would give the reader an empty paragraph.

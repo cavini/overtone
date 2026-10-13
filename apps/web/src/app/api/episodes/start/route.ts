@@ -1,5 +1,5 @@
 import { refusal, requireUser } from '../../../../server/session.js'
-import { asAudioLanguage, DAILY_ALLOWANCE_MS, planChunks } from '@overtone/core'
+import { asAudioLanguage, DAILY_ALLOWANCE_MS, MAX_EPISODE_MS, planChunks } from '@overtone/core'
 import {
   DEFAULT_LOCALE,
   LOCALES,
@@ -51,15 +51,21 @@ export async function POST(request: Request): Promise<Response> {
     return bad(locale, 'EPISODE_TITLE_REQUIRED', {})
   }
 
-  // The one length that still cannot work: an episode longer than a whole
-  // day's allowance would never finish, however patiently it is paced.
-  if (durationMs > DAILY_ALLOWANCE_MS) {
+  /*
+   * The length that actually binds is the browser's, not the allowance's.
+   *
+   * Splitting happens in the tab, so the whole episode is decoded into
+   * memory before a chunk is cut — 1.46 GB for the show's own two hours, and
+   * 5.5 GB for the eight that a day's allowance used to permit. The second
+   * is not a slow upload; it is the tab disappearing with nothing said.
+   */
+  if (durationMs > MAX_EPISODE_MS) {
     return bad(
       locale,
       'EPISODE_TOO_LONG',
       {
         duration_minutes: Math.round(durationMs / 60_000),
-        max_minutes: Math.floor(DAILY_ALLOWANCE_MS / 60_000),
+        max_minutes: Math.floor(MAX_EPISODE_MS / 60_000),
         allowance_hours_today: await remainingDailyHours(),
       },
       413,

@@ -18,6 +18,11 @@ export type {
 export type { Topic } from './topic.js'
 export type { Mention } from './mention.js'
 export {
+  DECODE_BUDGET_BYTES,
+  MAX_EPISODE_MS,
+  decodedBytesFor,
+} from './episode-length.js'
+export {
   EPISODE_STATUSES,
   IN_FLIGHT_STATUSES,
   SERIES_ROLES,
