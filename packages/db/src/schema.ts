@@ -188,8 +188,6 @@ export const episodes = pgTable(
     description: text('description'),
     byteSize: bigint('byte_size', { mode: 'number' }).notNull().default(0),
     blobKey: text('blob_key'),
-    /** Present means the stats page is public to anyone holding the link. */
-    shareToken: text('share_token').unique(),
     audioPurgedAt: timestamp('audio_purged_at', { withTimezone: true }),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },

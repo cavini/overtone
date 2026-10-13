@@ -302,7 +302,6 @@ export interface LibraryEpisode {
    * Whether, not which. The token is the permission, and a list the page
    * asks for every few seconds is no place to carry one around.
    */
-  readonly shared: boolean
 }
 
 /**
@@ -324,7 +323,6 @@ export async function listEpisodes(userId: string): Promise<LibraryEpisode[]> {
       durationMs: episodes.durationMs,
       chunkStartsMs: episodes.chunkStartsMs,
       status: episodes.status,
-      shareToken: episodes.shareToken,
       /*
        * Counted by joining, not by a correlated subquery.
        *
@@ -347,7 +345,6 @@ export async function listEpisodes(userId: string): Promise<LibraryEpisode[]> {
       episodes.title,
       episodes.durationMs,
       episodes.status,
-      episodes.shareToken,
     )
     .orderBy(desc(episodes.number))
 
@@ -357,7 +354,6 @@ export async function listEpisodes(userId: string): Promise<LibraryEpisode[]> {
     title: row.title,
     durationMs: row.durationMs,
     status: row.status,
-    shared: row.shareToken !== null,
     chunksDone: row.chunksDone,
     chunkCount: chunksFor(row).length,
   }))

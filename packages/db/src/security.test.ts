@@ -148,8 +148,10 @@ describe('row-level security', () => {
     expect(sql).not.toMatch(new RegExp(`create policy "[^"]+" on "${table}"`))
   })
 
-  // An anonymous visitor cannot be asked which episode they may see, and a
-  // policy broad enough to let them look would be broad enough to enumerate.
+  // Sharing is gone (US-039), and this stays: an anonymous visitor cannot be
+  // asked which episode they may see, so a policy broad enough to let them
+  // look would be broad enough to enumerate the lot. The assertion is what
+  // stops that being reintroduced quietly.
   it('does not try to serve public share links through a policy', () => {
     expect(sql).not.toMatch(/create policy[^;]*to anon/)
     expect(sql).not.toMatch(/create policy[^;]*share_token/)

@@ -1,5 +1,16 @@
 # 0030 · A shared result is counts and quotes, never the transcript
 
+> **Superseded — the feature was removed.** The group tried sharing and did
+> not want it, so the route, the token column and the whole path are gone.
+> Nothing was shared at the time, so no live link was broken.
+>
+> This stays because the reasoning still holds if it ever comes back: a
+> shared page shows counts and the quotes behind them and never the
+> transcript, and the unguessable token is the permission rather than a
+> row-level policy — an anonymous visitor cannot be asked which episode they
+> may see, and a policy broad enough to let them look is broad enough to
+> enumerate. `security.test.ts` still asserts no policy serves `anon`.
+
 **Status** accepted
 **Date** 2026-10-10
 **Decides** Q17

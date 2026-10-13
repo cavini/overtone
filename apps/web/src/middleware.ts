@@ -23,13 +23,11 @@ const CREDITS_PAGE = '/creditos'
  * Paths that have to answer without a session, each for its own reason.
  *
  * `/auth/*` is how somebody gets one and `/api/auth/*` is the form behind
- * it. `/s/*` is a shared result, whose whole purpose is to open for a
- * stranger — the unguessable token in the path is the permission, and what
- * it reaches is one episode's counts and nothing else (ADR 0030). The two
- * scheduled endpoints are called by Postgres and by Vercel, which have no
- * cookie and never will, and guard themselves with `CRON_SECRET` (ADR 0027).
+ * it. The two scheduled endpoints are called by Postgres and by Vercel,
+ * which have no cookie and never will, and guard themselves with
+ * `CRON_SECRET` (ADR 0027).
  */
-const OPEN_PREFIXES = ['/auth/', '/api/auth/', '/s/'] as const
+const OPEN_PREFIXES = ['/auth/', '/api/auth/'] as const
 const OPEN_PATHS = ['/api/keep-alive', '/api/episodes/advance-pending', '/api/enter'] as const
 
 /**
@@ -58,7 +56,7 @@ export default function middleware(request: NextRequest): Response {
    * somebody's chat. Both were being redirected into nowhere, which is the
    * entire feature in each case.
    */
-  const unlocalised = isApi || pathname.startsWith('/auth/') || pathname.startsWith('/s/')
+  const unlocalised = isApi || pathname.startsWith('/auth/')
 
   const onward = (): Response => (unlocalised ? NextResponse.next() : withLocale(request))
 
