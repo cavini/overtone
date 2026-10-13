@@ -45,14 +45,29 @@ export async function withAdvanceLease<T>(run: () => Promise<T>): Promise<T | un
          where held_until < now()
      returning held_until`,
   )
-  if (claimed.length === 0) return undefined
+  const held = claimed[0]?.['held_until']
+  if (held === undefined) return undefined
 
   try {
     return await run()
   } finally {
-    // Released even if the work threw. Without this a failure costs five
-    // minutes of a schedule that fires every one.
-    await db.execute(sql`update advance_lease set held_until = now()`)
+    /*
+     * Released even if the work threw — without this a failure costs five
+     * minutes of a schedule that fires every one.
+     *
+     * Only *our* lease, though. The release used to be unconditional, which
+     * is the classic way a lease stops being one: a run that outlives its
+     * own lease finds the next holder already working, and clears their
+     * claim on the way out. Two runs then transcribe the same chunk and pay
+     * for it twice, out of three episodes a day.
+     *
+     * `held_until` is the claim's own fingerprint, so no extra column is
+     * needed: only the run that set this exact value can clear it, and a
+     * run whose lease has already been taken over releases nothing.
+     */
+    await db.execute(
+      sql`update advance_lease set held_until = now() where held_until = ${String(held)}::timestamptz`,
+    )
   }
 }
 

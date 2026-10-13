@@ -366,4 +366,58 @@ describe('advanceEpisode', () => {
     )
     expect(outcome).toEqual({ state: 'ready' })
   })
+
+/*
+ * US-040 · "One chunk failing does not lose the others"
+ *
+ * The clause with nothing holding it: *"Retry re-sends only chunk 4,
+ * spending no allowance on the five that succeeded."* The mechanism is
+ * there — a chunk already in the store is skipped — but nothing asserted
+ * it, and the thing being protected is three episodes a day for the whole
+ * group.
+ */
+describe('retrying after a chunk failed', () => {
+  it('asks the transcriber only for the chunk that is missing', async () => {
+    // Chunks 0 and 2 are in; 1 failed last time.
+    const { deps, transcribe } = harness({ transcribed: [0, 2] })
+
+    await advanceEpisode({ episodeId: EPISODE, chunks, topics: [] }, deps)
+
+    expect(transcribe).toHaveBeenCalledTimes(1)
+    expect(transcribe.mock.calls[0]?.[0].audioUrl).toBe('audio://chunk-1')
+  })
+
+  it('spends allowance only on that one', async () => {
+    const { deps, recorded } = harness({ transcribed: [0, 2] })
+
+    await advanceEpisode({ episodeId: EPISODE, chunks, topics: [] }, deps)
+
+    expect(recorded).toEqual([CHUNK_TARGET_MS])
+  })
+
+  it('keeps what the earlier run already transcribed', async () => {
+    const { deps, stored } = harness({ transcribed: [0, 2] })
+
+    await advanceEpisode({ episodeId: EPISODE, chunks, topics: [] }, deps)
+
+    expect([...stored.keys()].sort()).toEqual([0, 1, 2])
+  })
+
+  /*
+   * And a retry that fails again must not spend anything either. A failure
+   * that still recorded the chunk's audio-seconds would make three
+   * refusals cost an episode's worth of the day's allowance.
+   */
+  it('spends nothing when the retry fails too', async () => {
+    const { deps, recorded, failures } = harness({
+      transcribed: [0, 2],
+      failTranscription: true,
+    })
+
+    await advanceEpisode({ episodeId: EPISODE, chunks, topics: [] }, deps)
+
+    expect(recorded, 'a refusal was charged to the allowance').toEqual([])
+    expect(failures.map((failure) => failure.code)).toEqual(['PROVIDER_UNAVAILABLE'])
+  })
+})
 })
