@@ -9,7 +9,7 @@ import { eq } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/postgres-js'
 import postgres from 'postgres'
 import { afterAll, describe, expect, it } from 'vitest'
-import { advancePending } from './advance-pending.js'
+import { advancePending, withAdvanceLease } from './advance-pending.js'
 
 const here = dirname(fileURLToPath(import.meta.url))
 const envFile = resolve(here, '../../../../.env.local')
@@ -93,6 +93,44 @@ if (url === undefined || url.length === 0) {
       expect(held.length).toBe(1)
 
       expect(await advancePending()).toEqual({ did: 'nothing', because: 'busy' })
+
+      await freeTheLease()
+    })
+
+    /*
+     * The way a lease stops being one.
+     *
+     * A run whose lease expires while it is still working finds the next
+     * holder already started — and used to clear their claim on the way
+     * out, because the release was an unconditional `set held_until =
+     * now()`. A third run then walks straight in beside the second, and two
+     * of them transcribe the same chunk and pay for it twice.
+     *
+     * The ceiling on the function is 300 seconds and so is the lease, so
+     * there was no margin at all between "cannot happen" and this.
+     */
+    it('does not release a lease that has already been taken over', async () => {
+      await freeTheLease()
+      let takenOver = 0
+
+      await withAdvanceLease(async () => {
+        // Our lease expires while we are still working, and somebody else
+        // claims it — exactly what a slow run looks like from outside.
+        await other`update advance_lease set held_until = now()`
+        takenOver = (
+          await other`
+            update advance_lease set held_until = now() + make_interval(secs => 300)
+             where held_until < now() returning held_until`
+        ).length
+      })
+
+      expect(takenOver, 'the second run never got the lease').toBe(1)
+
+      // Our release has now run. The second run must still hold it.
+      const stolen = await other`
+        update advance_lease set held_until = now() + make_interval(secs => 300)
+         where held_until < now() returning held_until`
+      expect(stolen, 'the stale run released somebody else’s lease').toHaveLength(0)
 
       await freeTheLease()
     })
