@@ -134,9 +134,31 @@ export function UploadForm({
       const chunks = started['chunks'] as ChunkTarget[]
       onEpisode(episodeId, true)
 
-      await splitAndUpload(file, chunks, ({ done, total }) => {
-        setProgress({ headline: `${labels.sendingPart} ${done + 1} / ${total}`, done, total })
-      })
+      await splitAndUpload(
+        file,
+        chunks,
+        ({ done, total }) => {
+          setProgress({ headline: `${labels.sendingPart} ${done + 1} / ${total}`, done, total })
+        },
+        /*
+         * Where the seams actually landed, once moved off the clock and
+         * into the gaps between words (US-040).
+         *
+         * Deliberately not caught. The audio is about to be cut on these,
+         * so an episode whose boundaries were never recorded would be
+         * offset by the planned ones instead — every timestamp after a seam
+         * wrong, and every number still looking reasonable. Failing the
+         * upload is the cheap outcome.
+         */
+        async (startsMs) => {
+          const recorded = await fetch('/api/episodes/boundaries', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ episodeId, startsMs }),
+          })
+          if (!recorded.ok) throw new Error(labels.couldNotRead)
+        },
+      )
 
       setProgress({ headline: labels.transcribing, done: 0, total: chunks.length })
       await driveToCompletion(episodeId, chunks.length)

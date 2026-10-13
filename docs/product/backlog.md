@@ -269,33 +269,23 @@ Scenario: An episode with no speech is reported honestly
 *As Rafa, I want a two-hour episode to just work, so that I never have to open an audio editor to use a fun app.*
 Priority: **Must** · Size: **L** → split: decode and compress · silence-boundary splitting · parallel transcription and stitching
 
-> **Partly shipped. "Splitting never cuts a word in half" was never built**, and
-> nothing in the repository has ever looked for silence. Four comments across
-> `chunking.ts`, `audio-chunk.ts`, `schema.ts` and a chunk-store test asserted
-> that the encoder moved each boundary — they have been corrected to describe
-> what the code does.
+> **"Splitting never cuts a word in half" now is built.** The browser measures
+> a loudness profile of the decoded audio, moves each seam to the middle of
+> the nearest gap of at least 300 ms within 90 seconds of the target, and
+> reports where they settled *before* uploading a byte. `episodes.chunk_starts_ms`
+> holds the result; `chunksFor` reads it, falling back to the plan when it is
+> absent so every episode from before this reads exactly as it did.
 >
-> What is *not* wrong: offsets. `splitAndUpload` cuts at exactly the planned
-> millisecond and the stored `offsetMs` is that same number, so stitching lines
-> up and every timestamp is honest. The round-trip property test covers it.
+> The ordering is the load-bearing part. Recording after the upload, or
+> swallowing a failure to record, leaves the server holding the planned
+> boundaries while the bytes follow different ones — every timestamp after a
+> seam wrong, every number still plausible. Two tests pin it, and both go red
+> if the call is moved after the upload.
 >
-> What is wrong: every seam lands wherever the clock says, which is mid-word
-> most of the time. Whisper renders each half as a whole word it can pronounce,
-> and those invented words enter the counts — about ten seams in a two-hour
-> episode. Our only episode is ten minutes, so it is a single chunk and has
-> never hit one.
->
-> Finishing it needs three pieces. The storage half already exists:
-> `chunk_transcripts.offset_ms` is per-chunk precisely so a moved boundary can
-> be recorded.
-> 1. A pure "quietest point within ±90 s of the target" over a loudness
->    profile — unit-testable with synthetic audio, no Groq.
-> 2. `splitAndUpload` adjusting each interior boundary once and using the same
->    moved point for the chunk that ends there and the one that begins there,
->    so no audio is lost or duplicated.
-> 3. A way to report the settled boundaries back, so the stored offset is where
->    the knife actually fell. Getting this wrong is the silent timestamp
->    corruption both ADRs warn about, so it wants its own contract test.
+> Validated on a speech-shaped signal rather than a 0/1 fixture: the planned
+> boundaries do cut mid-sentence, and every settled one lands in a pause
+> (`cuts-land-in-gaps.test.ts`). Not yet exercised on a real multi-chunk
+> upload — our only episode is ten minutes, which is a single chunk.
 
 ```gherkin
 Scenario: A two-hour episode is chunked, compressed and uploaded

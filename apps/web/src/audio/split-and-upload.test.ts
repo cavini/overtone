@@ -89,11 +89,19 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 
+/*
+ * Where the seams settled. Most of these cases do not care, but the
+ * argument is required rather than optional on purpose: the audio is cut on
+ * these boundaries, so a caller that forgets to record them would upload
+ * bytes the server cannot offset correctly.
+ */
+const noted = async (): Promise<void> => {}
+
 describe('splitAndUpload', () => {
   it('decodes the file once, not once per chunk', async () => {
     decoded = { numberOfChannels: 1, length: SAMPLE_RATE * 4, channels: [ramp(SAMPLE_RATE * 4)] }
 
-    await splitAndUpload(fileOf(), [target(0, 0, 2000), target(1, 2000, 4000)], () => {})
+    await splitAndUpload(fileOf(), [target(0, 0, 2000), target(1, 2000, 4000)], () => {}, noted)
 
     expect(decodeCalls).toBe(1)
     expect(sent).toHaveLength(2)
@@ -102,7 +110,7 @@ describe('splitAndUpload', () => {
   it('decodes straight to the rate that will be sent', async () => {
     decoded = { numberOfChannels: 1, length: SAMPLE_RATE, channels: [ramp(SAMPLE_RATE)] }
 
-    await splitAndUpload(fileOf(), [target(0, 0, 1000)], () => {})
+    await splitAndUpload(fileOf(), [target(0, 0, 1000)], () => {}, noted)
 
     // Decoded straight to the rate that will be sent. Decoding at 48 kHz
     // and resampling later is six times the memory for samples nobody
@@ -123,6 +131,7 @@ describe('splitAndUpload', () => {
       fileOf(),
       [target(0, 0, 1000), target(1, 1000, 2000), target(2, 2000, 3000)],
       () => {},
+      noted,
     )
 
     for (const [index, upload] of sent.entries()) {
@@ -136,7 +145,7 @@ describe('splitAndUpload', () => {
   it('leaves no gap between one chunk and the next', async () => {
     decoded = { numberOfChannels: 1, length: SAMPLE_RATE * 2, channels: [ramp(SAMPLE_RATE * 2)] }
 
-    await splitAndUpload(fileOf(), [target(0, 0, 1000), target(1, 1000, 2000)], () => {})
+    await splitAndUpload(fileOf(), [target(0, 0, 1000), target(1, 1000, 2000)], () => {}, noted)
 
     const total = sent.reduce((count, upload) => count + upload.samples.length, 0)
     expect(total).toBe(SAMPLE_RATE * 2)
@@ -147,7 +156,7 @@ describe('splitAndUpload', () => {
   it('does not read past the end of the audio', async () => {
     decoded = { numberOfChannels: 1, length: SAMPLE_RATE, channels: [ramp(SAMPLE_RATE)] }
 
-    await splitAndUpload(fileOf(), [target(0, 0, 5000)], () => {})
+    await splitAndUpload(fileOf(), [target(0, 0, 5000)], () => {}, noted)
 
     expect(sent[0]?.samples.length).toBe(SAMPLE_RATE)
   })
@@ -161,7 +170,7 @@ describe('splitAndUpload', () => {
       channels: [new Float32Array([1, 1, 1, 1]), new Float32Array([-1, -1, -1, -1])],
     }
 
-    await splitAndUpload(fileOf(), [target(0, 0, 1)], () => {})
+    await splitAndUpload(fileOf(), [target(0, 0, 1)], () => {}, noted)
 
     // +1 and −1 average to silence; taking the left would give full scale.
     expect([...(sent[0]?.samples ?? [])].every((sample) => sample === 0)).toBe(true)
@@ -170,7 +179,7 @@ describe('splitAndUpload', () => {
   it('puts each chunk at its own url, as audio/wav', async () => {
     decoded = { numberOfChannels: 1, length: SAMPLE_RATE * 2, channels: [ramp(SAMPLE_RATE * 2)] }
 
-    await splitAndUpload(fileOf(), [target(0, 0, 1000), target(1, 1000, 2000)], () => {})
+    await splitAndUpload(fileOf(), [target(0, 0, 1000), target(1, 1000, 2000)], () => {}, noted)
 
     expect(sent.map((upload) => upload.method)).toEqual(['PUT', 'PUT'])
     expect(sent.map((upload) => upload.contentType)).toEqual(['audio/wav', 'audio/wav'])
@@ -186,6 +195,7 @@ describe('splitAndUpload', () => {
       fileOf(),
       [target(0, 0, 1000), target(1, 1000, 2000)],
       ({ done, total }) => seen.push([done, total]),
+      noted,
     )
 
     expect(seen).toEqual([[0, 2], [1, 2], [2, 2]])
@@ -198,7 +208,7 @@ describe('splitAndUpload', () => {
     uploadStatus = 403
 
     await expect(
-      splitAndUpload(fileOf(), [target(0, 0, 1000), target(1, 1000, 2000)], () => {}),
+      splitAndUpload(fileOf(), [target(0, 0, 1000), target(1, 1000, 2000)], () => {}, noted),
     ).rejects.toThrow(/chunk 0/u)
 
     expect(sent).toHaveLength(1)
@@ -211,7 +221,57 @@ describe('splitAndUpload', () => {
       }
     })
 
-    await expect(splitAndUpload(fileOf(), [target(0, 0, 1000)], () => {})).rejects.toThrow()
+    await expect(splitAndUpload(fileOf(), [target(0, 0, 1000)], () => {}, noted)).rejects.toThrow()
     expect(contextsClosed).toBe(1)
+  })
+
+  /*
+   * The ordering the whole feature rests on. The audio is cut on the
+   * settled boundaries, so an episode whose boundaries were never recorded
+   * would be offset by the planned ones instead — every timestamp after a
+   * seam wrong, every number still plausible. My first attempt reported
+   * them after the upload and swallowed the failure, which is exactly that
+   * bug.
+   */
+  it('records the boundaries before it sends a single byte', async () => {
+    const order: string[] = []
+
+    await splitAndUpload(
+      fileOf(),
+      [target(0, 0, 1000), target(1, 1000, 2000)],
+      () => {},
+      async () => {
+        order.push(`recorded after ${String(sent.length)} uploads`)
+      },
+    )
+
+    expect(order).toEqual(['recorded after 0 uploads'])
+    expect(sent.length).toBeGreaterThan(0)
+  })
+
+  it('uploads nothing at all when the boundaries cannot be recorded', async () => {
+    await expect(
+      splitAndUpload(fileOf(), [target(0, 0, 1000), target(1, 1000, 2000)], () => {}, async () => {
+        throw new Error('server said no')
+      }),
+    ).rejects.toThrow('server said no')
+
+    expect(sent, 'audio went out with no boundaries recorded for it').toEqual([])
+  })
+
+  it('reports the boundaries it actually cut on', async () => {
+    let reported: readonly number[] = []
+
+    const settled = await splitAndUpload(
+      fileOf(),
+      [target(0, 0, 1000), target(1, 1000, 2000)],
+      () => {},
+      async (startsMs) => {
+        reported = startsMs
+      },
+    )
+
+    expect(reported).toEqual(settled)
+    expect(settled[0]).toBe(0)
   })
 })
