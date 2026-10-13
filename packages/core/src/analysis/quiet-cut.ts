@@ -10,11 +10,17 @@ export const MIN_SILENCE_MS = 300
 /**
  * How far a boundary may move to find a gap.
  *
- * A chunk is planned against two ceilings — the hourly audio-second
- * allowance and the 25 MB request cap (ADR 0020) — with headroom on both,
- * and 90 seconds stays inside that headroom. US-040 names the same number.
+ * US-040 names ninety seconds, and ninety does not fit. A chunk sits
+ * between *two* seams, so it grows by twice this — and the planned length
+ * has to leave room for all of it under the 25 MB request cap. Ninety each
+ * side meant three extra minutes on a chunk with one minute of headroom.
+ *
+ * Forty-five, with `CHUNK_TARGET_MS` lowered to ten minutes to make room
+ * for it. Conversation pauses for 300 ms many times a minute, so a
+ * forty-five second window is not the binding constraint on finding a gap;
+ * the request cap is.
  */
-export const SEARCH_RADIUS_MS = 90_000
+export const SEARCH_RADIUS_MS = 45_000
 
 /**
  * How quiet a frame has to be to count as silence, against the recording's

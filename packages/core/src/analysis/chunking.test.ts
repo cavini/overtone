@@ -18,8 +18,20 @@ const minutes = (n: number) => n * 60_000
 const REAL_EPISODE = 7_591_000
 
 describe('planChunks', () => {
-  it('leaves a short episode whole', () => {
-    expect(planChunks(minutes(12))).toEqual([{ index: 0, startMs: 0, endMs: minutes(12) }])
+  /*
+   * Expressed against the limit rather than a literal. This said twelve
+   * minutes, which was the chunk target at the time — so lowering the
+   * target to make room for seam-moving broke a test about something else
+   * entirely.
+   */
+  it('leaves an episode under the single-chunk limit whole', () => {
+    const short = SINGLE_CHUNK_LIMIT_MS - 1_000
+
+    expect(planChunks(short)).toEqual([{ index: 0, startMs: 0, endMs: short }])
+  })
+
+  it('splits one that is over it', () => {
+    expect(planChunks(SINGLE_CHUNK_LIMIT_MS + 1_000).length).toBeGreaterThan(1)
   })
 
   it('covers the episode exactly, with no gap and no overlap', () => {

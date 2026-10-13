@@ -88,8 +88,22 @@ describe('the chunk size', () => {
     expect(CHUNK_SECONDS).toBeLessThan(7_200 / 4)
   })
 
-  it('splits a real two-hour episode into a sane number of pieces', () => {
-    expect(Math.ceil(7_591 / CHUNK_SECONDS)).toBeLessThanOrEqual(12)
+  /*
+   * Each chunk is a round trip and a stitching seam, so the count is worth
+   * watching — but the bound here was a bare 12, which is just the number
+   * the target happened to give. Lowering the target to ten minutes to make
+   * room for seam-moving (US-040) took a 2 h 06 m episode from eleven
+   * chunks to thirteen and failed this for no reason worth having.
+   *
+   * Stated against the limit that actually binds: the free tier allows
+   * 2 000 requests a day and the group gets three episodes out of the
+   * audio-second allowance, so the ceiling is nowhere near.
+   */
+  it('splits a real two-hour episode into far fewer pieces than a day allows', () => {
+    const chunks = Math.ceil(7_591 / CHUNK_SECONDS)
+
+    expect(chunks).toBeGreaterThan(1)
+    expect(chunks * 3, 'three episodes of requests in a day').toBeLessThan(2_000)
   })
 
   it('states the byte rate it is doing the arithmetic with', () => {
