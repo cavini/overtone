@@ -12,24 +12,22 @@ const PRESENT = 'coisa'
 test.describe('finding a moment', () => {
   test.slow()
 
-  /*
-   * The box lives on the transcript's heading now, not in a panel of its
-   * own. This used to open a collapsible named "Procurar um momento" — and
-   * when that panel went away, both tests here started *skipping* rather
-   * than failing, which is the quiet version of the same bug.
-   */
   const open = async (page: import('@playwright/test').Page): Promise<boolean> => {
     await page.goto('/pt')
     await page.waitForLoadState('networkidle')
 
-    return (await page.locator('input[type="search"]').count()) > 0
+    const panel = page.getByRole('button', { name: /procurar um momento/iu })
+    if ((await panel.count()) === 0) return false
+    if ((await panel.getAttribute('aria-expanded')) === 'false') await panel.click()
+
+    return true
   }
 
   test('opens, takes a word, and shows where it was said', async ({ page }) => {
-    test.skip(!(await open(page)), 'no search box on the page')
+    test.skip(!(await open(page)), 'no search panel on the page')
 
-    const field = page.locator('input[type="search"]').first()
-    await expect(field, 'no search box on the transcript heading').toBeVisible()
+    const field = page.locator('input[type="search"], input[name*="q" i]').first()
+    await expect(field, 'the search panel has no field in it').toBeVisible()
 
     await field.fill(PRESENT)
     await field.press('Enter')
@@ -54,9 +52,9 @@ test.describe('finding a moment', () => {
   })
 
   test('says so plainly when a word is not in the episode', async ({ page }) => {
-    test.skip(!(await open(page)), 'no search box on the page')
+    test.skip(!(await open(page)), 'no search panel on the page')
 
-    const field = page.locator('input[type="search"]').first()
+    const field = page.locator('input[type="search"], input[name*="q" i]').first()
     await field.fill('zzqqxx-not-a-word')
     await field.press('Enter')
     await page.waitForTimeout(2000)

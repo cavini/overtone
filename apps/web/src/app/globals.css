@@ -33,6 +33,14 @@
   --accent-quiet: #c98a2a;
   --link: #10559a;
   --alarm: #a63c17;
+  /* A real red, for a button that destroys something.
+
+     `--alarm` is #a63c17, a burnt rust that sits well as *text* on this
+     cream and reads as a warning. Filled into a button it does not read as
+     red at all — it reads as another shade of the accent, which is the
+     colour of every harmless control on the page. This one is only ever a
+     background with white on it, and carries 5.9:1 against white. */
+  --danger: #c62828;
   /* Behind the line a search result landed on. Tinted from the accent so the
      mark reads as the same gesture as the highlighted word inside it. */
   --mark: #f8eed8;
@@ -49,6 +57,8 @@
     --accent-quiet: #a8741c;
     --link: #6cb6ff;
     --alarm: #e5774e;
+    /* Lifted a little so it does not sink into a dark panel. */
+    --danger: #cf3a35;
     --mark: #33280f;
   }
 }
@@ -63,6 +73,7 @@
   --accent-quiet: #a8741c;
   --link: #6cb6ff;
   --alarm: #e5774e;
+  --danger: #cf3a35;
   --mark: #33280f;
 }
 
@@ -118,4 +129,24 @@ body {
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
   }
+}
+
+/*
+ * A pointer over anything you can press.
+ *
+ * Tailwind 4's reset sets `cursor: default` on buttons — a deliberate change
+ * from v3, and from what every browser does on its own. The result is a page
+ * where nothing feels clickable, which is exactly how it felt.
+ *
+ * Here rather than a class on each button: it is a property of being a
+ * control, not a decision each control should get to make differently, and
+ * one that is easy to forget on the next one. Disabled controls keep the
+ * default, because the whole point is that they do nothing.
+ */
+button:not(:disabled),
+[role='button']:not([aria-disabled='true']),
+summary,
+label[for],
+select:not(:disabled) {
+  cursor: pointer;
 }
