@@ -72,21 +72,8 @@ export function Workspace({
        */}
       <SeriesPanel locale={locale} labels={labels} reloadToken={reloadToken} />
 
-      <SearchPanel
-        labels={labels}
-        onOpen={(episodeId, startMs) =>
-          setShowing({
-            episodeId,
-            live: false,
-            // The moment itself. The reader finds the line that was being
-            // said then; it knows where each of its lines starts and this
-            // does not.
-            focusMs: startMs,
-          })
-        }
-      />
-
       <LibraryPanel
+        locale={locale}
         labels={labels}
         selected={showing?.episodeId}
         reloadToken={reloadToken}
@@ -103,6 +90,14 @@ export function Workspace({
           episodeId={showing.episodeId}
           labels={labels}
           live={showing.live}
+          search={
+            <SearchPanel
+              labels={labels}
+              onOpen={(episodeId, startMs) =>
+                setShowing({ episodeId, live: false, focusMs: startMs })
+              }
+            />
+          }
           {...(showing.focusMs === undefined ? {} : { focusMs: showing.focusMs })}
         />
       ) : null}

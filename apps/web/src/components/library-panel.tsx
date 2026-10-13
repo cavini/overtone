@@ -4,7 +4,10 @@ import { useEffect, useState } from 'react'
 import type { UiKey } from '../i18n/ui.js'
 import { timestamp } from '../presenter/episode-view.js'
 import { episodesMatching } from '../presenter/library-filter.js'
+import { renderMessage, type Locale } from '@overtone/messages'
+import { ConfirmDialog } from './confirm-dialog.js'
 import { Panel } from './panel.js'
+import { TrashCan } from './trash-can.js'
 
 type Labels = Record<UiKey, string>
 
@@ -32,12 +35,14 @@ export interface LibraryEntry {
  * the time anybody reaches for the box.
  */
 export function LibraryPanel({
+  locale,
   labels,
   selected,
   reloadToken,
   onOpen,
   onDeleted,
 }: {
+  readonly locale: Locale
   readonly labels: Labels
   readonly selected: string | undefined
   /**
@@ -172,45 +177,22 @@ export function LibraryPanel({
                       </span>
                     </button>
                     {/*
-                      Two steps, in place.
-                      
-                      Deleting an episode throws away a transcript that cost
-                      real transcription allowance to produce and cannot be
-                      recovered, so it does not happen on one click. Asked
-                      here rather than in a browser dialog: a dialog blocks
-                      the page, and this one sits next to the thing it is
-                      about to delete.
+                      A trash can, in red, and the question in a dialog.
+                      It was two words of text in the row, which read as
+                      part of the row rather than as the dangerous thing it
+                      is — and the confirmation sat in the row too, so the
+                      row changed shape under the cursor.
                     */}
-                    {asking ? (
-                      <span className="flex items-center gap-1 pr-2 text-xs">
-                        <button
-                          type="button"
-                          onClick={() => void remove(episode.episodeId)}
-                          className="rounded px-2 py-1 font-medium"
-                          style={{ color: 'var(--alarm)' }}
-                        >
-                          {labels.libraryDeleteSure}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setConfirming(undefined)}
-                          className="rounded px-2 py-1"
-                          style={{ color: 'var(--quiet)' }}
-                        >
-                          {labels.libraryDeleteCancel}
-                        </button>
-                      </span>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => setConfirming(episode.episodeId)}
-                        aria-label={`${labels.libraryDelete} ${episode.title}`}
-                        className="px-3 text-xs"
-                        style={{ color: 'var(--quiet)' }}
-                      >
-                        {labels.libraryDelete}
-                      </button>
-                    )}
+                    <button
+                      type="button"
+                      onClick={() => setConfirming(episode.episodeId)}
+                      aria-label={`${labels.libraryDelete} ${episode.title}`}
+                      title={labels.libraryDelete}
+                      className="mr-2 shrink-0 rounded-md p-2"
+                      style={{ background: 'var(--alarm)', color: '#fff' }}
+                    >
+                      <TrashCan />
+                    </button>
                   </li>
                 )
               })}
@@ -218,6 +200,23 @@ export function LibraryPanel({
           )}
         </>
       )}
+      {/*
+        * One dialog for the whole list, not one per row. `confirming` holds
+        * which episode is being asked about, so the markup does not multiply
+        * with the library.
+        */}
+      <ConfirmDialog
+        open={confirming !== undefined}
+        question={renderMessage(locale, 'DELETE_EPISODE_CONFIRMATION', {
+          title: episodes.find((episode) => episode.episodeId === confirming)?.title ?? '',
+        })}
+        confirm={labels.libraryDeleteSure}
+        cancel={labels.libraryDeleteCancel}
+        onCancel={() => setConfirming(undefined)}
+        onConfirm={() => {
+          if (confirming !== undefined) void remove(confirming)
+        }}
+      />
     </Panel>
   )
 }
