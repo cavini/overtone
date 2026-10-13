@@ -188,8 +188,11 @@ export function LibraryPanel({
                       onClick={() => setConfirming(episode.episodeId)}
                       aria-label={`${labels.libraryDelete} ${episode.title}`}
                       title={labels.libraryDelete}
-                      className="mr-2 shrink-0 rounded-md p-2"
-                      style={{ background: 'var(--alarm)', color: '#fff' }}
+                      // `self-center`, or the row's stretch makes it a
+                      // tall rectangle rather than the square it looks like
+                      // in isolation.
+                      className="mr-2 shrink-0 self-center rounded-md p-1.5"
+                      style={{ background: 'var(--danger)', color: '#fff' }}
                     >
                       <TrashCan />
                     </button>

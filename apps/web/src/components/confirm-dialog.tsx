@@ -83,7 +83,7 @@ export function ConfirmDialog({
           type="button"
           onClick={onConfirm}
           className="rounded-md px-3 py-2 text-sm font-medium"
-          style={{ background: 'var(--alarm)', color: '#fff' }}
+          style={{ background: 'var(--danger)', color: '#fff' }}
         >
           {confirm}
         </button>
