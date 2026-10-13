@@ -142,6 +142,18 @@ export const episodes = pgTable(
     failureParams: jsonb('failure_params'),
     pipelineVersion: integer('pipeline_version').notNull().default(1),
     durationMs: integer('duration_ms').notNull().default(0),
+    /*
+     * Where the chunk boundaries actually ended up, once the browser moved
+     * each seam off the clock and into the nearest gap between words
+     * (US-040). Ascending, first always 0, one entry per chunk.
+     *
+     * Null means the planned boundaries stand — every episode from before
+     * this existed, and any upload whose browser never reported. What must
+     * never happen is a mixture, some chunks offset by the plan and some by
+     * this, so it is written once, whole, before any chunk is transcribed.
+     */
+    chunkStartsMs: bigint('chunk_starts_ms', { mode: 'number' })
+      .array(),
     /**
      * What the audio is spoken in, settled when the episode was uploaded.
      *
@@ -201,15 +213,11 @@ export const episodes = pgTable(
  * the mistake most worth designing against — so it is durable immediately,
  * before the spend is even recorded.
  *
- * `offsetMs` is where the chunk actually began. Today that is always what
- * the plan said, because the encoder cuts at exactly the planned
- * millisecond — the silence-seeking this column was shaped for (US-040,
- * "Splitting never cuts a word in half") was never built.
- *
- * The column stays per-chunk rather than being derived from the index,
- * because the moment boundaries do move, stitching must use the real offset
- * or every timestamp after a join points at the wrong place. Storing it is
- * the cheap half of that; it is already here and already correct.
+ * `offsetMs` is where the chunk actually began, which is no longer what the
+ * plan said: the browser moves each seam into the nearest gap between words
+ * before cutting (US-040). Stitching must use this rather than recomputing
+ * from the index, or every timestamp after a join points at the wrong
+ * place.
  */
 /**
  * Whoever is currently allowed to advance an episode.

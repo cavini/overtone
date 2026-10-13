@@ -3,15 +3,15 @@ import type { TimedWord } from './timed-word.js'
 /**
  * One slice of an episode, to be transcribed on its own.
  *
- * Boundaries are **exactly where the audio is cut**. The browser slices at
- * the millisecond named here, so the offsets used for stitching and the
- * points the knife fell are the same numbers by construction.
+ * Boundaries are a **target, not a cut**. The browser moves each seam to
+ * the nearest gap between words before encoding, and reports where they
+ * settled before it uploads a single byte — so the offsets used for
+ * stitching are the ones the knife actually fell on.
  *
- * This said the opposite — that the browser moved each boundary to the
- * nearest silence and reported the actual one back. Neither half was ever
- * built: there is no silence detection in the repository, and no channel
- * for the browser to report a boundary it moved. Timestamps are therefore
- * sound, and every seam falls wherever the clock says, usually mid-word.
+ * The ordering is the load-bearing part. Recording after the upload, or
+ * swallowing a failure to record, leaves the server holding the planned
+ * boundaries while the bytes follow different ones: every timestamp after a
+ * seam wrong, and every number still looking reasonable.
  */
 export interface AudioChunk {
   readonly index: number

@@ -36,26 +36,22 @@ export const MIN_TAIL_MS = 60_000
  * the file is (ADR 0020). Splitting is not an optimisation; it is the only
  * way the episode goes through at all.
  *
- * **These boundaries are where the audio is actually cut**, to the
- * millisecond. `splitAndUpload` slices `samples.subarray(from, to)` at
- * exactly the sample these numbers name.
+ * These boundaries are a **target**. The browser moves each seam to the
+ * middle of the nearest gap between words before cutting (`settleChunks`),
+ * because a cut at an arbitrary instant lands mid-word most of the time and
+ * a transcriber handed half a word returns a whole one it can pronounce —
+ * a word nobody said, entering the counts at every seam.
  *
- * That is not what this comment used to say. It claimed the encoder moved
- * each boundary to the nearest silence first — and nothing in the
- * repository has ever looked for silence. The consequence is real but
- * narrow, and worth stating precisely rather than leaving as a promise:
+ * What comes back is therefore close to this plan rather than identical to
+ * it. The settled list is reported before any audio is uploaded and stored
+ * on the episode, and everything downstream offsets by that rather than by
+ * this. `chunksFor` is where the two meet: a stored list stands in for the
+ * plan entirely, and a missing one falls back to it.
  *
- * - Offsets are **not** corrupted. The plan and the cut are the same
- *   numbers, so stitching lines up and every timestamp is honest. The
- *   round-trip property test in `chunking.test.ts` covers that.
- * - What does suffer is the join itself. A cut at an arbitrary instant
- *   lands mid-word most of the time, and Whisper renders each half as a
- *   whole word it can pronounce. Those invented words enter the counts.
- *   A two-hour episode has about ten of these seams.
- *
- * Moving the cut to the nearest quiet point is still the right design, and
- * it needs the actual boundary reported back so the stored offset matches
- * where the knife fell. Until that exists, this says what the code does.
+ * This comment claimed the same thing for a long time while nothing
+ * implemented it (US-040). It is true now, and the test that holds it true
+ * is `cuts-land-in-gaps.test.ts`, which runs real samples through the real
+ * numeric path and asserts every seam ends up in a pause.
  */
 /**
  * The longest episode that still fits in a single chunk.
