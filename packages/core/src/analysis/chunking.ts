@@ -2,22 +2,46 @@ import type { AudioChunk, ChunkTranscript } from '../domain/audio-chunk.js'
 import type { TimedWord } from '../domain/timed-word.js'
 
 /**
- * Twelve minutes.
+ * Uncompressed 16 kHz mono, sixteen bits a sample.
  *
- * Two ceilings decide this, and the lower one wins:
- *
- * - **Duration.** A chunk must be far inside the 7 200-second hourly balance
- *   so it can never be refused for its length (ADR 0020). Twenty minutes
- *   cleared that comfortably.
- * - **Size.** The browser sends uncompressed 16 kHz mono audio, which runs at
- *   32 KB a second against a 25 MB file cap. That caps a chunk at about
- *   thirteen minutes, whatever the allowance allows.
- *
- * So twelve, with headroom on both. It was twenty while the splitting was
- * still hypothetical; actually building it turned a theoretical limit into
- * an arithmetic one.
+ * The one number that turns a duration into a request size, which is what
+ * the transcriber's 25 MB cap is actually about.
  */
-export const CHUNK_TARGET_MS = 12 * 60_000
+export const BYTES_PER_MS = (16_000 * 2) / 1000
+
+/**
+ * The longest a chunk may be and still fit in one request.
+ *
+ * 25 MB at 32 KB a second is 781 seconds; this is twelve and a half
+ * minutes, which is 24 MB. The margin is deliberate — nothing measures a
+ * chunk before sending it, so going over is discovered by being refused,
+ * after the upload has already happened.
+ */
+export const MAX_CHUNK_MS = 750_000
+
+/**
+ * Ten minutes.
+ *
+ * Three ceilings decide this, and the lowest wins:
+ *
+ * - **Duration.** A chunk must sit far inside the 7 200-second hourly
+ *   balance so it can never be refused for its length (ADR 0020).
+ * - **Size.** `MAX_CHUNK_MS` above: 25 MB of uncompressed audio.
+ * - **Room to move.** A seam moves to the nearest gap between words
+ *   (US-040), and a chunk sits between *two* seams — so it can grow by
+ *   twice the search radius, not once. `MAX_CHUNK_MS` has to hold the
+ *   longest plan plus `2 × SEARCH_RADIUS_MS`.
+ *
+ * It was twelve, which left about a minute of headroom under the size cap,
+ * and then seam-moving started handing out three. A chunk whose two seams
+ * moved apart reached fifteen minutes and 28.8 MB — over the cap, failing
+ * at the transcriber after the upload, on a path nothing measures. Ten
+ * leaves the room the third ceiling needs.
+ *
+ * `chunks-fit-the-cap.test.ts` holds the three of them together, so moving
+ * any one without the others fails the build rather than the upload.
+ */
+export const CHUNK_TARGET_MS = 10 * 60_000
 
 /**
  * A remainder shorter than this is folded into the chunk before it.
