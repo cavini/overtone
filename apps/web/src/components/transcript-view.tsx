@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useId, useRef, useState } from 'react'
+import { type ReactNode, useEffect, useId, useRef, useState } from 'react'
 import type { UiKey } from '../i18n/ui.js'
 import { timestamp } from '../presenter/episode-view.js'
 import { lineAtMoment } from '../presenter/line-at-moment.js'
@@ -67,6 +67,7 @@ export function TranscriptView({
   labels,
   live,
   focusMs,
+  search,
 }: {
   readonly episodeId: string
   readonly labels: Labels
@@ -80,6 +81,8 @@ export function TranscriptView({
    * the top of the episode. A moment is what the result actually knows.
    */
   readonly focusMs?: number
+  /** Rendered beside the heading: the search box (see workspace). */
+  readonly search?: ReactNode
 }) {
   const bodyId = useId()
   const reduced = usePrefersReducedMotion()
@@ -248,10 +251,18 @@ export function TranscriptView({
       className="mt-6 rounded-xl border p-5"
       style={{ borderColor: 'var(--edge)', background: 'var(--panel)' }}
     >
-      <div className="flex flex-wrap items-baseline justify-between gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 className="text-xl" style={{ fontFamily: 'var(--font-display)' }}>
           {labels.transcriptHeading}
         </h2>
+
+        {/*
+          * Searching belongs on this heading, beside the thing it searches.
+          * It used to be a panel of its own further up the page, which read
+          * as an unrelated tool that happened to share the page with the
+          * transcript.
+          */}
+        {search}
         <button
           type="button"
           aria-expanded={open}
