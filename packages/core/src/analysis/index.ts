@@ -14,6 +14,14 @@ export {
   stitchBoundaries,
   stitchChunks,
 } from './chunking.js'
+export { settleChunks } from './settle-chunks.js'
+export {
+  MIN_SILENCE_MS,
+  SEARCH_RADIUS_MS,
+  peakOf,
+  quietestCut,
+  type CutSearch,
+} from './quiet-cut.js'
 export { stem } from './stem.js'
 export { stemEnglish } from './stem-en.js'
 export { splitContractions } from './contractions.js'
