@@ -88,8 +88,19 @@ export function ProgressPanel({
           <p className="text-sm">
             {labels.nextPartIn} <span className="tabular font-medium">{mmss(remaining)}</span>
           </p>
+          {/*
+            * This said "keep this tab open" next to "nothing for you to
+            * do", which is both a contradiction and wrong. It predates the
+            * scheduler: `advancePending` carries the episode a step every
+            * minute, which is the whole reason that exists.
+            *
+            * Only true here. The block is the wait for the allowance to
+            * refill, which happens *after* the browser has finished
+            * uploading — the upload itself needs the file, so it needs the
+            * tab.
+            */}
           <p className="mt-1 text-xs" style={{ color: 'var(--quiet)' }}>
-            {labels.continuesAlone} {labels.tooLongToWait}
+            {labels.continuesAlone} {labels.canCloseTheTab}
           </p>
         </div>
       ) : null}
