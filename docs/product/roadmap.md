@@ -6,7 +6,7 @@
 
 **North Star: Compared Episodes per Month (CEM)** — episodes that finished processing *and* whose series view someone opened within 7 days. Both halves of the promise in one number: the group keeps uploading, and keeps looking across episodes. See [`metrics.md`](./metrics.md).
 
-**Access model (decided):** each friend signs in with a magic link and has their own library; any single result can be shared read-only by link, and that link shows **counts and the quotes behind them, not the full transcript** (Q17, decided). No teams, no roles, no sharing beyond that link.
+**Access model (as it stands):** one shared password for the group, with magic-link sign-in built and dormant behind it (ADR 0028). **Sharing was built and then removed** at the group's request — there is no public link any more (US-039, ADR 0030). No teams, no roles, no sharing.
 
 ## The stack is settled, and it dictates the sequence
 
@@ -118,7 +118,12 @@ The headline feature, and now the increment that carries the Portuguese text pip
 | **Deferred** | The assistant, per-bit alerts. (Back-catalogue import is deleted, not deferred — Q16.) |
 | **Stop here?** | Yes — this is the product the stakeholder described. If the project froze here it would have delivered, **though not immediately**: the thing it delivers only becomes visible at episode 3 or 4. |
 
-### M4 — Share links and rough edges, in two languages · 2 weekends (est., was 1 — hard timebox each)
+### M4 — Rough edges, in two languages · 2 weekends (est., was 1 — hard timebox each)
+
+> Share links were the other half of this milestone. They shipped, the group
+> used them, and the group asked for them to go — so M4's exit criteria (1)
+> and (2), about a stranger opening a link and revocation making it 404, are
+> **withdrawn rather than met**. The rest of the milestone stands.
 
 This is the copy increment, and copy is now the thing that exists twice. The mechanism has been in place since M0; what M4 adds is every real sentence, in both catalogues.
 

@@ -676,6 +676,10 @@ Scenario: Every surface agrees with the engine
 ## E7 — Share it
 
 ### US-039 — Share one episode's stats by public link
+> **Dropped.** Built, shipped, and removed at the group's request — they did
+> not want it. The route, the `share_token` column and the UI are gone
+> (migration 0017). Nothing was shared when it went, so no link broke. The
+> reasoning behind *how* it worked is kept in ADR 0030 in case it returns.
 *As Rafa, I want a link I can paste in the group chat, so that my friends see the numbers without signing in.*
 Priority: **Must** · Size: **M**
 

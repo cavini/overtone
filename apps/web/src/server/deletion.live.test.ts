@@ -25,7 +25,6 @@ import { drizzle } from 'drizzle-orm/postgres-js'
 import postgres from 'postgres'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { deleteEpisode, seriesFor } from './analyse-upload.js'
-import { shareEpisode, sharedEpisode } from './sharing.js'
 import { blobStore } from './wiring.js'
 
 const here = dirname(fileURLToPath(import.meta.url))
@@ -47,7 +46,6 @@ if (url === undefined || url.length === 0) {
 
   let episodeId = ''
   let transcriptId = ''
-  let token = ''
 
   const clearUp = async (): Promise<void> => {
     await db.delete(seriesMembers).where(eq(seriesMembers.userId, MINE))
@@ -116,8 +114,6 @@ if (url === undefined || url.length === 0) {
       new Uint8Array([0x52, 0x49, 0x46, 0x46]),
       'audio/wav',
     )
-
-    token = await shareEpisode(MINE, episodeId)
   })
 
   afterAll(async () => {
@@ -133,7 +129,6 @@ if (url === undefined || url.length === 0) {
         .toHaveLength(1)
       expect(await db.select().from(segments).where(eq(segments.transcriptId, transcriptId)))
         .toHaveLength(1)
-      expect(await sharedEpisode(token)).toBeDefined()
       expect(await blobStore().list(`episodes/${episodeId}`)).toHaveLength(1)
     })
 
@@ -158,11 +153,6 @@ if (url === undefined || url.length === 0) {
     it('takes the segments with it, two cascades down', async () => {
       expect(await db.select().from(segments).where(eq(segments.transcriptId, transcriptId)))
         .toEqual([])
-    })
-
-    // The share link was handed to somebody outside the group.
-    it('makes the share link stop resolving', async () => {
-      expect(await sharedEpisode(token)).toBeUndefined()
     })
 
     /*
