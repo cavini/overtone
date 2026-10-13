@@ -33,8 +33,16 @@ export function Panel({
 
   return (
     <section
-      className="rounded-xl border p-5"
-      style={{ borderColor: 'var(--edge)', background: 'var(--panel)' }}
+      // A card that is lifted as well as outlined. The document this look
+      // comes from uses both: the border holds the edge on a light ground
+      // where a shadow alone washes out, and the shadow gives the stack a
+      // sense of depth that a flat outline does not.
+      className="rounded-lg border p-5"
+      style={{
+        borderColor: 'var(--edge)',
+        background: 'var(--panel)',
+        boxShadow: 'var(--shadow)',
+      }}
     >
       {/*
        * The button is inside the heading rather than beside it, which keeps

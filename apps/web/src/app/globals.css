@@ -1,12 +1,16 @@
 @import 'tailwindcss';
 
 /*
- * The palette comes from studio hardware rather than from the web: a dark
- * console, and amber the colour a level meter goes. The neutrals carry a
- * slight blue bias so they read as chosen rather than as default grey.
+ * The palette and the type come from the plan-of-record document, which is
+ * where this project's look was actually decided: a cool blue-biased paper,
+ * brass for anything that carries weight, and a serif with real optical
+ * presence for the headings.
+ *
+ * Every component already draws from these tokens, so the whole app
+ * re-skins from this block — there is no component that hardcodes a colour.
  */
 @theme {
-  --font-display: var(--font-fraunces), Georgia, 'Times New Roman', serif;
+  --font-display: var(--font-instrument-serif), Georgia, 'Times New Roman', serif;
   --font-body: var(--font-plex-sans), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-plex-mono), ui-monospace, 'SF Mono', monospace;
 
@@ -24,57 +28,82 @@
 
 :root {
   /* Light is the default definition; dark overrides the same tokens below. */
-  --ground: #faf9f7;
+  --ground: #f5f7f9;
   --panel: #ffffff;
-  --edge: #e4e0d8;
-  --prose: #1a1d21;
-  --quiet: #5c6269;
-  --accent: #9a5f04;
-  --accent-quiet: #c98a2a;
-  --link: #10559a;
-  --alarm: #a63c17;
-  /* A real red, for a button that destroys something.
-
-     `--alarm` is #a63c17, a burnt rust that sits well as *text* on this
-     cream and reads as a warning. Filled into a button it does not read as
-     red at all — it reads as another shade of the accent, which is the
-     colour of every harmless control on the page. This one is only ever a
-     background with white on it, and carries 5.9:1 against white. */
+  --panel-2: #edf1f5;
+  --edge: #d8dfe7;
+  --edge-soft: #e6ebf0;
+  --prose: #111a26;
+  --prose-2: #3b4858;
+  --quiet: #5e6c7e;
+  --accent: #8a5c18;
+  --accent-quiet: #b8873c;
+  --accent-wash: #f3eadc;
+  --good: #2f6f57;
+  --good-wash: #e4efe9;
+  --link: #8a5c18;
+  --alarm: #a93f28;
+  --alarm-wash: #f7e7e2;
+  /*
+   * A true red, kept deliberately off the document's palette.
+   *
+   * Its `--blocking` is #a93f28, a brick that reads as a warning in text and
+   * as another brass in a filled button — which is exactly the complaint
+   * that produced this token in the first place. Destroying something is the
+   * one place the palette does not get the final say.
+   */
   --danger: #c62828;
-  /* Behind the line a search result landed on. Tinted from the accent so the
-     mark reads as the same gesture as the highlighted word inside it. */
-  --mark: #f8eed8;
+  /* Behind the line a search result landed on. */
+  --mark: #f3eadc;
+  --shadow: 0 1px 2px rgb(17 26 38 / 0.05), 0 8px 24px -12px rgb(17 26 38 / 0.12);
 }
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme='light']) {
-    --ground: #0e1116;
-    --panel: #161b22;
-    --edge: #2b333d;
-    --prose: #e6edf3;
-    --quiet: #8b949e;
-    --accent: #f0a830;
-    --accent-quiet: #a8741c;
-    --link: #6cb6ff;
-    --alarm: #e5774e;
-    /* Lifted a little so it does not sink into a dark panel. */
+    --ground: #0d1420;
+    --panel: #141d2b;
+    --panel-2: #1b2534;
+    --edge: #2a3545;
+    --edge-soft: #202b3a;
+    --prose: #e9eef5;
+    --prose-2: #c3cdda;
+    --quiet: #8694aa;
+    --accent: #d2a05a;
+    --accent-quiet: #9a7338;
+    --accent-wash: #241d11;
+    --good: #6fb795;
+    --good-wash: #13251d;
+    --link: #d2a05a;
+    --alarm: #e07a5f;
+    --alarm-wash: #2a1813;
+    /* Lifted, so it does not sink into a dark panel. */
     --danger: #cf3a35;
-    --mark: #33280f;
+    --mark: #241d11;
+    --shadow: 0 1px 2px rgb(0 0 0 / 0.3), 0 10px 30px -14px rgb(0 0 0 / 0.6);
   }
 }
 
 :root[data-theme='dark'] {
-  --ground: #0e1116;
-  --panel: #161b22;
-  --edge: #2b333d;
-  --prose: #e6edf3;
-  --quiet: #8b949e;
-  --accent: #f0a830;
-  --accent-quiet: #a8741c;
-  --link: #6cb6ff;
-  --alarm: #e5774e;
+  --ground: #0d1420;
+  --panel: #141d2b;
+  --panel-2: #1b2534;
+  --edge: #2a3545;
+  --edge-soft: #202b3a;
+  --prose: #e9eef5;
+  --prose-2: #c3cdda;
+  --quiet: #8694aa;
+  --accent: #d2a05a;
+  --accent-quiet: #9a7338;
+  --accent-wash: #241d11;
+  --good: #6fb795;
+  --good-wash: #13251d;
+  --link: #d2a05a;
+  --alarm: #e07a5f;
+  --alarm-wash: #2a1813;
+  /* Lifted, so it does not sink into a dark panel. */
   --danger: #cf3a35;
-  --mark: #33280f;
+  --mark: #241d11;
+  --shadow: 0 1px 2px rgb(0 0 0 / 0.3), 0 10px 30px -14px rgb(0 0 0 / 0.6);
 }
 
 /*

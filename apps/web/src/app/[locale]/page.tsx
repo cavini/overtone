@@ -8,6 +8,7 @@ import { LocaleSwitcher } from '../../components/locale-switcher.js'
 import { Link } from '../../i18n/navigation.js'
 import { Workspace } from '../../components/workspace.js'
 import { routing } from '../../i18n/routing.js'
+import { OvertoneMark } from '../../components/overtone-mark.js'
 import { UI } from '../../i18n/ui.js'
 
 export default async function HomePage({
@@ -25,13 +26,23 @@ export default async function HomePage({
     <main className="mx-auto max-w-3xl px-5 py-10 sm:py-16">
       <header className="mb-10 flex flex-wrap items-start justify-between gap-4">
         <div>
+          {/*
+            * The mark above the word, not beside it. The arcs are wide and
+            * low — set alongside a word they fight it for the same
+            * horizontal run, and stacked they read as what they are: the
+            * harmonics sitting above the note.
+            */}
+          <OvertoneMark className="block h-8 w-auto" />
           <h1
-            className="text-4xl sm:text-5xl"
+            className="mt-3 text-5xl leading-none sm:text-6xl"
             style={{ fontFamily: 'var(--font-display)', textWrap: 'balance' }}
           >
             {labels.appName}
           </h1>
-          <p className="mt-1 text-sm" style={{ color: 'var(--quiet)' }}>
+          <p
+            className="mt-2 text-base italic"
+            style={{ fontFamily: 'var(--font-display)', color: 'var(--prose-2)' }}
+          >
             {labels.tagline}
           </p>
         </div>
