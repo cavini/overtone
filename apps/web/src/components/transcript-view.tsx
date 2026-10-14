@@ -2,6 +2,7 @@
 
 import { useEffect, useId, useRef, useState } from 'react'
 import { CorrectLine } from './correct-line.js'
+import { Spinner } from './spinner.js'
 import type { UiKey } from '../i18n/ui.js'
 import { timestamp } from '../presenter/episode-view.js'
 import { lineAtMoment } from '../presenter/line-at-moment.js'
@@ -11,6 +12,7 @@ import {
   totalChars,
   visibleLines,
 } from '../presenter/transcript-reveal.js'
+import { transcriptState, type TranscriptRead } from '../presenter/transcript-state.js'
 import type { TranscriptLine, TranscriptSoFar } from '../presenter/transcript-text.js'
 
 type Labels = Record<UiKey, string>
@@ -97,6 +99,14 @@ export function TranscriptView({
 
   const [lines, setLines] = useState<readonly TranscriptLine[]>([])
   const [revealed, setRevealed] = useState(0)
+  /**
+   * What the lines in hand came back for. Nothing, before the first answer.
+   *
+   * State rather than a ref, because the page is drawn from it: it is the
+   * only thing that can tell "we have not asked yet" from "we asked and
+   * there is nothing there", and those two must not read the same.
+   */
+  const [inHand, setInHand] = useState<TranscriptRead | undefined>(undefined)
 
   // The cursor never reaches the page, so it is not state. Keeping it out of
   // the render also keeps it out of the polling effect's dependencies, which
@@ -218,6 +228,19 @@ export function TranscriptView({
         if (arrived.length > 0) setLines((held) => [...held, ...arrived])
       } finally {
         fetching.current = false
+        /*
+         * Whose transcript is now on screen — recorded whether or not the
+         * request worked.
+         *
+         * A failed look is still an answer as far as the page is concerned:
+         * a finished episode is asked once and never polled again, so
+         * waiting for a successful answer before admitting anything would
+         * leave it spinning for good. Falling back to "nothing transcribed
+         * yet" is what it did before this and is the lesser of the two
+         * wrong things. A fetch that failed is not a transcript that is
+         * empty, and saying so needs a state and a sentence of its own.
+         */
+        if (!stopped) setInHand({ episodeId, read: reloads })
       }
     }
 
@@ -269,6 +292,22 @@ export function TranscriptView({
   }, [revealed, live])
 
   const shown = visibleLines(lines, revealed)
+
+  /*
+   * Which of three things the area is allowed to say.
+   *
+   * Derived here rather than cleared in an effect. The effect above does
+   * empty the lines when the episode changes, but it runs *after* the render
+   * that changed it — so for one frame the previous episode's transcript sat
+   * under the new episode's heading, and for every frame until its first
+   * answer landed the page claimed it had nothing. Comparing what is in hand
+   * against what is asked for settles both during the render itself.
+   */
+  const state = transcriptState({
+    asked: { episodeId, read: reloads },
+    inHand,
+    chars: total,
+  })
 
   /*
    * Jump to the line a search result pointed at.
@@ -323,7 +362,20 @@ export function TranscriptView({
 
       {open ? (
         <div id={bodyId}>
-          {total === 0 ? (
+          {state === 'loading' ? (
+            /*
+             * A spinner, not the empty message.
+             *
+             * Clicking an episode in the library used to answer "nothing
+             * transcribed yet" for as long as the fetch took — a confident
+             * statement about two hours of transcript sitting in the
+             * database. The ring says the same thing the rest of the app
+             * says while it is working, and says nothing about the episode.
+             */
+            <div className="mt-4 flex items-center">
+              <Spinner label={labels.transcriptLoading} />
+            </div>
+          ) : state === 'empty' ? (
             <p className="mt-4 text-sm" style={{ color: 'var(--quiet)' }}>
               {labels.transcriptEmpty}
             </p>
