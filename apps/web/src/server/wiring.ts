@@ -65,7 +65,7 @@ export function episodeDirectory(
    * This feed publishes every show the group makes and none of the items set
    * `itunes:episode`, so the number comes from the title — where nine
    * numbers are claimed by more than one programme. Unscoped, episodes 1 to
-   * 4 of Sun Your Balls came back titled "Chegou nos Normie".
+   * 4 of Chuva de Canivetes came back titled "Outro Programa".
    */
   show?: string,
 ): RssEpisodeDirectory | undefined {

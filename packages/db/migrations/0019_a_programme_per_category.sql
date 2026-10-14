@@ -1,8 +1,8 @@
 -- Which programme an episode is.
 --
--- The group publishes several shows from one feed — Sun Your Balls, La Firma,
--- Porão do Bunker, Chegou nos Normie — and they share hosts, things and
--- running jokes. So they belong in one library rather than one library each:
+-- The group publishes several shows from one feed — Chuva de Canivetes, Outro
+-- Programa, Terceiro Programa, Quarto Programa — and they share hosts, things
+-- and running jokes. So they belong in one library rather than one library each:
 -- a label on the episode, not a series of its own.
 --
 -- That distinction is the whole design. Topics hang off the series, so a

@@ -2,8 +2,8 @@
  * Gives episodes the names they should have had.
  *
  * Episodes uploaded before titles were derived kept their filename —
- * `sun-your-balls-201` rather than `Sun Your Balls #201`. This reads the
- * number out of whatever title they have, asks the show's feed what that
+ * `chuva-de-canivetes-201` rather than `Chuva de Canivetes #201`. This reads
+ * the number out of whatever title they have, asks the show's feed what that
  * episode is really called, and writes it back along with the show notes.
  *
  * Safe to run repeatedly: it only writes when it has something better than

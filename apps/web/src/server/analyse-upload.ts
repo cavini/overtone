@@ -166,7 +166,7 @@ export async function seriesFor(userId: string): Promise<string> {
  *
  * Per category, because each show in the library counts from 1 — taking the
  * highest number in the whole library would have an uncategorised upload
- * land at 203 because Sun Your Balls is at 202.
+ * land at 203 because Chuva de Canivetes is at 202.
  */
 async function nextEpisodeNumber(seriesId: string, category?: string): Promise<number> {
   const rows = await database()
@@ -235,7 +235,7 @@ export async function startEpisode(
   /*
    * A filename is not a title.
    *
-   * `sun-your-balls-201.m4a` was being stored verbatim, so a library of
+   * `chuva-de-canivetes-201.m4a` was being stored verbatim, so a library of
    * eleven episodes read like a directory listing. The number in the name
    * is the episode number when there is one, which is also what the library
    * sorts by.
@@ -246,8 +246,8 @@ export async function startEpisode(
    * The publisher's own title beats a guess made from a filename.
    *
    * Looked up by episode number in the show's feed, when the series has
-   * one. `Sun Your Balls #201` rather than `sun-your-balls-201`, and the
-   * show notes along with it — though on this show those run to a line.
+   * one. `Chuva de Canivetes #201` rather than `chuva-de-canivetes-201`, and
+   * the show notes along with it — though on this show those run to a line.
    *
    * A feed that cannot be reached must not stop an upload: the title read
    * from the filename is a perfectly good fallback, and refusing to accept
@@ -255,7 +255,7 @@ export async function startEpisode(
    */
   /*
    * Which programme this is, which is the name left once the number is taken
-   * off: `sun-your-balls-001.mp3` is episode 1 of Sun Your Balls.
+   * off: `chuva-de-canivetes-001.mp3` is episode 1 of Chuva de Canivetes.
    *
    * Undefined when the filename carries no number, because then there is no
    * programme-and-number to split and the whole name is the title. Guessing

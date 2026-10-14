@@ -117,7 +117,7 @@ export const topicTerms = pgTable(
       .notNull()
       .references(() => topics.id, { onDelete: 'cascade' }),
     pattern: text('pattern').notNull(),
-    /** Separators stripped, so `hotdog`, `hot dog` and `hot-dog` collapse. */
+    /** Separators stripped, so `guardachuva`, `guarda chuva` and `guarda-chuva` collapse. */
     matchKey: text('match_key').notNull(),
   },
   (table) => [index('topic_terms_match_key').on(table.matchKey)],
@@ -167,9 +167,9 @@ export const episodes = pgTable(
      * A hash of the audio, so the same file is recognised as the same file.
      *
      * Computed in the browser before anything is uploaded. Names are not
-     * enough — the same episode arrives as `ep-201.mp3` and `Sun Your Balls
-     * 201.m4a` — and re-transcribing a two-hour episode spends a third of a
-     * day's allowance to learn nothing.
+     * enough — the same episode arrives as `ep-201.mp3` and `Chuva de
+     * Canivetes 201.m4a` — and re-transcribing a two-hour episode spends a
+     * third of a day's allowance to learn nothing.
      *
      * Nullable, because episodes uploaded before this existed have no hash
      * and there is nothing honest to put there.

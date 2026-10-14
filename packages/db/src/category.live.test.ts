@@ -82,16 +82,16 @@ if (url === undefined || url.length === 0) {
      * per programme or the second show's first episode cannot be uploaded.
      */
     it('lets two programmes both have a first episode', async () => {
-      await add('Sun Your Balls', 1, 'Sun your balls #001')
-      await expect(add('Chegou nos Normie', 1, 'Chegou nos Normie #001')).resolves.toBeDefined()
+      await add('Chuva de Canivetes', 1, 'Chuva de canivetes #001')
+      await expect(add('Outro Programa', 1, 'Outro Programa #001')).resolves.toBeDefined()
     })
 
     // Still one episode 2 of a given programme: a genuine duplicate upload
     // must still be refused.
     it('refuses the same number twice in one programme', async () => {
-      await add('Sun Your Balls', 2, 'Sun your balls #002')
+      await add('Chuva de Canivetes', 2, 'Chuva de canivetes #002')
 
-      await expect(refusalFor('Sun Your Balls', 2, 'again')).resolves.toMatch(
+      await expect(refusalFor('Chuva de Canivetes', 2, 'again')).resolves.toMatch(
         /duplicate key value violates unique constraint "episodes_series_number"/u,
       )
     })

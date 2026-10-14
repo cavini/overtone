@@ -136,11 +136,11 @@ const SHARED_FEED = `<?xml version="1.0"?>
 <rss version="2.0" xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd">
   <channel>
     <title>The Collective</title>
-    <item><title>Chegou nos Normie #002</title><description>so o outro tem o dois</description></item>
-    <item><title>Chegou nos Normie #001</title><description>outro programa</description></item>
-    <item><title>Porao do Bunker - 09</title><description>outro ainda</description></item>
-    <item><title>Sun Your Balls #009</title><description>o nono</description></item>
-    <item><title>Sun your balls #001</title><description>o primeiro</description></item>
+    <item><title>Outro Programa #002</title><description>so o outro tem o dois</description></item>
+    <item><title>Outro Programa #001</title><description>o mesmo de sempre</description></item>
+    <item><title>Terceiro Programa - 09</title><description>outro ainda</description></item>
+    <item><title>Chuva de Canivetes #009</title><description>o nono</description></item>
+    <item><title>Chuva de canivetes #001</title><description>o primeiro</description></item>
   </channel>
 </rss>`
 
@@ -154,29 +154,29 @@ const sharedDirectory = (show?: string) =>
 describe('a feed carrying more than one show', () => {
   /*
    * The bug this exists for: the real feed has nine numbers claimed by two
-   * or more shows, and five of the first ten Sun Your Balls episodes would
-   * have been titled from a different programme entirely. An episode named
-   * after someone else's show is worse than one with no title — every count
-   * under it looks fine and describes the wrong thing.
+   * or more shows, and five of the first ten Chuva de Canivetes episodes
+   * would have been titled from a different programme entirely. An episode
+   * named after someone else's show is worse than one with no title — every
+   * count under it looks fine and describes the wrong thing.
    */
   it('finds the named show, not whichever item claimed the number first', async () => {
-    expect((await sharedDirectory('Sun Your Balls').find(1))?.title).toBe('Sun your balls #001')
-    expect((await sharedDirectory('Sun Your Balls').find(9))?.title).toBe('Sun Your Balls #009')
+    expect((await sharedDirectory('Chuva de Canivetes').find(1))?.title).toBe('Chuva de canivetes #001')
+    expect((await sharedDirectory('Chuva de Canivetes').find(9))?.title).toBe('Chuva de Canivetes #009')
   })
 
   // The title's own casing varies across a long back catalogue: this show
-  // wrote "Sun your balls" for its first four episodes and "Sun Your Balls"
-  // after that.
+  // wrote "Chuva de canivetes" for its first four episodes and "Chuva de
+  // Canivetes" after that.
   it('does not care how the show name is capitalised', async () => {
-    expect((await sharedDirectory('sun YOUR balls').find(1))?.title).toBe('Sun your balls #001')
+    expect((await sharedDirectory('chuva DE canivetes').find(1))?.title).toBe('Chuva de canivetes #001')
   })
 
   it('finds nothing for a number only another show has', async () => {
-    expect(await sharedDirectory('Sun Your Balls').find(2)).toBeUndefined()
+    expect(await sharedDirectory('Chuva de Canivetes').find(2)).toBeUndefined()
   })
 
   // A single-show feed must keep behaving exactly as it did.
   it('considers every item when no show is named', async () => {
-    expect((await sharedDirectory().find(1))?.title).toBe('Chegou nos Normie #001')
+    expect((await sharedDirectory().find(1))?.title).toBe('Outro Programa #001')
   })
 })
