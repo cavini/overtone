@@ -149,17 +149,42 @@ export function planFromTranscripts(
  *
  * Chunks are ordered by index rather than by arrival, because they are paced
  * against the allowance and may well finish out of order.
+ *
+ * **A chunk is also held to its own stretch of the episode.** Measured on a
+ * real episode: the transcriber gave the last 5 of a chunk's 1557 words
+ * timestamps 24 seconds past the end of the audio it was handed — it kept
+ * going after the sound stopped. Offset unchecked, those words land inside
+ * the *next* chunk's stretch, two chunks claim the same moment, and a quote
+ * points at the wrong one. The seams themselves were correct; this is the
+ * transcriber overrunning, not the split.
+ *
+ * Held back rather than dropped. The word was said, so removing it would
+ * take a real word out of every count on the page to fix a timestamp — and a
+ * wrong count is worse than an approximate timestamp. Pinning it just inside
+ * its own chunk is also roughly true: it was spoken near the end of that
+ * audio.
  */
 export function stitchChunks(chunks: readonly ChunkTranscript[]): TimedWord[] {
-  return [...chunks]
-    .sort((a, b) => a.index - b.index)
-    .flatMap((chunk) =>
-      chunk.words.map((word) => ({
-        text: word.text,
-        startMs: word.startMs + chunk.offsetMs,
-        endMs: word.endMs + chunk.offsetMs,
-      })),
-    )
+  const ordered = [...chunks].sort((a, b) => a.index - b.index)
+
+  return ordered.flatMap((chunk, at) => {
+    /*
+     * Where the next chunk begins, which is where this one must stop. The
+     * last chunk has no bound: there is no next offset, and this knows
+     * nothing of the episode's duration. A word past the end of the final
+     * chunk reads as the last moment rather than as somebody else's.
+     */
+    const next = ordered[at + 1]?.offsetMs
+    const limit = next === undefined ? Number.POSITIVE_INFINITY : next - 1
+
+    return chunk.words.map((word) => ({
+      text: word.text,
+      startMs: Math.min(word.startMs + chunk.offsetMs, limit),
+      // Clamped to the same point, never behind its own start: an end before
+      // its start would make the word's span negative.
+      endMs: Math.min(word.endMs + chunk.offsetMs, limit),
+    }))
+  })
 }
 
 /**

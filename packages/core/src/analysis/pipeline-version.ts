@@ -27,5 +27,12 @@
  * form. `gato` was counted as `gatar`, `bebê` as `beber`, `esperança` as
  * `esperançar`. Nineteen terms move on a measured episode and every real
  * verb form is untouched.
+ *
+ * **6** — a chunk's words are held to its own stretch of the episode. The
+ * transcriber overran the audio it was handed on a real episode, giving the
+ * last 5 of 1557 words timestamps 24 seconds past the end — far enough to
+ * land inside the next chunk, so two chunks claimed the same moment and a
+ * citation could point at the wrong one. Counts are unchanged; every
+ * timestamp near a seam can move.
  */
-export const PIPELINE_VERSION = 5
+export const PIPELINE_VERSION = 6

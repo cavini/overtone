@@ -60,21 +60,33 @@ class FakeApp implements BackfillApp {
     return Promise.resolve([...this.library])
   }
 
+  /*
+   * Faithful to `pendingEpisode`, which is narrower than it looks: it
+   * reports the oldest episode whose status is **`transcribing`**, and
+   * failing that falls back to the most recent episode with any transcript
+   * at all — "the latest thing worth reading". An episode that has been
+   * uploaded and not yet picked up by the schedule is invisible to it.
+   *
+   * This fake used to answer with anything in flight, which is not what the
+   * app does, and that made a stale progress line look correct in the
+   * tests while a real run printed the wrong episode's name.
+   */
   pending(): Promise<PendingEpisode | undefined> {
     trace.push('pending')
-    const live = this.library.find((episode) => IN_FLIGHT.includes(episode.status))
+    const seen = (episode: LibraryEpisode): PendingEpisode => ({
+      episodeId: episode.episodeId,
+      title: episode.title,
+      chunksDone: episode.chunksDone,
+      chunkCount: episode.chunkCount,
+      live: episode.status === 'transcribing',
+    })
 
-    return Promise.resolve(
-      live === undefined
-        ? undefined
-        : {
-            episodeId: live.episodeId,
-            title: live.title,
-            chunksDone: live.chunksDone,
-            chunkCount: live.chunkCount,
-            live: true,
-          },
-    )
+    const transcribing = this.library.find((episode) => episode.status === 'transcribing')
+    if (transcribing !== undefined) return Promise.resolve(seen(transcribing))
+
+    const readable = [...this.library].reverse().find((episode) => episode.chunksDone > 0)
+
+    return Promise.resolve(readable === undefined ? undefined : seen(readable))
   }
 
   start(request: StartRequest): Promise<StartedEpisode> {
@@ -200,6 +212,7 @@ const rigFor = (
     },
     sleep: (ms) => {
       sleeps.push(ms)
+      trace.push('sleep')
       // Standing in for the schedule, which is what actually clears the way.
       app.drain()
       return Promise.resolve()
@@ -376,9 +389,9 @@ describe('one episode in flight at a time', () => {
     expect(rig.sleeps.length).toBeGreaterThan(0)
     // It waited first and started afterwards, not the other way round.
     const firstStart = trace.findIndex((line) => line.startsWith('start'))
-    const firstPending = trace.indexOf('pending')
-    expect(firstPending).toBeGreaterThanOrEqual(0)
-    expect(firstPending).toBeLessThan(firstStart)
+    const firstWait = trace.indexOf('sleep')
+    expect(firstWait).toBeGreaterThanOrEqual(0)
+    expect(firstWait).toBeLessThan(firstStart)
   })
 
   it('waits again between one episode and the next', async () => {
@@ -389,9 +402,11 @@ describe('one episode in flight at a time', () => {
     // The first upload leaves its episode `uploaded`, so the second one has
     // to wait for the schedule to take it.
     expect(rig.sleeps.length).toBeGreaterThan(0)
-    const starts = trace.filter((line) => line.startsWith('start') || line === 'pending')
-    expect(starts[0]).toMatch(/^start/u)
-    expect(starts).toContain('pending')
+    const order = trace.filter((line) => line.startsWith('start') || line === 'sleep')
+    // Started, then waited, then started again — never two in a row.
+    expect(order[0]).toMatch(/^start/u)
+    expect(order[1]).toBe('sleep')
+    expect(order.at(-1)).toMatch(/^start/u)
   })
 
   it('says what it is waiting for', async () => {
@@ -707,5 +722,50 @@ describe('being told which show', () => {
 
     await expect(backfill(rig.tools, { ...plan(2), show: '  ' })).rejects.toThrow(/show/u)
     expect(rig.downloaded).toEqual([])
+  })
+})
+
+describe('the line it prints while waiting', () => {
+  /*
+   * Seen in a real run: the tool was waiting for episode 2, which it had
+   * just uploaded, and the log said it was waiting for episode 1, which was
+   * already finished. `/api/episodes/pending` only reports an episode that
+   * is *transcribing*, and falls back to "the latest thing worth reading"
+   * when nothing is — so in the window between an upload and the schedule
+   * picking it up, it names the wrong episode. The decision to wait was
+   * right; only the label was stale, which over a multi-day run is the
+   * difference between a log you can trust and one you cannot.
+   */
+  it('names the episode actually in flight, not the latest one to read', async () => {
+    const app = new FakeApp()
+    const rig = rigFor([1], 2_000, app)
+    // Exactly the shape a real run leaves behind: one finished episode that
+    // has transcripts, and one just uploaded that has none yet. `pending`
+    // reports the finished one, because the new one is not transcribing.
+    app.library.push({
+      episodeId: 'done',
+      number: 1,
+      title: 'The Finished One',
+      durationMs: 600_000,
+      status: 'ready',
+      chunksDone: 5,
+      chunkCount: 5,
+    })
+    app.library.push({
+      episodeId: 'in-flight',
+      number: 7,
+      title: 'The One Still Going',
+      durationMs: 600_000,
+      status: 'uploaded',
+      chunksDone: 0,
+      chunkCount: 5,
+    })
+
+    await backfill(rig.tools, plan(1))
+
+    const waiting = rig.said.filter((line) => line.startsWith('waiting'))
+    expect(waiting[0]).toContain('The One Still Going')
+    expect(waiting[0], 'named a finished episode while waiting for another')
+      .not.toContain('The Finished One')
   })
 })
