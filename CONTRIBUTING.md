@@ -71,6 +71,33 @@ Risky or half-built capabilities go behind a flag in `packages/contracts/flags.t
 - **Format numbers and dates through `next-intl`.** pt-BR writes `1.234,56`, English `1,234.56`. The entire output is numbers, so a wrong separator is a defect. No `toLocaleString()`, no hand-rolled separators.
 - Validate at every boundary with the Zod schemas in `packages/contracts`.
 
+## Signing in
+
+The way in is an **email and a password**. A magic link is kept for one job:
+getting back in without the password. Password rather than link because a
+link costs an email every time and the free tier rations them — which is also
+why the session cookie lasts a month.
+
+Two things have to be set, and the second is the one that wastes an afternoon:
+
+1. **`OVERTONE_INVITED`** in `.env.local` — comma-separated addresses that may
+   register. Registration **fails closed** without it. Uploading spends
+   seconds of audio from one free-tier budget shared by every user, so an open
+   registration form is that budget published to the internet. Signing in to
+   an account that already exists still works with it unset.
+
+2. **Turn off "Confirm email"** in the Supabase dashboard, under
+   *Authentication → Sign In / Providers → Email*. With it on, registering
+   creates the account and hands back no session, so nobody can get in until
+   they click an email — the rationed thing this was meant to avoid.
+   Registration says so rather than failing opaquely: the refusal is
+   `EMAIL_NOT_CONFIRMED` and it names the setting.
+
+While `OVERTONE_PASSWORD` is still set, **everyone who knows it is the same
+user** and there is no isolation at all. Removing it is what turns per-account
+isolation on — so do it only once somebody has a real account, or nobody can
+get in.
+
 ## Commands
 
 ```bash
