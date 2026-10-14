@@ -691,3 +691,21 @@ describe('cleaning up a half-uploaded episode', () => {
     expect(log).not.toMatch(/left alone/u)
   })
 })
+
+describe('being told which show', () => {
+  /*
+   * A blank show name is not "all of them". The feed carries several of the
+   * collective's programmes, numbered independently, and both the filename
+   * and the already-here check assume one programme — so an empty filter
+   * would download somebody else's episode 1, file it under a programme
+   * called nothing, and collide with this show's own numbering. The adapter
+   * treats a blank show as "every item" by design, which is right for a
+   * feed with one show in it and wrong for this.
+   */
+  it('refuses a blank one rather than walking the whole feed', async () => {
+    const rig = rigFor([1, 2])
+
+    await expect(backfill(rig.tools, { ...plan(2), show: '  ' })).rejects.toThrow(/show/u)
+    expect(rig.downloaded).toEqual([])
+  })
+})

@@ -322,6 +322,20 @@ async function oneEpisode(
 }
 
 export async function backfill(tools: BackfillTools, plan: BackfillPlan): Promise<void> {
+  /*
+   * A blank show is not "all of them".
+   *
+   * The adapter reads a blank filter as "every item", which is right for a
+   * feed with one show in it. This feed carries several of the collective's
+   * programmes, numbered independently, and both the filename and the
+   * already-here check below assume one programme — so an empty filter here
+   * would pull somebody else's episode 1, file it under a programme called
+   * nothing, and collide with this show's own numbering.
+   */
+  if (plan.show.trim().length === 0) {
+    throw new Error('which show? a blank name would walk every programme in the feed at once')
+  }
+
   const feed = await tools.feed.list()
   const library = await tools.app.list()
 
