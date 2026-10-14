@@ -27,12 +27,12 @@ describe('lemmaQuery', () => {
   // put one placeholder per word, and an episode has thousands.
   it('passes the whole list as a single array parameter', async () => {
     const { db, seen } = capturing()
-    await lemmaQuery(db)(['falei', 'falando', 'pirão'], 'pt')
+    await lemmaQuery(db)(['falei', 'falando', 'feijão'], 'pt')
 
     expect(seen[0]?.sql).toMatch(/= any/i)
     // Two parameters: the language, and the whole list of forms as one array.
     expect(seen[0]?.params).toHaveLength(2)
-    expect(seen[0]?.params[1]).toEqual(['falei', 'falando', 'pirão'])
+    expect(seen[0]?.params[1]).toEqual(['falei', 'falando', 'feijão'])
   })
 
   it('reads nothing else from the dictionary table', async () => {
@@ -50,7 +50,7 @@ describe('lemmaQuery', () => {
 
   it('returns nothing when the dictionary knows nothing', async () => {
     const { db } = capturing([])
-    expect(await lemmaQuery(db)(['pirão'], 'pt')).toEqual([])
+    expect(await lemmaQuery(db)(['feijão'], 'pt')).toEqual([])
   })
 })
 

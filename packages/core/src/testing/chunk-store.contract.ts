@@ -56,7 +56,7 @@ export function describeChunkStore(
     it('reports what has been transcribed', async () => {
       await withStore(async ({ store, episodeIds: [episode] }) => {
         await store.save(episode, chunk(0, 0, 'olá'))
-        await store.save(episode, chunk(1, 1_200_000, 'pirão'))
+        await store.save(episode, chunk(1, 1_200_000, 'feijão'))
 
         expect(await store.transcribedIndexes(episode)).toEqual([0, 1])
       })

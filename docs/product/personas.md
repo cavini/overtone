@@ -15,10 +15,10 @@ Overtone is a **free hobby app for a small group of friends who record a show to
 
 | Field | Detail |
 |---|---|
-| Context | Three friends — Rafa, Mel and Davi — one show **recorded in Brazilian Portuguese**, ~16 episodes so far, **100–120 minutes each**: they talk for two hours and barely notice. Records remotely, edits in Audacity, and what leaves his laptop is **one final mixed file per episode** — the published edit. Audience: roughly 40 people, several of whom are their parents. |
+| Context | Three friends — Rafa, Mel and Theo — one show **recorded in Brazilian Portuguese**, ~16 episodes so far, **100–120 minutes each**: they talk for two hours and barely notice. Records remotely, edits in Audacity, and what leaves his laptop is **one final mixed file per episode** — the published edit. Audience: roughly 40 people, several of whom are their parents. |
 | Job to be done | "Tell me what we actually keep talking about across the whole show." |
 | Success measured by | (a) Can point at a number that is funny — *"a gente falou 'né' 312 vezes nessa temporada"*; (b) can see a running bit's arc across episodes, not just one; (c) can paste a link in the group chat that renders something worth screenshotting. |
-| Top frustration | He already *knows* the show's recurring bits by name — "a parada do hotdog", "a conspiração do Davi" — and has no way to count them. Generic word clouds tell him the show says "tipo" a lot, which he also already knows. |
+| Top frustration | He already *knows* the show's recurring bits by name — "a parada do guardachuva", "a conspiração do Theo" — and has no way to count them. Generic word clouds tell him the show says "tipo" a lot, which he also already knows. |
 | Budget | Zero. Not "small" — **zero**. Will abandon the product at the word "upgrade". |
 | Constraints he lives with | No budget, no team, no deadline, no obligation. He does this for fun after work. Anything that takes more than one evening to figure out does not get figured out. |
 | Accuracy tolerance | Loose, *if* a number is clickable back to the moment someone said it. He will happily laugh at a mis-transcription. He will not forgive a number he cannot check. |

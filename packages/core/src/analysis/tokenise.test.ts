@@ -6,7 +6,7 @@ const surfaces = (text: string): string[] => tokenise(text, 'pt').map((t) => t.s
 
 describe('tokenise', () => {
   it('splits on whitespace', () => {
-    expect(surfaces('o pirão está pronto')).toEqual(['o', 'pirão', 'está', 'pronto'])
+    expect(surfaces('o feijão está pronto')).toEqual(['o', 'feijão', 'está', 'pronto'])
   })
 
   it('numbers the tokens in order', () => {

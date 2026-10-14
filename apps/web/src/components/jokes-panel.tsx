@@ -18,8 +18,8 @@ interface Joke {
  *
  * Spellings are the whole feature, not a detail. The transcriber decides how
  * a word comes out and it does not always agree with how it was said:
- * experiment 0001 found `hotdog` consistently heard as "Outdog", and the
- * same joke counted zero without that alias and twice with it (ADR 0006).
+ * experiment 0001 found `guardachuva` consistently heard as "Guadachuva", and
+ * the same joke counted zero without that alias and twice with it (ADR 0006).
  * So the form asks for spellings in the plural and says why.
  */
 export function JokesPanel({ locale, labels }: { readonly locale: Locale; readonly labels: Labels }) {

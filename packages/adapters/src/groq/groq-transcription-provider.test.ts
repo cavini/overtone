@@ -11,7 +11,7 @@ const RESPONSE = {
   task: 'transcribe',
   language: 'portuguese',
   duration: 2.4,
-  text: 'E aí galera hoje falamos do pirão',
+  text: 'E aí galera hoje falamos do feijão',
   words: [
     { word: 'E', start: 0, end: 0.2 },
     { word: 'aí', start: 0.2, end: 0.45 },
@@ -19,7 +19,7 @@ const RESPONSE = {
     { word: 'hoje', start: 0.9, end: 1.2 },
     { word: 'falamos', start: 1.2, end: 1.7 },
     { word: 'do', start: 1.7, end: 1.85 },
-    { word: 'pirão', start: 1.85, end: 2.4 },
+    { word: 'feijão', start: 1.85, end: 2.4 },
   ],
 }
 

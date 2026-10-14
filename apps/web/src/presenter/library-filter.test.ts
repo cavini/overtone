@@ -3,9 +3,9 @@ import { describe, expect, it } from 'vitest'
 import { episodesMatching } from './library-filter.js'
 
 const EPISODES = [
-  { title: 'Cúpula do Hotdog' },
-  { title: 'A volta do pirão' },
-  { title: 'Hotdog, parte dois' },
+  { title: 'Cúpula do Guardachuva' },
+  { title: 'A volta do feijão' },
+  { title: 'Guardachuva, parte dois' },
 ] as const
 
 const titlesOf = (episodes: readonly { readonly title: string }[]): string[] =>
@@ -22,18 +22,18 @@ describe('narrowing the library by what was typed', () => {
   })
 
   it('keeps the titles the words appear in, in the order they were listed', () => {
-    expect(titlesOf(episodesMatching(EPISODES, 'hotdog'))).toEqual([
-      'Cúpula do Hotdog',
-      'Hotdog, parte dois',
+    expect(titlesOf(episodesMatching(EPISODES, 'guardachuva'))).toEqual([
+      'Cúpula do Guardachuva',
+      'Guardachuva, parte dois',
     ])
   })
 
   it('matches part of a word, so the list narrows while you type', () => {
-    expect(titlesOf(episodesMatching(EPISODES, 'pir'))).toEqual(['A volta do pirão'])
+    expect(titlesOf(episodesMatching(EPISODES, 'fei'))).toEqual(['A volta do feijão'])
   })
 
   it('ignores case, and blanks either side of what was typed', () => {
-    expect(titlesOf(episodesMatching(EPISODES, '  CÚPULA '))).toEqual(['Cúpula do Hotdog'])
+    expect(titlesOf(episodesMatching(EPISODES, '  CÚPULA '))).toEqual(['Cúpula do Guardachuva'])
   })
 
   /*
@@ -46,9 +46,9 @@ describe('narrowing the library by what was typed', () => {
    * filter would fail to find the very episode it is showing.
    */
   it('finds a title whose accents were written as separate characters', () => {
-    const decomposed = [{ title: 'A volta do pira\u0303o' }]
+    const decomposed = [{ title: 'A volta do feija\u0303o' }]
 
-    expect(episodesMatching(decomposed, 'pir\u00e3o')).toEqual(decomposed)
+    expect(episodesMatching(decomposed, 'feij\u00e3o')).toEqual(decomposed)
   })
 
   /*
@@ -57,7 +57,7 @@ describe('narrowing the library by what was typed', () => {
    * app that disagreed.
    */
   it('still treats an accent as a letter of its own', () => {
-    expect(episodesMatching(EPISODES, 'pirao')).toEqual([])
+    expect(episodesMatching(EPISODES, 'feijao')).toEqual([])
   })
 
   it('finds nothing when nothing matches', () => {

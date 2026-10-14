@@ -79,7 +79,7 @@ describe('totalChars', () => {
 describe('visibleLines', () => {
   const parts = [
     { index: 0, text: 'bom dia' },
-    { index: 1, text: 'pirão' },
+    { index: 1, text: 'feijão' },
   ]
 
   it('shows nothing before anything is revealed', () => {
@@ -91,13 +91,13 @@ describe('visibleLines', () => {
   })
 
   it('shows everything once the reveal has caught up', () => {
-    expect(visibleLines(parts, 12)).toEqual(parts)
+    expect(visibleLines(parts, 13)).toEqual(parts)
   })
 
   it('holds back the part the reveal has not reached', () => {
     expect(visibleLines(parts, 9)).toEqual([
       { index: 0, text: 'bom dia' },
-      { index: 1, text: 'pi' },
+      { index: 1, text: 'fe' },
     ])
   })
 

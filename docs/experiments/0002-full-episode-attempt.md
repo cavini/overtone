@@ -77,7 +77,7 @@ rather than filtering them away as noise was the right call: at that rate they
 are a real finding about how this group talks, and exactly the sort of number
 the show's hosts would argue about.
 
-No mishearing as dramatic as experiment 0001's `hotdog` → `Outdog` appeared in
+No mishearing as dramatic as experiment 0001's `guardachuva` → `Guadachuva` appeared in
 the slice, but the sample did not include a known in-joke. That check still
 wants a list of expected terms written down **before** the transcript is read.
 

@@ -15,8 +15,8 @@ describe('tokeniseTimed', () => {
   })
 
   it('normalises each word as it goes', () => {
-    expect(tokeniseTimed(words(['PIRÃO,', 0, 400]), 'pt').map((t) => t.surface)).toEqual([
-      'pirão',
+    expect(tokeniseTimed(words(['FEIJÃO,', 0, 400]), 'pt').map((t) => t.surface)).toEqual([
+      'feijão',
     ])
   })
 
@@ -40,8 +40,8 @@ describe('tokeniseTimed', () => {
   })
 
   it('handles a word the transcriber returned with spaces inside it', () => {
-    const tokens = tokeniseTimed(words(['hot dog', 0, 800]), 'pt')
-    expect(tokens.map((t) => t.surface)).toEqual(['hot', 'dog'])
+    const tokens = tokeniseTimed(words(['guarda chuva', 0, 800]), 'pt')
+    expect(tokens.map((t) => t.surface)).toEqual(['guarda', 'chuva'])
     expect(tokens.every((t) => t.startMs === 0 && t.endMs === 800)).toBe(true)
   })
 
@@ -50,9 +50,9 @@ describe('tokeniseTimed', () => {
   })
 
   it('agrees with the plain tokeniser on the surfaces it produces', () => {
-    const spoken = words(['O', 0, 1], ['pirão', 1, 2], ['diga-me', 2, 3])
+    const spoken = words(['O', 0, 1], ['feijão', 1, 2], ['diga-me', 2, 3])
     expect(tokeniseTimed(spoken, 'pt').map((t) => t.surface)).toEqual([
-      'o', 'pirão', 'diga', 'me',
+      'o', 'feijão', 'diga', 'me',
     ])
   })
 })

@@ -24,8 +24,8 @@ describe('renderMessage', () => {
   })
 
   it('interpolates a string parameter', () => {
-    expect(renderMessage('pt', 'TOPIC_NAME_TAKEN', { name: 'Hotdog' })).toContain(
-      '"Hotdog"',
+    expect(renderMessage('pt', 'TOPIC_NAME_TAKEN', { name: 'Guardachuva' })).toContain(
+      '"Guardachuva"',
     )
   })
 

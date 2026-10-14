@@ -10,7 +10,7 @@ const chunk = (index: number, ...words: readonly string[]) => ({
 
 describe('precedingTail', () => {
   it('is the words of the chunk just before this one', () => {
-    expect(precedingTail([chunk(0, 'bom', 'dia'), chunk(1, 'pirão')], 1)).toBe('bom dia')
+    expect(precedingTail([chunk(0, 'bom', 'dia'), chunk(1, 'feijão')], 1)).toBe('bom dia')
   })
 
   // The first chunk has nothing before it, and the model treats an empty

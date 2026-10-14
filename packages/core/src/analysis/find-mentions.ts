@@ -4,8 +4,8 @@ import type { Topic } from '../domain/topic.js'
 import { normalize } from './normalize.js'
 
 /**
- * Dropped from the front of a pattern, so writing `o hotdog` matches `hotdog`.
- * Only ever stripped from a pattern, never from the transcript.
+ * Dropped from the front of a pattern, so writing `o guardachuva` matches
+ * `guardachuva`. Only ever stripped from a pattern, never from the transcript.
  */
 const LEADING_DETERMINERS: ReadonlySet<string> = new Set([
   'o', 'a', 'os', 'as', 'um', 'uma', 'uns', 'umas',
@@ -16,16 +16,17 @@ const SEPARATORS = /[\s\-'’]/gu
 /**
  * Collapses a run of words to a comparison key.
  *
- * Removing separators is what makes `hotdog`, `hot dog` and `hot-dog` the
- * same thing without listing each spelling: all three reduce to `hotdog`,
- * whether they arrived as one token or three.
+ * Removing separators is what makes `guardachuva`, `guarda chuva` and
+ * `guarda-chuva` the same thing without listing each spelling: all three
+ * reduce to `guardachuva`, whether they arrived as one token or three.
  */
 function keyOf(words: readonly string[]): string {
   return words.join('').replace(SEPARATORS, '')
 }
 
 /**
- * Drops articles from the front of a pattern, so `o hotdog` matches `hotdog`.
+ * Drops articles from the front of a pattern, so `o guardachuva` matches
+ * `guardachuva`.
  *
  * A pattern made entirely of determiners is left alone: someone tracking how
  * often they say `o a` is doing something odd, but they meant it.
@@ -41,8 +42,8 @@ function stripLeadingDeterminers(words: readonly string[]): readonly string[] {
  * Exported because it has to be computed in two places — once when a running
  * joke is saved, once when an episode is scanned — and the two must agree
  * exactly or the joke silently counts zero. They did not: storage was
- * stripping spaces and hyphens off the raw text, so "o pirão" was filed
- * under `opirão` while the scanner looked for `pirão`.
+ * stripping spaces and hyphens off the raw text, so "o feijão" was filed
+ * under `ofeijão` while the scanner looked for `feijão`.
  */
 export function matchKeyFor(pattern: string): string | undefined {
   return compilePattern(pattern)

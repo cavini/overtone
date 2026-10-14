@@ -77,7 +77,7 @@ describe('DrizzleChunkStore', () => {
     const chunk: ChunkTranscript = {
       index: 3,
       offsetMs: 3_600_000,
-      words: [{ text: 'pirão', startMs: 100, endMs: 500 }],
+      words: [{ text: 'feijão', startMs: 100, endMs: 500 }],
     }
 
     it('writes the chunk', async () => {

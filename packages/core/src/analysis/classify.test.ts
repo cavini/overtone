@@ -11,7 +11,7 @@ describe('classify', () => {
     },
   )
 
-  it.each(['pirão', 'hotdog', 'churrasco', 'gravação', 'episódio'])(
+  it.each(['feijão', 'guardachuva', 'churrasco', 'gravação', 'episódio'])(
     'calls %s a word',
     (word) => {
       expect(classify(word, 'pt')).toBe('word')
@@ -76,7 +76,7 @@ describe('classify, in English', () => {
     expect(classify(sound, 'en')).toBe('filler')
   })
 
-  it.each(['podcast', 'hotdog', 'like', 'friend'])('calls %s a word', (word) => {
+  it.each(['podcast', 'guardachuva', 'like', 'friend'])('calls %s a word', (word) => {
     expect(classify(word, 'en')).toBe('word')
   })
 

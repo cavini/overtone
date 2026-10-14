@@ -3,7 +3,7 @@
 **Date:** 2026-10-07 · **Status:** accepted (design committed now, implementation deferred) · **Amended by:** ADR 0010 (the model), ADR 0015 (no speaker filter)
 
 ## Context
-The deferred feature is a chatbot answering questions like *"how many times did they ever discuss hotdogs?"* across the whole library. The default 2020s answer is retrieval-augmented generation: chunk the transcripts, embed them, retrieve top-k, let the model answer.
+The deferred feature is a chatbot answering questions like *"how many times did they ever discuss guardachuvas?"* across the whole library. The default 2020s answer is retrieval-augmented generation: chunk the transcripts, embed them, retrieve top-k, let the model answer.
 
 **RAG cannot answer this question.** Top-k retrieval returns a sample, so the model counts the sample and reports a number that is confidently, invisibly wrong. For a product whose entire promise is an accurate count, a plausible wrong number is the worst possible failure — worse than an error, because nobody notices it.
 

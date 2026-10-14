@@ -7,7 +7,7 @@ describe('stem', () => {
   // The realistic job: plurals of words a Portuguese dictionary will not
   // contain — names, slang, in-jokes, English borrowings.
   it.each([
-    ['hotdogs', 'hotdog'],
+    ['guardachuvas', 'guardachuva'],
     ['podcasts', 'podcast'],
     ['memes', 'meme'],
     ['lives', 'live'],
@@ -17,7 +17,7 @@ describe('stem', () => {
   })
 
   it.each([
-    ['pirões', 'pirão'],
+    ['feijões', 'feijão'],
     ['cães', 'cão'],
     ['irmãos', 'irmão'],
     ['homens', 'homem'],
@@ -63,7 +63,7 @@ describe('stem', () => {
   )
 
   it('is idempotent, so re-running analysis cannot shrink a word twice', () => {
-    for (const word of ['hotdogs', 'pirões', 'homens', 'casas', 'comer']) {
+    for (const word of ['guardachuvas', 'feijões', 'homens', 'casas', 'comer']) {
       expect(stem(stem(word))).toBe(stem(word))
     }
   })

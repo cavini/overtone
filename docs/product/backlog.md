@@ -174,8 +174,8 @@ Scenario: Every request declares the language
   And no request relied on language auto-detection
 
 Scenario: The transcript is good enough to count, and survives re-analysis
-  Given the fixture "fixture-hotdog-60s-ptbr.m4a" whose pt-BR script says "hotdog" 5 times
-  Then the Transcript contains the token "hotdog" at least 4 times
+  Given the fixture "fixture-guardachuva-60s-ptbr.m4a" whose pt-BR script says "guardachuva" 5 times
+  Then the Transcript contains the token "guardachuva" at least 4 times
   When analysis is re-run for that Episode
   Then no transcription request is made and the Transcript id is unchanged
 ```
@@ -235,7 +235,7 @@ Priority: **Must** · Size: **S**
 
 ```gherkin
 Scenario: Top words are ranked, with stop words excluded
-  Given an Episode whose top three terms are "hotdog" 61, "churrasco" 44 and "basicamente" 31
+  Given an Episode whose top three terms are "guardachuva" 61, "churrasco" 44 and "basicamente" 31
   Then at most 25 terms are listed by count descending
   And no listed term appears on the active pt-BR stop-word list
   And the page headline names those three terms with those three counts
@@ -300,23 +300,23 @@ Scenario: A two-hour episode is chunked, compressed and uploaded
   And exactly one audio file was asked for, with no track-set or per-host step
 
 Scenario: Splitting never cuts a word in half
-  Given a file whose 25-minute mark falls in the middle of the word "cachorro-quente"
+  Given a file whose 25-minute mark falls in the middle of the word "guarda-chuva"
   When the file is split
   Then the cut is moved to the nearest silence of at least 300 milliseconds
   And the cut is within 90 seconds of the nominal chunk length
   And the fixture's full word sequence is recoverable from the chunks with no word lost and none duplicated
 
 Scenario: A two-hour episode produces one set of counts matching its script
-  Given the fixture "fixture-2h-script-ptbr.wav" whose pt-BR script says "hotdog" 184 times across 6 chunks
+  Given the fixture "fixture-2h-script-ptbr.wav" whose pt-BR script says "guardachuva" 184 times across 6 chunks
   When all chunks are transcribed and stitched
   Then one Episode exists with one Transcript
   And its duration reads 120 minutes within 2 seconds
-  And the count for "hotdog" is at least 175
+  And the count for "guardachuva" is at least 175
   And no Token appears twice
 
 Scenario: A timestamp after a chunk join resolves to the same moment in the audio
   Given chunk 2 begins at 24:30 of the Episode
-  And an occurrence of "hotdog" 90 seconds into chunk 2
+  And an occurrence of "guardachuva" 90 seconds into chunk 2
   Then the occurrence displays 26:00
   And selecting it begins playback between 25:58 and 26:00
 
@@ -386,19 +386,19 @@ Priority: **Must** · Size: **M**
 
 ```gherkin
 Scenario: Every occurrence of a term is enumerated
-  Given an Episode whose count for the Term "hotdog" is 17
+  Given an Episode whose count for the Term "guardachuva" is 17
   When I select the term
   Then exactly 17 occurrences are listed
   And each shows an episode-relative timestamp and the surrounding Segment text
   And every listed Segment text contains a token matching the term
 
 Scenario: Playback seeks to the occurrence
-  Given an occurrence of "hotdog" at 1:08:42
+  Given an occurrence of "guardachuva" at 1:08:42
   When I select it
   Then playback begins between 1:08:40 and 1:08:42
 
 Scenario: A zero count offers no drill-down
-  Given an Episode whose count for "hotdog" is 0
+  Given an Episode whose count for "guardachuva" is 0
   Then the count renders as 0 and no occurrence list is offered
 ```
 
@@ -408,8 +408,8 @@ Priority: **Must** · Size: **S**
 
 ```gherkin
 Scenario: Stop words are excluded from display but never from storage
-  Given a Transcript where "que" occurs 2 100 times and "hotdog" 61 times
-  Then "que" does not appear in the top-words list and "hotdog" does
+  Given a Transcript where "que" occurs 2 100 times and "guardachuva" 61 times
+  Then "que" does not appear in the top-words list and "guardachuva" does
   When I turn off stop-word filtering
   Then "que" appears with the count 2 100
 
@@ -425,31 +425,31 @@ Scenario: An explicitly tracked stop word is always counted
 ```
 
 ### US-017 — Count phrases, so a running joke can be more than one word
-*As Rafa, I want "hot dog" counted as one thing however it is spelled, so that the bit is countable.*
+*As Rafa, I want "guarda chuva" counted as one thing however it is spelled, so that the bit is countable.*
 Priority: **Must** · Size: **M**
 
 ```gherkin
 Scenario: Spelling, separator and plural variants collapse to one Term
-  Given a Transcript containing "hot dog" twice, "hotdog" three times, "hot-dog" once and "hotdogs" once
-  When the Term "hotdog" is counted
+  Given a Transcript containing "guarda chuva" twice, "guardachuva" three times, "guarda-chuva" once and "guardachuvas" once
+  When the Term "guardachuva" is counted
   Then the count is 7
 
 Scenario: Gender and number agreement does not need a separate Term
   Given the Term "linguiça bonita"
   And a Transcript containing "a linguiça bonita" once, "as linguiças bonitas" twice and "a linguiça feia" once
   Then the count is 3
-  And a leading article in a Term is ignored, so "o hotdog", "os hotdogs" and "hotdog" are one Term
+  And a leading article in a Term is ignored, so "o guardachuva", "os guardachuvas" and "guardachuva" are one Term
 
 Scenario: Phrases are reported in their own right
-  Given a Transcript containing "conspiração do Davi" 9 times
-  Then "conspiração do Davi" appears in the phrase statistics with the count 9
+  Given a Transcript containing "conspiração do Theo" 9 times
+  Then "conspiração do Theo" appears in the phrase statistics with the count 9
 
 Scenario: A phrase matches across a chunk join but never across a gap
-  Given the words "hot" and "dog" fall either side of a chunk boundary
-  When the Term "hot dog" is counted
+  Given the words "guarda" and "chuva" fall either side of a chunk boundary
+  When the Term "guarda chuva" is counted
   Then the count is 1
-  Given instead a Transcript containing "hot e dog"
-  Then the count for "hot dog" is 0
+  Given instead a Transcript containing "guarda e chuva"
+  Then the count for "guarda chuva" is 0
 ```
 
 ---
@@ -462,7 +462,7 @@ Priority: **Must** · Size: **M**
 
 ```gherkin
 Scenario: A Topic is created with alias Terms
-  When I create the Topic "a parada do hotdog" with Terms "hotdog", "hot dog", "cachorro-quente" and "dogão"
+  When I create the Topic "a parada do guardachuva" with Terms "guardachuva", "guarda chuva", "guarda-chuva" and "guardachuvão"
   Then it exists in my Library with 4 Terms
   And it applies to every current and future Episode
 
@@ -474,9 +474,9 @@ Scenario: A spoken form is offered its written-standard variant as an alias
   And I can decline either without losing the Term
 
 Scenario: Bad input and limits are rejected with specific codes
-  Given a Topic named "a parada do hotdog" exists
-  When I create another named "A Parada do Hotdog"
-  Then it is rejected with code `TOPIC_NAME_TAKEN` and { name: "a parada do hotdog" }
+  Given a Topic named "a parada do guardachuva" exists
+  When I create another named "A Parada do Guardachuva"
+  Then it is rejected with code `TOPIC_NAME_TAKEN` and { name: "a parada do guardachuva" }
   When I create a Topic with no Terms
   Then it is rejected with code `TOPIC_NEEDS_A_TERM` and no parameters
   When I add a Term of 6 words
@@ -488,29 +488,29 @@ Scenario: Bad input and limits are rejected with specific codes
 
 Scenario: A Topic created before the first episode says so instead of showing a zero
   Given a Library with 0 Episodes
-  When I create the Topic "a parada do hotdog"
+  When I create the Topic "a parada do guardachuva"
   Then it is created, and I see code `TOPIC_NO_EPISODES_YET` with no parameters
   And no count, chart or "0 mentions" is rendered for it
   And it is counted on the first Episode analysed after it, with no further action from me
 ```
 
 ### US-020 — See running-joke counts for one episode
-*As Rafa, I want each episode to report every tracked bit, so that "did we do the hotdog thing" is answered instantly.*
+*As Rafa, I want each episode to report every tracked bit, so that "did we do the guardachuva thing" is answered instantly.*
 Priority: **Must** · Size: **S**
 
 ```gherkin
 Scenario: Topic counts appear on the Episode and sum their Terms
-  Given the Topic "a parada do hotdog" with Terms "hotdog", "hot dog" and "cachorro-quente"
-  And a Transcript containing "hotdog" 12 times, "hot dog" 3 times and "cachorro-quente" 2 times
+  Given the Topic "a parada do guardachuva" with Terms "guardachuva", "guarda chuva" and "guarda-chuva"
+  And a Transcript containing "guardachuva" 12 times, "guarda chuva" 3 times and "guarda-chuva" 2 times
   Then the Topic reports 17 mentions
 
 Scenario: Overlapping Terms are not double-counted
-  Given the Topic contains both "hotdog" and "hotdog thing"
-  And a Transcript containing "hotdog thing" exactly once and no other "hotdog"
+  Given the Topic contains both "guardachuva" and "guardachuva thing"
+  And a Transcript containing "guardachuva thing" exactly once and no other "guardachuva"
   Then the Topic reports 1 mention
 
 Scenario: An unmentioned Topic shows zero, not nothing
-  Given the Topic "a conspiração do Davi" and a Transcript with none of its Terms
+  Given the Topic "a conspiração do Theo" and a Transcript with none of its Terms
   Then the Topic reports 0 mentions
 
 Scenario: Topic counts drill down to quotes
@@ -534,8 +534,8 @@ Scenario: An Episode belongs to a Series, carries a number, and can be retitled
   And the next Episode added defaults to the next number
   When I set another Episode's number to an existing one
   Then it is rejected with code `EPISODE_NUMBER_TAKEN` and { number: 12 }
-  When I rename the Episode to "Cúpula do Hotdog"
-  Then the listing reads "12 · Cúpula do Hotdog" and the source filename is still recorded
+  When I rename the Episode to "Cúpula do Guardachuva"
+  Then the listing reads "12 · Cúpula do Guardachuva" and the source filename is still recorded
   And an empty title is rejected with code `EPISODE_TITLE_REQUIRED` and no parameters
 
 Scenario: Episodes list newest first with Topic chips
@@ -563,7 +563,7 @@ Priority: **Must** · Size: **M**
 ```gherkin
 Scenario: Per-episode counts in episode order
   Given 6 ready Episodes numbered 1 to 6
-  And the Topic "a parada do hotdog" with counts 3, 0, 9, 14, 22, 18
+  And the Topic "a parada do guardachuva" with counts 3, 0, 9, 14, 22, 18
   When I open the Topic
   Then the 6 counts are listed in ascending episode order
   And a total of 66 mentions across 6 episodes is reported
@@ -578,7 +578,7 @@ Scenario: No trend claimed below three episodes
   And I see code `TREND_NEEDS_MORE_EPISODES` with { episode_count: 2, minimum: 3 }
 
 Scenario: One episode is an episode, not a series — and the page is honest about it
-  Given a Series with exactly 1 ready Episode and the Topic "a parada do hotdog" counted 9 times in it
+  Given a Series with exactly 1 ready Episode and the Topic "a parada do guardachuva" counted 9 times in it
   When I open the Topic
   Then the count 9 is shown for episode 1
   And I see code `SERIES_FIRST_EPISODE` with no parameters
@@ -597,11 +597,11 @@ Priority: **Must** · Size: **M**
 ```gherkin
 Scenario: Topics are ranked by total mentions across the Series
   Given a Series of 12 ready Episodes
-  And Topics with Series totals "né" 312, "a parada do hotdog" 212 and "a conspiração do Davi" 46
+  And Topics with Series totals "né" 312, "a parada do guardachuva" 212 and "a conspiração do Theo" 46
   When I open the Series leaderboard
   Then the three Topics are listed in that order with those totals
   And each row shows how many of the 12 episodes it appeared in
-  And the sum of "a parada do hotdog" per-episode counts equals 212
+  And the sum of "a parada do guardachuva" per-episode counts equals 212
 
 Scenario: A Series with one episode says so instead of showing a season
   Given a Series with 1 ready Episode
@@ -626,7 +626,7 @@ Priority: **Must** · Size: **M**
 ```gherkin
 Scenario: A new Topic is applied to existing Episodes on request
   Given 12 ready Episodes
-  When I create the Topic "a conspiração do Davi" and apply it to existing Episodes
+  When I create the Topic "a conspiração do Theo" and apply it to existing Episodes
   Then all 12 Episodes report a mention count for it
   And no transcription request is made and no allowance is consumed
   And a new Analysis records the new pipeline version while the Transcript id is unchanged
@@ -653,7 +653,7 @@ Priority: **Must** · Size: **M**
 
 ```gherkin
 Scenario: A Query counts across a Series with provenance
-  Given 12 ready Episodes and the Term "hotdog"
+  Given 12 ready Episodes and the Term "guardachuva"
   When I run a Query over the whole Series
   Then a total mention count, a matching-episode count, and the earliest and latest match dates are returned
   And every match carries episode_id, start_ms and the Segment text
@@ -661,7 +661,7 @@ Scenario: A Query counts across a Series with provenance
   Then the total is 0, the matching-episode count is 0, and no error is raised
 
 Scenario: Every surface agrees with the engine
-  Given an Episode page reporting the Topic "a parada do hotdog" as 17
+  Given an Episode page reporting the Topic "a parada do guardachuva" as 17
   Then a Query for that Topic scoped to that Episode returns 17
   And the Series leaderboard's contribution from that Episode is 17
   And the Episode's public share page shows 17
@@ -784,7 +784,7 @@ Scenario: The choice survives the session
   Then the interface is English
 
 Scenario: A count never changes because the interface language changed
-  Given an Episode reporting the Topic "a parada do hotdog" 17 times, 24312 total words and 213 words per minute
+  Given an Episode reporting the Topic "a parada do guardachuva" 17 times, 24312 total words and 213 words per minute
   When I switch the interface language to English and back to pt-BR
   Then the Topic still reports 17 mentions, the same total words and the same words per minute
   And the Transcript, every Segment, every Token, every lemma and every Analysis are byte-identical
@@ -821,7 +821,7 @@ Scenario: Empty states offer exactly one thing to do
   And both renderings state that Overtone analyses Brazilian Portuguese audio whatever language the interface is in (D16)
   And no empty charts or placeholder widgets are rendered
   Given instead a ready Episode and 0 Topics
-  Then the running-jokes area shows code `NO_TOPICS_YET` with { suggested_term: "hotdog" } rather than an empty chart
+  Then the running-jokes area shows code `NO_TOPICS_YET` with { suggested_term: "guardachuva" } rather than an empty chart
 
 Scenario: The first episode is a complete page, not a page with holes
   Given a ready Episode that is episode 1 of its Series
@@ -900,9 +900,9 @@ Priority: **Must** · Size: **M**
 
 ```gherkin
 Scenario: Deletion names what it destroys, then destroys it
-  Given a ready Episode titled "Cúpula do Hotdog"
+  Given a ready Episode titled "Cúpula do Guardachuva"
   When I choose Delete
-  Then the confirmation carries code `DELETE_EPISODE_CONFIRMATION` with { title: "Cúpula do Hotdog" }
+  Then the confirmation carries code `DELETE_EPISODE_CONFIRMATION` with { title: "Cúpula do Guardachuva" }
   And both renderings name the title and state that the audio, transcript and all statistics are destroyed permanently
   When I confirm
   Then the Episode disappears from the Series immediately
@@ -911,7 +911,7 @@ Scenario: Deletion names what it destroys, then destroys it
   And all its chunks are purged from storage within 24 hours
 
 Scenario: Deletion updates Series-wide counts
-  Given the Topic "a parada do hotdog" reported 212 mentions across 12 Episodes
+  Given the Topic "a parada do guardachuva" reported 212 mentions across 12 Episodes
   And one Episode contributed 22
   When I delete that Episode
   Then the Topic reports 190 mentions across 11 Episodes
@@ -961,7 +961,7 @@ Scenario: Deletion updates Series-wide counts
 
 | Deliberately not building | Reason |
 |---|---|
-| **Natural-language assistant** ("how many times did we ever mention hotdogs") | The north star, and cheap *later* precisely because US-035 exists. Not now: it needs an eval harness and a prompt-injection story on top of a pipeline nobody has used |
+| **Natural-language assistant** ("how many times did we ever mention guardachuvas") | The north star, and cheap *later* precisely because US-035 exists. Not now: it needs an eval harness and a prompt-injection story on top of a pipeline nobody has used |
 | Machine-discovered topic clustering | A podcast group already knows its bits by name (ADR 0006). Clusters are unstable across episodes, which would make the Series view — the whole product — meaningless |
 | **Who talks most, in any form** | There is one edited file, so no per-host signal exists, and the free stack has no diarisation. **Removed from the product, not deferred.** A confidently wrong speaker label would be worse than none, and an estimate is the only thing we could build |
 | Reconstructing the unedited conversation | We are given the published edit. Counts describe what listeners heard (D15) — the more meaningful number for a podcast, and the only one we have |

@@ -22,7 +22,7 @@ describe('toSegments', () => {
   })
 
   it('keeps the original spelling, not the normalised one', () => {
-    expect(segmentsOf(spoken('PIRÃO,', 'pronto.'))[0]?.text).toBe('PIRÃO, pronto.')
+    expect(segmentsOf(spoken('FEIJÃO,', 'pronto.'))[0]?.text).toBe('FEIJÃO, pronto.')
   })
 
   it('numbers the segments in order', () => {
@@ -45,10 +45,10 @@ describe('toSegments', () => {
   })
 
   it('carries the analysed words so a count can point into the audio', () => {
-    const [segment] = segmentsOf(spoken('O', 'pirão.'))
+    const [segment] = segmentsOf(spoken('O', 'feijão.'))
     expect(segment?.words).toEqual([
       expect.objectContaining({ surface: 'o', tokenClass: 'stopword' }),
-      expect.objectContaining({ surface: 'pirão', tokenClass: 'word' }),
+      expect.objectContaining({ surface: 'feijão', tokenClass: 'word' }),
     ])
   })
 

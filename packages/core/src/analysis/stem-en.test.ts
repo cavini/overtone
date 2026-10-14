@@ -8,7 +8,7 @@ describe('stemEnglish', () => {
     ['podcasts', 'podcast'],
     ['memes', 'meme'],
     ['deploys', 'deploy'],
-    ['hotdogs', 'hotdog'],
+    ['guardachuvas', 'guardachuva'],
     ['streamers', 'streamer'],
   ])('groups the plural with the singular: %s -> %s', (surface, expected) => {
     expect(stemEnglish(surface)).toBe(expected)

@@ -13,10 +13,10 @@
 | UC-04 | Watch processing progress | Any | Upload accepted | Removes dead-time anxiety; says whether to wait or leave | **MVP** |
 | UC-05 | See one episode's word statistics | Rafa | Processing completes | "What did this episode actually turn into?" in one glance | **MVP** |
 | UC-06 | Drill from any count to every timestamped occurrence | Rafa | Clicks a number | Makes every statistic checkable — the difference between fun and fabricated | **MVP** |
-| UC-07 | Define a running joke as a tracked Topic | Rafa | Knows the bit by name: "a parada do hotdog" | Turns the group's private vocabulary into a real metric. **The headline feature.** | **MVP** |
+| UC-07 | Define a running joke as a tracked Topic | Rafa | Knows the bit by name: "a parada do guardachuva" | Turns the group's private vocabulary into a real metric. **The headline feature.** | **MVP** |
 | UC-08 | See running-joke counts for one episode | Rafa | Opens an episode | "Did we do the bit?" answered immediately | **MVP** |
 | UC-09 | Group episodes into a Series with numbers | Rafa | Second episode uploaded | Episodes become a show instead of a pile of files | **MVP** |
-| UC-10 | See a running joke's count across every episode | Rafa | "A parada do hotdog está piorando?" | **The actual product.** No single episode can answer this | **MVP** |
+| UC-10 | See a running joke's count across every episode | Rafa | "A parada do guardachuva está piorando?" | **The actual product.** No single episode can answer this | **MVP** |
 | UC-11 | See the season's running-joke leaderboard | Rafa | End of a season, or any idle Tuesday | *"a gente falou 'né' 312 vezes nessa temporada"* — the screenshot-worthy number | **MVP** |
 | UC-12 | Apply a new running joke to the episodes already analysed | Rafa | Invents a Topic in episode 12 he wishes he'd tracked from episode 1 | Every episode Overtone has analysed — episode 1 onwards — gains new answers with no re-transcription | **MVP** |
 | UC-14 | Share one episode's counts and quotes by public link | Rafa → Mel / Viewer | Wants to post it in the group chat | Distribution. A pretty public stats page is something a podcast would actually post. **Settled: counts and quotes, never the full transcript** | **MVP** |
@@ -38,7 +38,7 @@
 | UC-29 | Purge an episode's audio, keep its stats | Any | 1 GB storage is nearly full | Keeps the Series analytically intact when storage runs out | **Next** |
 | UC-30 | Delete my account and all my data | Any | Leaves the group | Leaving is as easy as joining | **Next** |
 | UC-31 | Compare this season to the last | Rafa | Season 2 finale | The long-horizon version of UC-10 | **Later** |
-| UC-32 | Ask a question in natural language across the Series | Rafa | *"Quantas vezes a gente já falou de hotdog?"* | The north star. Cheap only if UC-06/UC-10 are built on a token-level index | **Later** |
+| UC-32 | Ask a question in natural language across the Series | Rafa | *"Quantas vezes a gente já falou de guardachuva?"* | The north star. Cheap only if UC-06/UC-10 are built on a token-level index | **Later** |
 
 ---
 

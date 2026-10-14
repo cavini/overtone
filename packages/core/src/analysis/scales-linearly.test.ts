@@ -35,7 +35,7 @@ import { tokeniseTimed } from './tokenise-timed.js'
  */
 declare const performance: { now: () => number }
 
-const SPOKEN = ['hoje', 'falamos', 'do', 'pirão', 'com', 'hotdog', 'de', 'novo.']
+const SPOKEN = ['hoje', 'falamos', 'do', 'feijão', 'com', 'guardachuva', 'de', 'novo.']
 
 const wordsOf = (count: number): TimedWord[] =>
   Array.from({ length: count }, (_, at) => ({
@@ -116,7 +116,7 @@ describe('the analysis', () => {
 
   grows('findMentions', (n) => {
     const tokens = annotate(tokeniseTimed(wordsOf(n), 'pt'), new Map(), 'pt', new Set())
-    const topic = { id: 't', name: 'Hotdog', patterns: ['hotdog', 'pirão', 'hot dog com pirão'] }
+    const topic = { id: 't', name: 'Guardachuva', patterns: ['guardachuva', 'feijão', 'guarda chuva com feijão'] }
     return () => void findMentions(tokens, topic)
   })
 })
