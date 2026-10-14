@@ -176,6 +176,21 @@ export const episodes = pgTable(
      */
     audioDigest: text('audio_digest'),
     /**
+     * Which programme this episode is, read from its filename.
+     *
+     * The group publishes several shows from one feed — and they share
+     * hosts, things and running jokes, so they belong in one library rather
+     * than one library each. A label, deliberately, not a partition: topics
+     * stay series-wide so a joke can be counted across programmes, and
+     * search stays universal because it is scoped by series and nothing
+     * narrower.
+     *
+     * Nullable, because an episode whose filename carries no number has no
+     * programme to read and guessing one would file it under a show that
+     * does not exist.
+     */
+    category: text('category'),
+    /**
      * What the publisher says this episode is about.
      *
      * Read from the series' own feed when it has one, keyed by episode
@@ -192,7 +207,19 @@ export const episodes = pgTable(
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [
-    unique('episodes_series_number').on(table.seriesId, table.number),
+    /*
+     * Per programme, not per series. Each show numbers from 1, so two of
+     * them having a first episode is the normal case — while the same number
+     * twice in one programme is still the duplicate upload this has always
+     * refused.
+     *
+     * `nullsNotDistinct`, because Postgres otherwise treats every NULL as
+     * its own value: two uncategorised episodes numbered the same would slip
+     * through, and they are a duplicate rather than two programmes.
+     */
+    unique('episodes_series_number')
+      .on(table.seriesId, table.category, table.number)
+      .nullsNotDistinct(),
     index('episodes_series_status').on(table.seriesId, table.status),
     index('episodes_audio_digest').on(table.seriesId, table.audioDigest),
     check('episodes_language', inList(table.language, AUDIO_LANGUAGES)),
