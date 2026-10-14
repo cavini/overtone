@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useId, useRef, useState } from 'react'
+import { CorrectLine } from './correct-line.js'
 import type { UiKey } from '../i18n/ui.js'
 import { timestamp } from '../presenter/episode-view.js'
 import { lineAtMoment } from '../presenter/line-at-moment.js'
@@ -93,6 +94,7 @@ export function TranscriptView({
    * words are the thing this product is for. They do not go behind a click.
    */
   const [open, setOpen] = useState(true)
+
   const [lines, setLines] = useState<readonly TranscriptLine[]>([])
   const [revealed, setRevealed] = useState(0)
 
@@ -132,6 +134,39 @@ export function TranscriptView({
 
   // A second upload reuses this component with a different episode. Without
   // this, its first chunk is appended to the last episode's transcript.
+  /** Which line is open for typing, as `chunk:position`. */
+  const [editing, setEditing] = useState<string | undefined>(undefined)
+  const [saving, setSaving] = useState(false)
+
+  /**
+   * Records what was actually said, then reloads.
+   *
+   * The reload is not cosmetic. The server re-derives the whole episode from
+   * the corrected words — tokens, terms, running jokes, the segments this
+   * reader pages through — so what is on screen after a correction is a
+   * different analysis, not the same one with a line swapped.
+   */
+  async function correct(fromMs: number, toMs: number, text: string): Promise<void> {
+    setSaving(true)
+    try {
+      const answered = await fetch('/api/episodes/correct', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ episodeId, fromMs, toMs, text }),
+      }).catch(() => undefined)
+
+      if (answered?.ok !== true) return
+
+      // Back to the first chunk: the whole episode was re-analysed, so the
+      // lines on screen describe an analysis that no longer exists.
+      setEditing(undefined)
+      cursor.current = 0
+      setLines([])
+    } finally {
+      setSaving(false)
+    }
+  }
+
   useEffect(() => {
     cursor.current = 0
     following.current = true
@@ -315,10 +350,31 @@ export function TranscriptView({
                   >
                     {timestamp(line.startMs)}
                   </span>
-                  <span>
-                    {line.text}
-                    {typing && !caughtUp && position === shown.length - 1 ? <Caret /> : null}
-                  </span>
+                  {editing === `${line.chunk}:${line.position}` ? (
+                    <CorrectLine
+                      labels={labels}
+                      text={line.text}
+                      busy={saving}
+                      onCancel={() => setEditing(undefined)}
+                      onSave={(text: string) => void correct(line.fromMs, line.toMs, text)}
+                    />
+                  ) : (
+                    <button
+                      type="button"
+                      /*
+                        * The line itself is the control. A pencil beside
+                        * every line would be forty icons on a page whose
+                        * whole job is to be read — and the thing you want to
+                        * press is the words that are wrong.
+                        */
+                      onClick={() => setEditing(`${line.chunk}:${line.position}`)}
+                      title={labels.correctLine}
+                      className="-mx-1 min-w-0 flex-1 rounded px-1 text-left"
+                    >
+                      {line.text}
+                      {typing && !caughtUp && position === shown.length - 1 ? <Caret /> : null}
+                    </button>
+                  )}
                 </p>
               ))}
             </div>
