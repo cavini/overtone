@@ -28,6 +28,7 @@ import {
 } from '@overtone/db/schema'
 import { and, asc, desc, eq, sql } from 'drizzle-orm'
 import { DrizzleAllowanceStore, DrizzleChunkStore } from '@overtone/db/repositories'
+import { chunkKey, freedAudio } from './freed-audio.js'
 import { isAbandoned } from './abandoned.js'
 import { topicsOfSeries } from './topics.js'
 import { blobStore, database, episodeDirectory, pipelineDependencies } from './wiring.js'
@@ -168,9 +169,6 @@ async function nextEpisodeNumber(seriesId: string): Promise<number> {
 
   return rows.reduce((highest, row) => Math.max(highest, row.number), 0) + 1
 }
-
-const chunkKey = (episodeId: string, index: number): string =>
-  `episodes/${episodeId}/chunk-${index}.wav`
 
 export interface StartedEpisode {
   readonly episodeId: string
@@ -681,12 +679,12 @@ export async function advanceOnce(episodeId: string): Promise<AdvancedEpisode> {
 
   const chunksDone = (await pipelineDependencies().chunks.transcribedIndexes(episodeId)).length
 
-  if (outcome.state !== 'ready') return { outcome, chunkCount: plan.length, chunksDone }
+  // The audio has done its job the moment its transcript is stored, and the
+  // bucket is the ceiling that arrives first. See `freedAudio`.
+  const dead = freedAudio(episodeId, outcome, plan.length)
+  if (dead.length > 0) await blobs.remove(dead)
 
-  // The audio has done its job: the provider's payload is what re-derivation
-  // reads, and 1 GB of storage is the ceiling that arrives first. Harmless
-  // to repeat — removing what is already gone is the outcome it wanted.
-  await blobs.remove(plan.map((chunk) => chunkKey(episodeId, chunk.index)))
+  if (outcome.state !== 'ready') return { outcome, chunkCount: plan.length, chunksDone }
 
   return {
     outcome,
