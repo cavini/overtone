@@ -96,4 +96,68 @@ describe('linesAfter', () => {
     const result = linesAfter([chunk(0, 0, 'um')], -3)
     expect([texts(result), result.nextFrom]).toEqual([['um'], 1])
   })
+
+/*
+ * The bug this file shipped with.
+ *
+ * A correction changed the counts, the search index and the stored
+ * transcript — and the page kept showing the misheard line, because the
+ * reader builds from the chunks and the overlay was only ever applied in
+ * the analysis. Reported from production with the words still wrong after a
+ * refresh, which is the only way anybody would have found it: everything a
+ * test looked at was already right.
+ */
+describe('a line somebody corrected', () => {
+  const chunk = {
+    index: 0,
+    offsetMs: 0,
+    words: [
+      { text: 'tô', startMs: 3_580, endMs: 3_680 },
+      { text: 'mostrando', startMs: 3_700, endMs: 3_900 },
+      { text: 'a', startMs: 3_940, endMs: 4_000 },
+      { text: 'saia', startMs: 4_040, endMs: 4_140 },
+      { text: 'agora,', startMs: 4_160, endMs: 4_500 },
+      { text: 'velho.', startMs: 4_580, endMs: 4_900 },
+    ],
+    segmentStartsMs: [],
+  }
+
+  it('reads as what was typed, not as what was heard', () => {
+    const { lines } = linesAfter([chunk], 0, [
+      { fromMs: 3_580, toMs: 4_581, text: 'Tô saindo de casa agora, velho.' },
+    ])
+
+    const read = lines.map((line) => line.text).join(' ')
+    expect(read).toContain('saindo de casa')
+    expect(read).not.toContain('mostrando')
+  })
+
+  it('still reads as what was heard when nothing was corrected', () => {
+    const { lines } = linesAfter([chunk], 0)
+
+    expect(lines.map((line) => line.text).join(' ')).toContain('mostrando a saia')
+  })
+
+  // The span the UI sends is the line's own, so a correction must not reach
+  // past it into the words either side.
+  it('leaves the lines around it alone', () => {
+    const longer = {
+      ...chunk,
+      words: [
+        { text: 'antes.', startMs: 1_000, endMs: 1_200 },
+        ...chunk.words,
+        { text: 'depois.', startMs: 6_000, endMs: 6_200 },
+      ],
+    }
+
+    const { lines } = linesAfter([longer], 0, [
+      { fromMs: 3_580, toMs: 4_581, text: 'meio.' },
+    ])
+
+    const read = lines.map((line) => line.text).join(' ')
+    expect(read).toContain('antes.')
+    expect(read).toContain('depois.')
+    expect(read).not.toContain('saia')
+  })
+})
 })

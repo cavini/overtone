@@ -137,6 +137,15 @@ export function TranscriptView({
   /** Which line is open for typing, as `chunk:position`. */
   const [editing, setEditing] = useState<string | undefined>(undefined)
   const [saving, setSaving] = useState(false)
+  /*
+   * Bumped after a correction, to make the reader fetch again.
+   *
+   * Clearing the lines is not enough on its own: the fetch runs on
+   * `[episodeId, live, open]`, and a finished episode does not poll — so
+   * emptying the list left an empty block with nothing to refill it, which
+   * is exactly what it did.
+   */
+  const [reloads, setReloads] = useState(0)
 
   /**
    * Records what was actually said, then reloads.
@@ -162,6 +171,7 @@ export function TranscriptView({
       setEditing(undefined)
       cursor.current = 0
       setLines([])
+      setReloads((count) => count + 1)
     } finally {
       setSaving(false)
     }
@@ -222,7 +232,7 @@ export function TranscriptView({
       fetching.current = false
       if (timer !== undefined) clearInterval(timer)
     }
-  }, [episodeId, live, open])
+  }, [episodeId, live, open, reloads])
 
   /*
    * Lets the words out.
