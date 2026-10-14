@@ -1,0 +1,22 @@
+{
+  "name": "@overtone/backfill",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "backfill": "tsx src/main.ts",
+    "test": "vitest",
+    "test:unit": "vitest run --coverage",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "@overtone/core": "workspace:*",
+    "@overtone/adapters": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^22.18.1",
+    "@vitest/coverage-v8": "^5.0.3",
+    "tsx": "^4.23.15",
+    "vitest": "^5.0.3"
+  }
+}

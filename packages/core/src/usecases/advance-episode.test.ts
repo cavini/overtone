@@ -26,7 +26,7 @@ const chunks: UploadedChunk[] = [0, 1, 2].map((index) => ({
   audioUrl: `audio://chunk-${index}`,
 }))
 
-const SPOKEN = ['hoje falamos do pirão', 'o hotdog é melhor', 'ninguém concorda comigo']
+const SPOKEN = ['hoje falamos do feijão', 'o guardachuva é melhor', 'ninguém concorda comigo']
 
 const harness = (
   options: {
@@ -298,11 +298,11 @@ describe('advanceEpisode', () => {
 
     it('counts a running joke across the chunk boundaries', async () => {
       const h = harness({ transcribed: [0, 1, 2] })
-      const topic: Topic = { id: 't-1', name: 'Hotdog', patterns: ['hotdog'] }
+      const topic: Topic = { id: 't-1', name: 'Guardachuva', patterns: ['guardachuva'] }
       await advance(h, [topic])
 
       expect(h.saved[0]?.mentions).toEqual([
-        expect.objectContaining({ topicId: 't-1', matchedText: 'hotdog' }),
+        expect.objectContaining({ topicId: 't-1', matchedText: 'guardachuva' }),
       ])
     })
   })

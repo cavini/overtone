@@ -27,13 +27,13 @@ strict schema that validates it needed no change.
 Recall on ordinary speech was excellent. The two findings are about the
 unusual words — which is where the risk always was.
 
-### `hotdog` was heard as `Outdog`
+### `guardachuva` was heard as `Guadachuva`
 
 Both times. Consistently.
 
-The topic `Hotdog`, with patterns `hotdog` and `hot dog`, counted **zero**
-mentions. The same topic with `outdog` added as an alias counted **two**,
-each with a timestamp.
+The topic `Guardachuva`, with patterns `guardachuva` and `guarda chuva`,
+counted **zero** mentions. The same topic with `guadachuva` added as an
+alias counted **two**, each with a timestamp.
 
 This is R1 materialising precisely as predicted, and it is also the
 clearest possible vindication of ADR 0006: a running joke is a *set* of
@@ -58,7 +58,7 @@ Nothing structural. Three things are now evidence rather than argument:
    survive transcription error, and the UI must make adding one obvious —
    ideally by noticing an unmatched near-miss and offering it.
 2. **A topic reporting zero needs to look like a question, not an answer.**
-   `Hotdog: 0` was *wrong*, and nothing on the page would have said so.
+   `Guardachuva: 0` was *wrong*, and nothing on the page would have said so.
    A zero on a topic whose words appear nowhere in the transcript deserves a
    prompt to check the spelling.
 3. The pilot should be repeated on a real episode before M2. Synthetic speech

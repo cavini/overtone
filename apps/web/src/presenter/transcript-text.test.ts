@@ -23,9 +23,9 @@ describe('linesAfter', () => {
   })
 
   it('reads every chunk, in order', () => {
-    expect(texts(linesAfter([chunk(0, 0, 'bom', 'dia.'), chunk(1, 9_000, 'pirão.')], 0))).toEqual([
+    expect(texts(linesAfter([chunk(0, 0, 'bom', 'dia.'), chunk(1, 9_000, 'feijão.')], 0))).toEqual([
       'bom dia.',
-      'pirão.',
+      'feijão.',
     ])
   })
 

@@ -118,9 +118,9 @@ try {
   // Two running jokes. The second carries the mishearing as an alias.
   const made: Topic[] = []
   for (const [name, patterns] of [
-    ['Pirão', ['pirão']],
-    ['Hotdog', ['hotdog', 'hot dog']],
-    ['Hotdog (com alias)', ['hotdog', 'hot dog', 'outdog']],
+    ['Feijão', ['feijão']],
+    ['Guardachuva', ['guardachuva', 'guarda chuva']],
+    ['Guardachuva (com alias)', ['guardachuva', 'guarda chuva', 'guadachuva']],
   ] as const) {
     const [t] = await db.insert(topics).values({ seriesId, name }).returning({ id: topics.id })
     const id = t?.id ?? ''

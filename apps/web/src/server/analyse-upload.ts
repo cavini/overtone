@@ -26,7 +26,7 @@ import {
   transcripts,
   episodeCorrections,
 } from '@overtone/db/schema'
-import { and, asc, desc, eq, sql } from 'drizzle-orm'
+import { and, asc, desc, eq, isNull, sql } from 'drizzle-orm'
 import { DrizzleAllowanceStore, DrizzleChunkStore } from '@overtone/db/repositories'
 import { chunkKey, freedAudio } from './freed-audio.js'
 import { isAbandoned } from './abandoned.js'
@@ -161,11 +161,23 @@ export async function seriesFor(userId: string): Promise<string> {
   return id
 }
 
-async function nextEpisodeNumber(seriesId: string): Promise<number> {
+/**
+ * The next number within one programme.
+ *
+ * Per category, because each show in the library counts from 1 — taking the
+ * highest number in the whole library would have an uncategorised upload
+ * land at 203 because Chuva de Canivetes is at 202.
+ */
+async function nextEpisodeNumber(seriesId: string, category?: string): Promise<number> {
   const rows = await database()
     .select({ number: episodes.number })
     .from(episodes)
-    .where(eq(episodes.seriesId, seriesId))
+    .where(
+      and(
+        eq(episodes.seriesId, seriesId),
+        category === undefined ? isNull(episodes.category) : eq(episodes.category, category),
+      ),
+    )
 
   return rows.reduce((highest, row) => Math.max(highest, row.number), 0) + 1
 }
@@ -223,7 +235,7 @@ export async function startEpisode(
   /*
    * A filename is not a title.
    *
-   * `sun-your-balls-201.m4a` was being stored verbatim, so a library of
+   * `chuva-de-canivetes-201.m4a` was being stored verbatim, so a library of
    * eleven episodes read like a directory listing. The number in the name
    * is the episode number when there is one, which is also what the library
    * sorts by.
@@ -234,13 +246,24 @@ export async function startEpisode(
    * The publisher's own title beats a guess made from a filename.
    *
    * Looked up by episode number in the show's feed, when the series has
-   * one. `Sun Your Balls #201` rather than `sun-your-balls-201`, and the
-   * show notes along with it — though on this show those run to a line.
+   * one. `Chuva de Canivetes #201` rather than `chuva-de-canivetes-201`, and
+   * the show notes along with it — though on this show those run to a line.
    *
    * A feed that cannot be reached must not stop an upload: the title read
    * from the filename is a perfectly good fallback, and refusing to accept
    * an episode because somebody else's XML is down would be absurd.
    */
+  /*
+   * Which programme this is, which is the name left once the number is taken
+   * off: `chuva-de-canivetes-001.mp3` is episode 1 of Chuva de Canivetes.
+   *
+   * Undefined when the filename carries no number, because then there is no
+   * programme-and-number to split and the whole name is the title. Guessing
+   * a category there would file the episode under a show that does not
+   * exist.
+   */
+  const category = named.number === undefined ? undefined : named.title
+
   let published: PublishedEpisode | undefined
   if (named.number !== undefined) {
     const [series_] = await db
@@ -250,7 +273,9 @@ export async function startEpisode(
       .limit(1)
 
     try {
-      published = await episodeDirectory(series_?.feedUrl)?.find(named.number)
+      // Scoped to this programme: the feed holds several, numbered
+      // independently, and the number alone matches the wrong one.
+      published = await episodeDirectory(series_?.feedUrl, category)?.find(named.number)
     } catch (error) {
       console.warn('could not read the feed; keeping the name from the file', error)
     }
@@ -261,8 +286,9 @@ export async function startEpisode(
     .insert(episodes)
     .values({
       seriesId,
-      number: named.number ?? (await nextEpisodeNumber(seriesId)),
+      number: named.number ?? (await nextEpisodeNumber(seriesId, category)),
       title,
+      ...(category === undefined ? {} : { category }),
       // Stored now because every later step re-derives the chunk plan from
       // it, and the plan has to come out the same every time.
       durationMs,
@@ -297,11 +323,12 @@ export interface LibraryEpisode {
   readonly chunksDone: number
   readonly chunkCount: number
   /**
-   * Whether a link to this one is out there.
+   * Which programme it is, so the library can read in sections.
    *
-   * Whether, not which. The token is the permission, and a list the page
-   * asks for every few seconds is no place to carry one around.
+   * Null for an episode whose filename carried no number — a loose upload
+   * rather than part of a show.
    */
+  readonly category: string | null
 }
 
 /**
@@ -320,6 +347,7 @@ export async function listEpisodes(userId: string): Promise<LibraryEpisode[]> {
       id: episodes.id,
       number: episodes.number,
       title: episodes.title,
+      category: episodes.category,
       durationMs: episodes.durationMs,
       chunkStartsMs: episodes.chunkStartsMs,
       status: episodes.status,
@@ -343,6 +371,7 @@ export async function listEpisodes(userId: string): Promise<LibraryEpisode[]> {
       episodes.id,
       episodes.number,
       episodes.title,
+      episodes.category,
       episodes.durationMs,
       episodes.status,
     )
@@ -352,6 +381,7 @@ export async function listEpisodes(userId: string): Promise<LibraryEpisode[]> {
     episodeId: row.id,
     number: row.number,
     title: row.title,
+    category: row.category,
     durationMs: row.durationMs,
     status: row.status,
     chunksDone: row.chunksDone,

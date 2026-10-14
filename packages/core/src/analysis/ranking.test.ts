@@ -21,8 +21,8 @@ describe('compareByCountThenLabel', () => {
 
   it('treats identical entries as equal', () => {
     expect(compareByCountThenLabel(
-      { count: 3, label: 'pirão' },
-      { count: 3, label: 'pirão' },
+      { count: 3, label: 'feijão' },
+      { count: 3, label: 'feijão' },
     )).toBe(0)
   })
 

@@ -21,7 +21,7 @@ let repository: DrizzleSeriesRepository
 
 const rowsFor = (sql: string): Record<string, unknown>[] => {
   if (sql.includes('"topics"')) {
-    return [{ id: 't-1', name: 'Hotdog', patterns: ['hotdog', 'hot dog'] }]
+    return [{ id: 't-1', name: 'Guardachuva', patterns: ['guardachuva', 'guarda chuva'] }]
   }
   if (sql.includes('"mentions"')) {
     return [{ episode_id: 'ep-1', topic_id: 't-1', count: '4' }]
@@ -136,8 +136,8 @@ describe('DrizzleSeriesRepository', () => {
       const topics = await repository.topics(SERIES)
       expect(topics[0]).toEqual({
         id: 't-1',
-        name: 'Hotdog',
-        patterns: ['hotdog', 'hot dog'],
+        name: 'Guardachuva',
+        patterns: ['guardachuva', 'guarda chuva'],
       })
     })
 

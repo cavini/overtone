@@ -37,37 +37,37 @@ describe('annotate', () => {
   })
 
   it('falls back to the stemmer for words it has never seen', () => {
-    const [token] = run('hotdogs')
-    expect(token?.lemma).toBe('hotdog')
+    const [token] = run('guardachuvas')
+    expect(token?.lemma).toBe('guardachuva')
     expect(token?.lemmaSource).toBe('stemmer')
   })
 
   it('keeps the surface when neither the dictionary nor the stemmer helps', () => {
-    const [token] = run('pirão')
-    expect(token?.lemma).toBe('pirão')
+    const [token] = run('feijão')
+    expect(token?.lemma).toBe('feijão')
     expect(token?.lemmaSource).toBe('surface')
   })
 
   it('classifies while it annotates', () => {
-    const classes = run('o pirão eh').map((t) => t.tokenClass)
+    const classes = run('o feijão eh').map((t) => t.tokenClass)
     expect(classes).toEqual(['stopword', 'word', 'filler'])
   })
 
   it('carries the surface and index through untouched', () => {
-    const tokens = run('falei do pirão')
-    expect(tokens.map((t) => t.surface)).toEqual(['falei', 'do', 'pirão'])
+    const tokens = run('falei do feijão')
+    expect(tokens.map((t) => t.surface)).toEqual(['falei', 'do', 'feijão'])
     expect(tokens.map((t) => t.index)).toEqual([0, 1, 2])
   })
 
   it('works with no dictionary at all', () => {
-    const tokens = annotate(tokenise(normalize('hotdogs e pirão'), 'pt'), new Map(), 'pt')
-    expect(tokens.map((t) => t.lemma)).toEqual(['hotdog', 'e', 'pirão'])
+    const tokens = annotate(tokenise(normalize('guardachuvas e feijão'), 'pt'), new Map(), 'pt')
+    expect(tokens.map((t) => t.lemma)).toEqual(['guardachuva', 'e', 'feijão'])
     expect(tokens.map((t) => t.lemmaSource)).toEqual(['stemmer', 'surface', 'surface'])
   })
 
   it('is deterministic', () => {
-    const once = run('Falei do pirão e dos hotdogs')
-    expect(JSON.stringify(run('Falei do pirão e dos hotdogs'))).toBe(JSON.stringify(once))
+    const once = run('Falei do feijão e dos guardachuvas')
+    expect(JSON.stringify(run('Falei do feijão e dos guardachuvas'))).toBe(JSON.stringify(once))
   })
 
   it('returns nothing for an empty stream', () => {

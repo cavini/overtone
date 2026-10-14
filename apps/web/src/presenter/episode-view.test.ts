@@ -19,11 +19,11 @@ const ANALYSIS: EpisodeAnalysis = {
   topics: [
     {
       topicId: 't1',
-      topicName: 'Pirão',
+      topicName: 'Feijão',
       count: 2,
       mentions: [
-        { matchedText: 'pirão', startMs: 65_000, endMs: 65_400 },
-        { matchedText: 'pirão', startMs: 3_725_000, endMs: 3_725_500 },
+        { matchedText: 'feijão', startMs: 65_000, endMs: 65_400 },
+        { matchedText: 'feijão', startMs: 3_725_000, endMs: 3_725_500 },
       ],
     },
   ],
@@ -82,11 +82,11 @@ describe('presentAnalysis', () => {
   it('puts each running joke with the moments it was said', () => {
     const [joke] = presentAnalysis(ANALYSIS, 'pt').topics
 
-    expect(joke?.name).toBe('Pirão')
+    expect(joke?.name).toBe('Feijão')
     expect(joke?.count).toBe('2')
     expect(joke?.moments).toEqual([
-      { at: '01:05', quote: 'pirão', startMs: 65_000 },
-      { at: '1:02:05', quote: 'pirão', startMs: 3_725_000 },
+      { at: '01:05', quote: 'feijão', startMs: 65_000 },
+      { at: '1:02:05', quote: 'feijão', startMs: 3_725_000 },
     ])
   })
 

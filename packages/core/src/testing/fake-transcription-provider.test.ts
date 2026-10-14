@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { FakeTranscriptionProvider, transcriptFromText } from './fake-transcription-provider.js'
 import { describeTranscriptionProvider } from './transcription-provider.contract.js'
 
-const EPISODE = 'E aí galera, hoje a gente vai falar do pirão do churrasco'
+const EPISODE = 'E aí galera, hoje a gente vai falar do feijão do churrasco'
 
 describeTranscriptionProvider('FakeTranscriptionProvider', () => ({
   provider: FakeTranscriptionProvider.withText('audio://episode-12', EPISODE),

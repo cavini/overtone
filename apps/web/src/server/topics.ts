@@ -15,8 +15,8 @@ import { database } from './wiring.js'
  *
  * A topic is a name and a list of spellings, because the transcriber decides
  * how a word comes out and it does not always agree with how it is said.
- * Experiment 0001 found `hotdog` consistently heard as "Outdog": the same
- * joke counted zero without that alias and twice with it (ADR 0006).
+ * Experiment 0001 found `guardachuva` consistently heard as "Guadachuva": the
+ * same joke counted zero without that alias and twice with it (ADR 0006).
  */
 
 export interface StoredTopic extends Topic {
@@ -79,7 +79,7 @@ export async function createTopic(
   const patterns = draft.patterns.map((pattern) => pattern.trim()).filter((p) => p.length > 0)
 
   // Keyed with the same function the scanner uses. Computing it separately
-  // here is how "o pirão" ends up filed under a key nothing looks for.
+  // here is how "o feijão" ends up filed under a key nothing looks for.
   const terms = patterns
     .map((pattern) => ({ pattern, matchKey: matchKeyFor(pattern) }))
     .filter((term): term is { pattern: string; matchKey: string } => term.matchKey !== undefined)

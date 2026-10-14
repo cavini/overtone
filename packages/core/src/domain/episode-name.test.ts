@@ -5,20 +5,20 @@ import { readEpisodeName } from './episode-name.js'
 describe('readEpisodeName', () => {
   /*
    * Files arrive named the way a filesystem likes them, and that is what
-   * was being stored: a library listing `sun-your-balls-201` eleven times
-   * reads like a directory, not like a show.
+   * was being stored: a library listing `chuva-de-canivetes-201` eleven
+   * times reads like a directory, not like a show.
    */
   it('reads a hyphenated filename as a title and a number', () => {
-    expect(readEpisodeName('sun-your-balls-201.m4a')).toEqual({
-      title: 'Sun Your Balls',
+    expect(readEpisodeName('chuva-de-canivetes-201.m4a')).toEqual({
+      title: 'Chuva de Canivetes',
       number: 201,
     })
   })
 
-  it.each(['sun_your_balls_199.mp3', 'sun your balls 199.wav', 'Sun-Your-Balls-199.M4A'])(
+  it.each(['chuva_de_canivetes_199.mp3', 'chuva de canivetes 199.wav', 'Chuva-de-Canivetes-199.M4A'])(
     'reads %o the same way',
     (filename) => {
-      expect(readEpisodeName(filename)).toEqual({ title: 'Sun Your Balls', number: 199 })
+      expect(readEpisodeName(filename)).toEqual({ title: 'Chuva de Canivetes', number: 199 })
     },
   )
 
@@ -62,8 +62,8 @@ describe('readEpisodeName', () => {
   })
 
   it('collapses the punctuation a filename collects', () => {
-    expect(readEpisodeName('sun--your__balls  201 .m4a')).toEqual({
-      title: 'Sun Your Balls',
+    expect(readEpisodeName('chuva--de__canivetes  201 .m4a')).toEqual({
+      title: 'Chuva de Canivetes',
       number: 201,
     })
   })

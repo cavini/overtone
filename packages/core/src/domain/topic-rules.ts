@@ -11,9 +11,9 @@
  * Spellings per joke.
  *
  * Has to be generous: the transcriber's variants are the point. Experiment
- * 0001 found `hotdog` consistently heard as "Outdog", and the same joke
- * counted zero without the alias and twice with it. A joke needs room for
- * how it is said *and* for how it comes out.
+ * 0001 found `guardachuva` consistently heard as "Guadachuva", and the same
+ * joke counted zero without the alias and twice with it. A joke needs room
+ * for how it is said *and* for how it comes out.
  */
 export const MAX_TERMS_PER_TOPIC = 12
 

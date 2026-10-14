@@ -6,8 +6,8 @@ import { getSeriesOverview } from './get-series-overview.js'
 
 const SERIES = 'series-1'
 
-const HOTDOG: Topic = { id: 't-hotdog', name: 'Hotdog', patterns: ['hotdog'] }
-const PIRAO: Topic = { id: 't-pirao', name: 'Pirão', patterns: ['pirão'] }
+const GUARDACHUVA: Topic = { id: 't-guardachuva', name: 'Guardachuva', patterns: ['guardachuva'] }
+const FEIJAO: Topic = { id: 't-feijao', name: 'Feijão', patterns: ['feijão'] }
 
 const episode = (
   number: number,
@@ -92,18 +92,18 @@ describe('getSeriesOverview', () => {
 
   describe('running jokes across the series', () => {
     const tallies: readonly TopicTally[] = [
-      { episodeId: 'ep-1', topicId: 't-hotdog', count: 4 },
-      { episodeId: 'ep-2', topicId: 't-hotdog', count: 9 },
-      { episodeId: 'ep-1', topicId: 't-pirao', count: 2 },
+      { episodeId: 'ep-1', topicId: 't-guardachuva', count: 4 },
+      { episodeId: 'ep-2', topicId: 't-guardachuva', count: 9 },
+      { episodeId: 'ep-1', topicId: 't-feijao', count: 2 },
     ]
 
     it('adds a joke up across every episode', async () => {
-      const overview = await overviewOf([episode(1), episode(2)], [HOTDOG, PIRAO], tallies)
-      expect(overview.topics.find((t) => t.topicName === 'Hotdog')?.total).toBe(13)
+      const overview = await overviewOf([episode(1), episode(2)], [GUARDACHUVA, FEIJAO], tallies)
+      expect(overview.topics.find((t) => t.topicName === 'Guardachuva')?.total).toBe(13)
     })
 
     it('reports a zero for an episode where it never came up', async () => {
-      const overview = await overviewOf([episode(1), episode(2)], [PIRAO], tallies)
+      const overview = await overviewOf([episode(1), episode(2)], [FEIJAO], tallies)
       expect(overview.topics[0]?.perEpisode).toEqual([
         { episodeNumber: 1, count: 2 },
         { episodeNumber: 2, count: 0 },
@@ -113,20 +113,20 @@ describe('getSeriesOverview', () => {
     // A watchlist entry that has never come up is information, not an
     // absence: it tells the group the bit has gone quiet.
     it('keeps a joke that has never come up at all', async () => {
-      const overview = await overviewOf([episode(1)], [HOTDOG, PIRAO], [])
+      const overview = await overviewOf([episode(1)], [GUARDACHUVA, FEIJAO], [])
       expect(overview.topics.map((t) => [t.topicName, t.total])).toEqual([
-        ['Hotdog', 0],
-        ['Pirão', 0],
+        ['Feijão', 0],
+        ['Guardachuva', 0],
       ])
     })
 
     it('ranks the jokes by how often they came up', async () => {
-      const overview = await overviewOf([episode(1), episode(2)], [PIRAO, HOTDOG], tallies)
-      expect(overview.topics.map((t) => t.topicName)).toEqual(['Hotdog', 'Pirão'])
+      const overview = await overviewOf([episode(1), episode(2)], [FEIJAO, GUARDACHUVA], tallies)
+      expect(overview.topics.map((t) => t.topicName)).toEqual(['Guardachuva', 'Feijão'])
     })
 
     it('reads episodes in order so a trend means something', async () => {
-      const overview = await overviewOf([episode(2), episode(1)], [HOTDOG], tallies)
+      const overview = await overviewOf([episode(2), episode(1)], [GUARDACHUVA], tallies)
       expect(overview.topics[0]?.perEpisode.map((p) => p.episodeNumber)).toEqual([1, 2])
     })
 
@@ -138,30 +138,30 @@ describe('getSeriesOverview', () => {
       const episodes = counts.map((_, i) => episode(i + 1))
       const tally = counts.map((count, i) => ({
         episodeId: `ep-${i + 1}`,
-        topicId: 't-hotdog',
+        topicId: 't-guardachuva',
         count,
       }))
-      const overview = await overviewOf(episodes, [HOTDOG], tally)
+      const overview = await overviewOf(episodes, [GUARDACHUVA], tally)
       expect(overview.topics[0]?.trend).toBe(expected)
     })
 
     it('will not call a trend on a single episode', async () => {
-      const overview = await overviewOf([episode(1)], [HOTDOG], [
-        { episodeId: 'ep-1', topicId: 't-hotdog', count: 4 },
+      const overview = await overviewOf([episode(1)], [GUARDACHUVA], [
+        { episodeId: 'ep-1', topicId: 't-guardachuva', count: 4 },
       ])
       expect(overview.topics[0]?.trend).toBe('unknown')
     })
 
     it('ignores a tally for an episode that is not in the series', async () => {
-      const overview = await overviewOf([episode(1)], [HOTDOG], [
-        { episodeId: 'ep-1', topicId: 't-hotdog', count: 4 },
-        { episodeId: 'ep-999', topicId: 't-hotdog', count: 1_000 },
+      const overview = await overviewOf([episode(1)], [GUARDACHUVA], [
+        { episodeId: 'ep-1', topicId: 't-guardachuva', count: 4 },
+        { episodeId: 'ep-999', topicId: 't-guardachuva', count: 1_000 },
       ])
       expect(overview.topics[0]?.total).toBe(4)
     })
 
     it('ignores a tally for a joke nobody is tracking', async () => {
-      const overview = await overviewOf([episode(1)], [HOTDOG], [
+      const overview = await overviewOf([episode(1)], [GUARDACHUVA], [
         { episodeId: 'ep-1', topicId: 't-deleted', count: 50 },
       ])
       expect(overview.topics).toHaveLength(1)
@@ -170,8 +170,8 @@ describe('getSeriesOverview', () => {
   })
 
   it('is deterministic', async () => {
-    const args = [[episode(1), episode(2)], [HOTDOG, PIRAO], [
-      { episodeId: 'ep-1', topicId: 't-hotdog', count: 4 },
+    const args = [[episode(1), episode(2)], [GUARDACHUVA, FEIJAO], [
+      { episodeId: 'ep-1', topicId: 't-guardachuva', count: 4 },
     ]] as const
     const once = await overviewOf(...args)
     expect(JSON.stringify(await overviewOf(...args))).toBe(JSON.stringify(once))

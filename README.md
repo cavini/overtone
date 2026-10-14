@@ -28,7 +28,7 @@ Transcription is a commodity and summarisation is crowded. What a podcast actual
 
 Running jokes are the headline feature. Your group already knows its recurring bits by name, so you name them once as a watchlist of words and phrases, and every episode reports them. Counting is deterministic SQL, never a guess, so the numbers are worth arguing about.
 
-That design has a useful side effect. Once per-episode aggregates are stored queryably, a question like *"how many times have we ever discussed hotdogs?"* is one indexed aggregate across the whole series. The AI assistant that answers it in plain English is deliberately **the last thing built and the cheapest** — everything it needs gets built first, for the dashboard. See [`ADR 0007`](docs/adr/0007-assistant-is-tool-use-not-rag.md).
+That design has a useful side effect. Once per-episode aggregates are stored queryably, a question like *"how many times have we ever discussed guardachuvas?"* is one indexed aggregate across the whole series. The AI assistant that answers it in plain English is deliberately **the last thing built and the cheapest** — everything it needs gets built first, for the dashboard. See [`ADR 0007`](docs/adr/0007-assistant-is-tool-use-not-rag.md).
 
 ## Status
 

@@ -43,7 +43,7 @@ describe('languagePack', () => {
     })
 
     it('stems Portuguese plurals', () => {
-      expect(pt.stem('hotdogs')).toBe('hotdog')
+      expect(pt.stem('guardachuvas')).toBe('guardachuva')
       expect(pt.stem('aviões')).toBe('avião')
     })
 

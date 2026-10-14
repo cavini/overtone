@@ -11,35 +11,35 @@ const draft = (name: string, patterns: readonly string[]) => ({ name, patterns }
 
 describe('checkTopic', () => {
   it('accepts a joke with a name and a word', () => {
-    expect(checkTopic(draft('Pirão', ['pirão']), [])).toBeUndefined()
+    expect(checkTopic(draft('Feijão', ['feijão']), [])).toBeUndefined()
   })
 
   // A topic with no terms matches nothing and silently reports zero, which
   // looks like "we never said it" rather than "you never told us what to
   // look for".
   it.each([[[]], [['']], [['   ']]])('refuses a joke with nothing to count: %o', (patterns) => {
-    expect(checkTopic(draft('Pirão', patterns), [])).toEqual({ code: 'TOPIC_NEEDS_A_TERM' })
+    expect(checkTopic(draft('Feijão', patterns), [])).toEqual({ code: 'TOPIC_NEEDS_A_TERM' })
   })
 
   it('refuses a joke with no name', () => {
-    expect(checkTopic(draft('  ', ['pirão']), [])).toEqual({ code: 'TOPIC_NEEDS_A_NAME' })
+    expect(checkTopic(draft('  ', ['feijão']), [])).toEqual({ code: 'TOPIC_NEEDS_A_NAME' })
   })
 
   it('refuses a name already taken', () => {
-    const problem = checkTopic(draft('Pirão', ['pirão']), [draft('Pirão', ['x'])])
+    const problem = checkTopic(draft('Feijão', ['feijão']), [draft('Feijão', ['x'])])
 
-    expect(problem).toEqual({ code: 'TOPIC_NAME_TAKEN', name: 'Pirão' })
+    expect(problem).toEqual({ code: 'TOPIC_NAME_TAKEN', name: 'Feijão' })
   })
 
-  // Names are for people, so "pirão" and "Pirão" are the same joke.
+  // Names are for people, so "feijão" and "Feijão" are the same joke.
   it('compares names the way a person would', () => {
-    expect(checkTopic(draft('  pirão ', ['x']), [draft('Pirão', ['y'])])).toMatchObject({
+    expect(checkTopic(draft('  feijão ', ['x']), [draft('Feijão', ['y'])])).toMatchObject({
       code: 'TOPIC_NAME_TAKEN',
     })
   })
 
   it('allows a different name', () => {
-    expect(checkTopic(draft('Hotdog', ['hotdog']), [draft('Pirão', ['pirão'])])).toBeUndefined()
+    expect(checkTopic(draft('Guardachuva', ['guardachuva']), [draft('Feijão', ['feijão'])])).toBeUndefined()
   })
 
   it('refuses more variations than it will hold', () => {
@@ -102,8 +102,8 @@ describe('checkTopic', () => {
 
 describe('the limits themselves', () => {
   // Enough spellings for the transcriber's variants. Experiment 0001 found
-  // "hotdog" consistently heard as "Outdog": a joke needs room for the way
-  // it is said *and* the ways it comes out.
+  // "guardachuva" consistently heard as "Guadachuva": a joke needs room for
+  // the way it is said *and* the ways it comes out.
   it('leaves room for mishearings', () => {
     expect(MAX_TERMS_PER_TOPIC).toBeGreaterThanOrEqual(5)
   })

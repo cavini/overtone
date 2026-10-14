@@ -20,11 +20,11 @@ const analyse = (
   lemmas: ReadonlyMap<string, string> = NO_DICTIONARY,
 ) => countTerms(annotate(tokenise(normalize(text), 'pt'), lemmas, 'pt'), options)
 
-const SENTENCE = 'O pirão do churrasco é melhor que o pirão da feira'
+const SENTENCE = 'O feijão do churrasco é melhor que o feijão da feira'
 
 describe('countTerms', () => {
   it('counts every occurrence, including repeats in one sentence', () => {
-    expect(analyse(SENTENCE).terms.find((t) => t.term === 'pirão')?.count).toBe(2)
+    expect(analyse(SENTENCE).terms.find((t) => t.term === 'feijão')?.count).toBe(2)
   })
 
   it('leaves stop words and fillers out of the default view', () => {
@@ -32,7 +32,7 @@ describe('countTerms', () => {
     expect(listed).not.toContain('o')
     expect(listed).not.toContain('é')
     expect(listed).not.toContain('eh')
-    expect(listed).toEqual(['pirão', 'churrasco', 'feira', 'melhor'])
+    expect(listed).toEqual(['feijão', 'churrasco', 'feira', 'melhor'])
   })
 
   it('includes them on request', () => {
@@ -42,7 +42,7 @@ describe('countTerms', () => {
 
   it('sorts by count, then alphabetically, so the order never wobbles', () => {
     expect(analyse(SENTENCE).terms.map((t) => [t.term, t.count])).toEqual([
-      ['pirão', 2],
+      ['feijão', 2],
       ['churrasco', 1],
       ['feira', 1],
       ['melhor', 1],
@@ -82,8 +82,8 @@ describe('countTerms', () => {
     })
 
     it('marks a grouping the stemmer made, so the UI can flag it', () => {
-      const { terms } = analyse('hotdogs e hotdog')
-      expect(terms[0]).toMatchObject({ term: 'hotdog', count: 2, heuristic: true })
+      const { terms } = analyse('guardachuvas e guardachuva')
+      expect(terms[0]).toMatchObject({ term: 'guardachuva', count: 2, heuristic: true })
     })
 
     it('does not mark a grouping the dictionary made', () => {
@@ -92,7 +92,7 @@ describe('countTerms', () => {
     })
 
     it('does not mark a term that was never grouped at all', () => {
-      expect(analyse('pirão').terms[0]?.heuristic).toBe(false)
+      expect(analyse('feijão').terms[0]?.heuristic).toBe(false)
     })
   })
 

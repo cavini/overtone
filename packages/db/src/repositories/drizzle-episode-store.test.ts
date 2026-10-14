@@ -12,7 +12,7 @@ const analysis: StoredAnalysis = {
     provider: 'groq',
     providerModel: 'whisper-large-v3-turbo',
     rawProviderPayload: { words: [] },
-    fullText: 'hoje falamos do pirão',
+    fullText: 'hoje falamos do feijão',
     normalizationVersion: 1,
     vocabularyVersion: 1,
   },
@@ -21,10 +21,10 @@ const analysis: StoredAnalysis = {
       position: 0,
       startMs: 0,
       endMs: 1_600,
-      text: 'hoje falamos do pirão',
+      text: 'hoje falamos do feijão',
       words: [
         { surface: 'hoje', lemma: 'hoje', startMs: 0, endMs: 400, tokenClass: 'stopword' },
-        { surface: 'pirão', lemma: 'pirão', startMs: 1_200, endMs: 1_600, tokenClass: 'word' },
+        { surface: 'feijão', lemma: 'feijão', startMs: 1_200, endMs: 1_600, tokenClass: 'word' },
       ],
     },
   ],
@@ -40,10 +40,10 @@ const analysis: StoredAnalysis = {
     fillersPerMinute: 0,
   },
   termCounts: [
-    { term: 'pirão', count: 1, surfaceForms: ['pirão'], heuristic: false },
+    { term: 'feijão', count: 1, surfaceForms: ['feijão'], heuristic: false },
   ],
   mentions: [
-    { topicId: 't-1', matchedText: 'pirão', startMs: 1_200, endMs: 1_600 },
+    { topicId: 't-1', matchedText: 'feijão', startMs: 1_200, endMs: 1_600 },
   ],
 }
 

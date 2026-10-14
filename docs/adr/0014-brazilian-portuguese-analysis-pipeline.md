@@ -37,7 +37,7 @@ The lookup must not break `packages/core`'s no-I/O rule. So it doesn't: core's `
 
 ### The orthography problem gets a product answer, not a technical one
 
-We cannot stop Whisper normalising `pra` to `para`. What we can do is make a running joke's watchlist carry **both spoken and written variants as aliases** — which the watchlist design (ADR 0006) already supports, because a topic was always a *set* of patterns rather than one string. The gendered and plural variants that Portuguese adds (`o hotdog`/`os hotdogs`, `bonito/bonita/bonitos/bonitas`) ride the same mechanism.
+We cannot stop Whisper normalising `pra` to `para`. What we can do is make a running joke's watchlist carry **both spoken and written variants as aliases** — which the watchlist design (ADR 0006) already supports, because a topic was always a *set* of patterns rather than one string. The gendered and plural variants that Portuguese adds (`o guardachuva`/`os guardachuvas`, `bonito/bonita/bonitos/bonitas`) ride the same mechanism.
 
 This is the second time the watchlist decision has absorbed a problem it wasn't designed for.
 

@@ -4,7 +4,7 @@
 
 ## Context
 
-A Portuguese verb has roughly fifty inflected forms. Without a dictionary, `falar`, `falei`, `falando` and `falou` are four separate terms, and the most-said list fragments into conjugations instead of showing what the show actually talks about. The stemmer already in place handles plurals — `hotdogs` → `hotdog` — and deliberately refuses to guess at conjugation, because a general-purpose Portuguese stemmer folds `comer` into `com` and promotes a preposition to the top of the frequency list.
+A Portuguese verb has roughly fifty inflected forms. Without a dictionary, `falar`, `falei`, `falando` and `falou` are four separate terms, and the most-said list fragments into conjugations instead of showing what the show actually talks about. The stemmer already in place handles plurals — `guardachuvas` → `guardachuva` — and deliberately refuses to guess at conjugation, because a general-purpose Portuguese stemmer folds `comer` into `com` and promotes a preposition to the top of the frequency list.
 
 So a form→lemma dictionary is the missing piece. Three ways to get one:
 

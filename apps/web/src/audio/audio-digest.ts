@@ -2,7 +2,7 @@
  * A fingerprint of the audio, computed before anything is uploaded.
  *
  * Names cannot identify an episode: the same recording arrives as
- * `ep-201.mp3` one day and `Sun Your Balls 201.m4a` the next, and
+ * `ep-201.mp3` one day and `Chuva de Canivetes 201.m4a` the next, and
  * re-transcribing a two-hour episode spends roughly a third of a day's free
  * allowance to learn nothing.
  *

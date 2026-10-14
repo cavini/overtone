@@ -1,7 +1,7 @@
 -- Recognising an episode that has already been uploaded.
 --
 -- Names are not enough: the same recording arrives as `ep-201.mp3` one day
--- and `Sun Your Balls 201.m4a` the next. A hash of the audio itself is the
+-- and `Chuva de Canivetes 201.m4a` the next. A hash of the audio itself is the
 -- only thing that identifies it, and re-transcribing a two-hour episode
 -- spends roughly a third of a day's free allowance to learn nothing.
 --

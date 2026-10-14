@@ -10,7 +10,7 @@ describe('normalize', () => {
   it('strips punctuation from the edges but not the middle', () => {
     expect(normalize('olá,')).toBe('olá')
     expect(normalize('...café!')).toBe('café')
-    expect(normalize('«pirão»')).toBe('pirão')
+    expect(normalize('«feijão»')).toBe('feijão')
     expect(normalize("d'água")).toBe("d'água")
     expect(normalize('diga-me')).toBe('diga-me')
   })
@@ -43,7 +43,7 @@ describe('normalize', () => {
   })
 
   it('collapses internal whitespace and trims', () => {
-    expect(normalize('  o   pirão  ')).toBe('o pirão')
+    expect(normalize('  o   feijão  ')).toBe('o feijão')
   })
 
   it('returns an empty string for input with no word characters', () => {

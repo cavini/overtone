@@ -17,6 +17,7 @@ export { describeChunkStore, type ChunkStoreUnderTest } from './chunk-store.cont
 export { describeBlobStore, type BlobStoreUnderTest } from './blob-store.contract.js'
 export { FakeBlobStore } from './fake-blob-store.js'
 export { describeEpisodeDirectory, type EpisodeDirectoryUnderTest } from './episode-directory.contract.js'
+export { describeEpisodeFeed, type EpisodeFeedUnderTest } from './episode-feed.contract.js'
 export { FakeIdentityProvider } from './fake-identity-provider.js'
 export {
   describeIdentityProvider,

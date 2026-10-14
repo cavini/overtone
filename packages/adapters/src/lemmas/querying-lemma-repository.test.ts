@@ -35,14 +35,14 @@ describe('QueryingLemmaRepository', () => {
     const lemmas = await new QueryingLemmaRepository(query).lookup([
       'falei',
       'falando',
-      'pirão',
+      'feijão',
     ], 'pt')
 
     expect(lemmas.get('falei')).toBe('falar')
     expect(lemmas.get('falando')).toBe('falar')
     // An absent form is simply missing, so the caller falls back to the
     // stemmer rather than being handed a wrong answer.
-    expect(lemmas.has('pirão')).toBe(false)
+    expect(lemmas.has('feijão')).toBe(false)
   })
 
   it('asks about each form once, however often it was said', async () => {
@@ -101,7 +101,7 @@ describe('QueryingLemmaRepository', () => {
 
   it('returns an empty map when the dictionary knows nothing', async () => {
     const empty: LemmaQuery = () => Promise.resolve([])
-    expect((await new QueryingLemmaRepository(empty).lookup(['pirão'], 'pt')).size).toBe(0)
+    expect((await new QueryingLemmaRepository(empty).lookup(['feijão'], 'pt')).size).toBe(0)
   })
 })
 

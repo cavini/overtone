@@ -27,6 +27,7 @@ export type { BlobStore } from './blob-store.js'
 export type { TranscriptMatch, TranscriptSearch } from './transcript-search.js'
 export { MATCH_CLOSE, MATCH_OPEN } from './transcript-search.js'
 export type { EpisodeDirectory, PublishedEpisode } from './episode-directory.js'
+export type { EpisodeFeed, FeedEpisode } from './episode-feed.js'
 export type {
   Identity,
   IdentityFailure,

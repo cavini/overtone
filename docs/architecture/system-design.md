@@ -107,7 +107,7 @@ Decisions that are expensive to change, so they are made now:
 - **`term_counts.lemma_source` records whether a grouping came from the dictionary or the stemmer.** Stemmed groupings are heuristic and can over-merge (`casa`/`casar`), so the UI marks them and the user can split them with an alias. We never hide the provenance of a merge.
 - **Word timings live in `segments.words` as compact JSONB, not one row per token.** A 2-hour episode is ~20 k words; one row each would be ~4–5 MB per episode and would exhaust the 500 MB free database at about 110 episodes. JSONB is roughly a quarter of that. Counting reads `term_counts`; playback reads the JSONB for only the segments on screen.
 - **Every read is scoped by `series_members`, never by `owner_id`** (ADR 0012). A new series gets exactly one member — its owner — so this behaves identically to single-owner today, while "invite a co-host" stays a row insert instead of a migration touching every query and RLS policy. Writing the predicate this way from the first query means there is no cutover to forget.
-- **`topics` are scoped to the `series`, not the episode.** A running joke belongs to the show. This is the schema fact that makes "how many times have we *ever* mentioned the hotdog thing" one indexed aggregate instead of a scan.
+- **`topics` are scoped to the `series`, not the episode.** A running joke belongs to the show. This is the schema fact that makes "how many times have we *ever* mentioned the guardachuva thing" one indexed aggregate instead of a scan.
 - **`term_counts` is materialised per episode**, invalidated by `pipeline_version`. The series rollup — the feature the stakeholder actually asked for — is then a `SUM ... GROUP BY lemma` over a few dozen small rows, not an aggregate over millions of tokens.
 - **`term_counts` and `mentions` stay real tables** because every aggregate query touches them, and they are small — a few thousand rows per episode rather than twenty thousand.
 - **All three forms stored: `surface`, `normalized`, `lemma`** (domain decision D4). Lemma-grouped is the default view with an "exact words" toggle; storing all three makes that a display concern, not a re-analysis.
@@ -160,7 +160,7 @@ The hard cases are acceptance criteria, therefore tests, not implementation deta
 
 | Case | Rule |
 |---|---|
-| `hotdog` / `hot dog` / `hot-dog` | One topic, three patterns. Matched on normalised n-grams with separators stripped, so all three count (D6). |
+| `guardachuva` / `guarda chuva` / `guarda-chuva` | One topic, three patterns. Matched on normalised n-grams with separators stripped, so all three count (D6). |
 | `run` / `running` / `ran` | Same lemma, one term. Surface forms kept and shown, so the count is explicable (D4). |
 | `don't` | One token, lemma `do not`. Never split into a stray `t` (D3). |
 | `um`, `uh` | A separate filler class — excluded from top terms, but filler rate is a genuinely funny podcast stat in its own right (D2). |

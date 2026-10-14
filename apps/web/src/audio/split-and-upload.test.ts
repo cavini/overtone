@@ -13,8 +13,7 @@ interface Sent {
 
 let sent: Sent[]
 let uploadStatus: number
-let decoded: { numberOfChannels: number; length: number; channels: Float32Array[] }
-let contextsClosed: number
+let samples: Float32Array
 let decodeCalls: number
 
 /** Keeps its bytes so a test can read back what would have been uploaded. */
@@ -25,32 +24,22 @@ class StubBlob {
   }
 }
 
-let requestedRates: number[]
-
-class StubAudioContext {
-  constructor(readonly options: { sampleRate: number }) {
-    requestedRates.push(options.sampleRate)
-  }
-  decodeAudioData(): Promise<unknown> {
-    decodeCalls += 1
-    return Promise.resolve({
-      numberOfChannels: decoded.numberOfChannels,
-      length: decoded.length,
-      getChannelData: (index: number) => decoded.channels[index],
-    })
-  }
-  close(): Promise<void> {
-    contextsClosed += 1
-    return Promise.resolve()
-  }
-}
-
 /** Reads the samples back out of a WAV the code produced. */
 const samplesOf = (wav: Uint8Array): Int16Array =>
   new Int16Array(wav.buffer.slice(wav.byteOffset + 44, wav.byteOffset + wav.length))
 
-const fileOf = (): File =>
-  ({ arrayBuffer: () => Promise.resolve(new ArrayBuffer(8)) }) as unknown as File
+/**
+ * The episode, already decoded.
+ *
+ * Which decoder produced it is not this function's business any more: the
+ * browser has an `AudioContext` and the backfill tool has `ffmpeg`, and the
+ * cutting, settling and reporting below them is the same work. See
+ * `decode-in-browser.test.ts` for the browser's half.
+ */
+const decoder = () => {
+  decodeCalls += 1
+  return Promise.resolve(samples)
+}
 
 const target = (index: number, startMs: number, endMs: number): ChunkTarget => ({
   index,
@@ -66,12 +55,9 @@ const ramp = (length: number, from = 0): Float32Array =>
 beforeEach(() => {
   sent = []
   uploadStatus = 200
-  contextsClosed = 0
   decodeCalls = 0
-  requestedRates = []
-  decoded = { numberOfChannels: 1, length: 0, channels: [new Float32Array(0)] }
+  samples = new Float32Array(0)
 
-  vi.stubGlobal('AudioContext', StubAudioContext)
   vi.stubGlobal('Blob', StubBlob)
   vi.stubGlobal('fetch', vi.fn((url: string, init: RequestInit) => {
     const body = init.body as unknown as StubBlob
@@ -98,25 +84,13 @@ afterEach(() => {
 const noted = async (): Promise<void> => {}
 
 describe('splitAndUpload', () => {
-  it('decodes the file once, not once per chunk', async () => {
-    decoded = { numberOfChannels: 1, length: SAMPLE_RATE * 4, channels: [ramp(SAMPLE_RATE * 4)] }
+  it('decodes the episode once, not once per chunk', async () => {
+    samples = ramp(SAMPLE_RATE * 4)
 
-    await splitAndUpload(fileOf(), [target(0, 0, 2000), target(1, 2000, 4000)], () => {}, noted)
+    await splitAndUpload(decoder, [target(0, 0, 2000), target(1, 2000, 4000)], () => {}, noted)
 
     expect(decodeCalls).toBe(1)
     expect(sent).toHaveLength(2)
-  })
-
-  it('decodes straight to the rate that will be sent', async () => {
-    decoded = { numberOfChannels: 1, length: SAMPLE_RATE, channels: [ramp(SAMPLE_RATE)] }
-
-    await splitAndUpload(fileOf(), [target(0, 0, 1000)], () => {}, noted)
-
-    // Decoded straight to the rate that will be sent. Decoding at 48 kHz
-    // and resampling later is six times the memory for samples nobody
-    // sends — and a two-hour episode is already hundreds of megabytes.
-    expect(requestedRates).toEqual([SAMPLE_RATE])
-    expect(sent[0]?.samples.length).toBe(SAMPLE_RATE)
   })
 
   /*
@@ -125,10 +99,10 @@ describe('splitAndUpload', () => {
    * points at the wrong moment, which reads as plausible and is wrong.
    */
   it('sends exactly the samples the chunk covers', async () => {
-    decoded = { numberOfChannels: 1, length: SAMPLE_RATE * 3, channels: [ramp(SAMPLE_RATE * 3)] }
+    samples = ramp(SAMPLE_RATE * 3)
 
     await splitAndUpload(
-      fileOf(),
+      decoder,
       [target(0, 0, 1000), target(1, 1000, 2000), target(2, 2000, 3000)],
       () => {},
       noted,
@@ -143,9 +117,9 @@ describe('splitAndUpload', () => {
   })
 
   it('leaves no gap between one chunk and the next', async () => {
-    decoded = { numberOfChannels: 1, length: SAMPLE_RATE * 2, channels: [ramp(SAMPLE_RATE * 2)] }
+    samples = ramp(SAMPLE_RATE * 2)
 
-    await splitAndUpload(fileOf(), [target(0, 0, 1000), target(1, 1000, 2000)], () => {}, noted)
+    await splitAndUpload(decoder, [target(0, 0, 1000), target(1, 1000, 2000)], () => {}, noted)
 
     const total = sent.reduce((count, upload) => count + upload.samples.length, 0)
     expect(total).toBe(SAMPLE_RATE * 2)
@@ -154,32 +128,17 @@ describe('splitAndUpload', () => {
   // The last chunk's planned end comes from a duration the browser measured,
   // which can run a few milliseconds past the samples that actually decoded.
   it('does not read past the end of the audio', async () => {
-    decoded = { numberOfChannels: 1, length: SAMPLE_RATE, channels: [ramp(SAMPLE_RATE)] }
+    samples = ramp(SAMPLE_RATE)
 
-    await splitAndUpload(fileOf(), [target(0, 0, 5000)], () => {}, noted)
+    await splitAndUpload(decoder, [target(0, 0, 5000)], () => {}, noted)
 
     expect(sent[0]?.samples.length).toBe(SAMPLE_RATE)
   })
 
-  // A podcast edit can easily put one voice on one side. Taking only the
-  // left channel would lose a host.
-  it('averages the channels rather than taking one', async () => {
-    decoded = {
-      numberOfChannels: 2,
-      length: 4,
-      channels: [new Float32Array([1, 1, 1, 1]), new Float32Array([-1, -1, -1, -1])],
-    }
-
-    await splitAndUpload(fileOf(), [target(0, 0, 1)], () => {}, noted)
-
-    // +1 and −1 average to silence; taking the left would give full scale.
-    expect([...(sent[0]?.samples ?? [])].every((sample) => sample === 0)).toBe(true)
-  })
-
   it('puts each chunk at its own url, as audio/wav', async () => {
-    decoded = { numberOfChannels: 1, length: SAMPLE_RATE * 2, channels: [ramp(SAMPLE_RATE * 2)] }
+    samples = ramp(SAMPLE_RATE * 2)
 
-    await splitAndUpload(fileOf(), [target(0, 0, 1000), target(1, 1000, 2000)], () => {}, noted)
+    await splitAndUpload(decoder, [target(0, 0, 1000), target(1, 1000, 2000)], () => {}, noted)
 
     expect(sent.map((upload) => upload.method)).toEqual(['PUT', 'PUT'])
     expect(sent.map((upload) => upload.contentType)).toEqual(['audio/wav', 'audio/wav'])
@@ -188,11 +147,11 @@ describe('splitAndUpload', () => {
   })
 
   it('counts up as the chunks go', async () => {
-    decoded = { numberOfChannels: 1, length: SAMPLE_RATE * 2, channels: [ramp(SAMPLE_RATE * 2)] }
+    samples = ramp(SAMPLE_RATE * 2)
     const seen: Array<[number, number]> = []
 
     await splitAndUpload(
-      fileOf(),
+      decoder,
       [target(0, 0, 1000), target(1, 1000, 2000)],
       ({ done, total }) => seen.push([done, total]),
       noted,
@@ -204,25 +163,40 @@ describe('splitAndUpload', () => {
   // A chunk that silently failed to upload would leave the episode stuck
   // forever, waiting for audio that is not there.
   it('stops and says so when an upload is refused', async () => {
-    decoded = { numberOfChannels: 1, length: SAMPLE_RATE * 2, channels: [ramp(SAMPLE_RATE * 2)] }
+    samples = ramp(SAMPLE_RATE * 2)
     uploadStatus = 403
 
     await expect(
-      splitAndUpload(fileOf(), [target(0, 0, 1000), target(1, 1000, 2000)], () => {}, noted),
+      splitAndUpload(decoder, [target(0, 0, 1000), target(1, 1000, 2000)], () => {}, noted),
     ).rejects.toThrow(/chunk 0/u)
 
     expect(sent).toHaveLength(1)
   })
 
-  it('closes the audio context even when decoding throws', async () => {
-    vi.stubGlobal('AudioContext', class extends StubAudioContext {
-      override decodeAudioData(): Promise<unknown> {
-        return Promise.reject(new Error('not audio'))
-      }
-    })
+  // The status is in the message because the caller has to tell one failure
+  // from another: a signed upload URL expires after fifteen minutes, and a
+  // 403 means start the episode again rather than give up on the run.
+  it('says which status refused it', async () => {
+    samples = ramp(SAMPLE_RATE)
+    uploadStatus = 403
 
-    await expect(splitAndUpload(fileOf(), [target(0, 0, 1000)], () => {}, noted)).rejects.toThrow()
-    expect(contextsClosed).toBe(1)
+    await expect(
+      splitAndUpload(decoder, [target(0, 0, 1000)], () => {}, noted),
+    ).rejects.toThrow(/403/u)
+  })
+
+  it('sends nothing when the audio cannot be decoded', async () => {
+    const broken = () => Promise.reject(new Error('not audio'))
+    let recorded = false
+
+    await expect(
+      splitAndUpload(broken, [target(0, 0, 1000)], () => {}, async () => {
+        recorded = true
+      }),
+    ).rejects.toThrow('not audio')
+
+    expect(sent).toEqual([])
+    expect(recorded, 'boundaries recorded for audio that never decoded').toBe(false)
   })
 
   /*
@@ -234,10 +208,11 @@ describe('splitAndUpload', () => {
    * bug.
    */
   it('records the boundaries before it sends a single byte', async () => {
+    samples = ramp(SAMPLE_RATE * 2)
     const order: string[] = []
 
     await splitAndUpload(
-      fileOf(),
+      decoder,
       [target(0, 0, 1000), target(1, 1000, 2000)],
       () => {},
       async () => {
@@ -250,8 +225,10 @@ describe('splitAndUpload', () => {
   })
 
   it('uploads nothing at all when the boundaries cannot be recorded', async () => {
+    samples = ramp(SAMPLE_RATE * 2)
+
     await expect(
-      splitAndUpload(fileOf(), [target(0, 0, 1000), target(1, 1000, 2000)], () => {}, async () => {
+      splitAndUpload(decoder, [target(0, 0, 1000), target(1, 1000, 2000)], () => {}, async () => {
         throw new Error('server said no')
       }),
     ).rejects.toThrow('server said no')
@@ -260,10 +237,11 @@ describe('splitAndUpload', () => {
   })
 
   it('reports the boundaries it actually cut on', async () => {
+    samples = ramp(SAMPLE_RATE * 2)
     let reported: readonly number[] = []
 
     const settled = await splitAndUpload(
-      fileOf(),
+      decoder,
       [target(0, 0, 1000), target(1, 1000, 2000)],
       () => {},
       async (startsMs) => {

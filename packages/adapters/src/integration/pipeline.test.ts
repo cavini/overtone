@@ -29,8 +29,8 @@ const fixtures = resolve(dirname(fileURLToPath(import.meta.url)), '../../../../f
 
 const EPISODE = 'episode-12'
 
-const HOTDOG: Topic = { id: 'topic-hotdog', name: 'Hotdog', patterns: ['hotdog'] }
-const PIRAO: Topic = { id: 'topic-pirao', name: 'Pirão', patterns: ['pirão'] }
+const GUARDACHUVA: Topic = { id: 'topic-guardachuva', name: 'Guardachuva', patterns: ['guardachuva'] }
+const FEIJAO: Topic = { id: 'topic-feijao', name: 'Feijão', patterns: ['feijão'] }
 const GRAVACAO: Topic = { id: 'topic-gravacao', name: 'Gravação', patterns: ['gravação'] }
 
 let analysis: StoredAnalysis
@@ -76,7 +76,7 @@ beforeAll(async () => {
     clock,
   }
 
-  const request = { episodeId: EPISODE, chunks, topics: [HOTDOG, PIRAO, GRAVACAO] }
+  const request = { episodeId: EPISODE, chunks, topics: [GUARDACHUVA, FEIJAO, GRAVACAO] }
 
   // Step until it settles, the way a scheduled poke would.
   let step = await advanceEpisode(request, deps)
@@ -138,14 +138,14 @@ describe('the pipeline, end to end', () => {
   })
 
   describe('running jokes', () => {
-    it('counts hotdog across every spelling it was written in', () => {
-      expect(mentionsOf(HOTDOG).map((m) => m.matchedText)).toEqual([
-        'hotdog', 'hotdog', 'hot dog', 'hot-dog',
+    it('counts guardachuva across every spelling it was written in', () => {
+      expect(mentionsOf(GUARDACHUVA).map((m) => m.matchedText)).toEqual([
+        'guardachuva', 'guardachuva', 'guarda chuva', 'guarda-chuva',
       ])
     })
 
     it('counts a one-word joke', () => {
-      expect(mentionsOf(PIRAO)).toHaveLength(2)
+      expect(mentionsOf(FEIJAO)).toHaveLength(2)
     })
 
     it('finds a joke through its inflection', () => {
@@ -157,7 +157,7 @@ describe('the pipeline, end to end', () => {
     // Every mention is playable. This is what makes a count arguable instead
     // of something to be taken on faith.
     it('locates every mention in the audio, in order', () => {
-      const found = mentionsOf(HOTDOG)
+      const found = mentionsOf(GUARDACHUVA)
       expect(found).not.toHaveLength(0)
 
       for (const mention of found) {

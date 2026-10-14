@@ -58,10 +58,10 @@ The PO's acceptance criteria translate mechanically. Given this AC:
 
 ```gherkin
 Scenario: Compound term variants count as one topic
-  Given a topic "Hotdogs" with patterns "hotdog", "hot dog", "hot-dog"
-  And a transcript containing "I love a hotdog, but a hot-dog costs more than a hot dog"
+  Given a topic "Guardachuvas" with patterns "guardachuva", "guarda chuva", "guarda-chuva"
+  And a transcript containing "I love a guardachuva, but a guarda-chuva costs more than a guarda chuva"
   When the analysis runs
-  Then the topic "Hotdogs" has 3 mentions
+  Then the topic "Guardachuvas" has 3 mentions
   And each mention records its own start and end timestamp
 ```
 
@@ -69,17 +69,17 @@ the test is:
 
 ```ts
 describe('findMentions', () => {
-  it('counts hotdog, hot dog and hot-dog as one topic', () => {
-    const topic = topicFixture({ name: 'Hotdogs',
-      patterns: ['hotdog', 'hot dog', 'hot-dog'] })
+  it('counts guardachuva, guarda chuva and guarda-chuva as one topic', () => {
+    const topic = topicFixture({ name: 'Guardachuvas',
+      patterns: ['guardachuva', 'guarda chuva', 'guarda-chuva'] })
     const tokens = annotate(tokenise(
-      'I love a hotdog, but a hot-dog costs more than a hot dog'))
+      'I love a guardachuva, but a guarda-chuva costs more than a guarda chuva'))
 
     const mentions = findMentions(tokens, topic)
 
     expect(mentions).toHaveLength(3)
     expect(mentions.map(m => m.matchedText))
-      .toEqual(['hotdog', 'hot-dog', 'hot dog'])
+      .toEqual(['guardachuva', 'guarda-chuva', 'guarda chuva'])
     mentions.forEach(m => {
       expect(m.startMs).toBeTypeOf('number')
       expect(m.endMs).toBeGreaterThan(m.startMs)

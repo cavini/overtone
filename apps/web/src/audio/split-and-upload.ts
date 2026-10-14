@@ -7,7 +7,7 @@ import { encodeWav, SAMPLE_RATE } from './wav.js'
  *
  * This is the only path the audio takes. It does not go through the server:
  * a serverless function accepts about 4.5 MB of body and an episode is a
- * hundred times that, so the browser uploads to a signed URL per chunk and
+ * hundred times that, so the caller uploads to a signed URL per chunk and
  * the server never holds a byte of it.
  *
  * Cutting here rather than there is also the only way it can be cut at all.
@@ -15,6 +15,13 @@ import { encodeWav, SAMPLE_RATE } from './wav.js'
  * on its own — and you cannot make one by taking a byte range out of an MP3.
  * Decoding, slicing samples and re-encoding is what produces a file rather
  * than a fragment.
+ *
+ * **Decoding is injected, and that is the only thing that was ever
+ * browser-specific here.** The tab decodes with `AudioContext`; the backfill
+ * tool shells out to `ffmpeg`. Everything below — the loudness profile, the
+ * seam settling, the ordering of the boundary report against the uploads —
+ * is the part that fails silently when it is wrong, so it exists once and
+ * both callers run the same copy of it.
  */
 
 export interface ChunkTarget {
@@ -30,40 +37,27 @@ export interface SplitProgress {
   readonly total: number
 }
 
+/**
+ * The whole episode as 16 kHz mono samples.
+ *
+ * A thunk rather than a function of a file, because the two callers do not
+ * hold the same kind of thing: the tab has a `File` the reader picked, and
+ * the tool has a path on disk that `ffmpeg` reads itself. Neither is this
+ * function's business — it needs samples.
+ *
+ * 16 kHz because that is what gets sent (`SAMPLE_RATE`), and the chunk
+ * arithmetic below converts milliseconds to sample offsets with it. Samples
+ * at any other rate would cut every chunk in the wrong place.
+ */
+export type DecodeAudio = () => Promise<Float32Array>
+
 const CONTENT_TYPE = 'audio/wav'
 
 /**
- * Everything mixed down to one channel.
- *
- * Whisper is mono, and averaging here rather than sending both halves is
- * what keeps a chunk inside the file cap. Averaging — not just taking the
- * left — because a podcast edit can easily put one voice on one side.
- */
-function toMono(decoded: AudioBuffer): Float32Array {
-  if (decoded.numberOfChannels === 1) return decoded.getChannelData(0)
-
-  const channels = Array.from({ length: decoded.numberOfChannels }, (_, index) =>
-    decoded.getChannelData(index),
-  )
-  const mixed = new Float32Array(decoded.length)
-
-  for (let sample = 0; sample < mixed.length; sample += 1) {
-    let total = 0
-    for (const channel of channels) total += channel[sample] ?? 0
-    mixed[sample] = total / channels.length
-  }
-
-  return mixed
-}
-
-/**
- * Decodes the file once, then uploads each chunk in turn.
- *
- * Decoded at 16 kHz on the way in, so the samples held in memory are the
- * ones that will be sent rather than six times as many at CD rate.
+ * Decodes the episode once, then uploads each chunk in turn.
  */
 export async function splitAndUpload(
-  file: File,
+  decode: DecodeAudio,
   chunks: readonly ChunkTarget[],
   onProgress: (progress: SplitProgress) => void,
   /**
@@ -81,14 +75,7 @@ export async function splitAndUpload(
    */
   onBoundariesSettled: (startsMs: readonly number[]) => Promise<void>,
 ): Promise<number[]> {
-  const context = new AudioContext({ sampleRate: SAMPLE_RATE })
-
-  let samples: Float32Array
-  try {
-    samples = toMono(await context.decodeAudioData(await file.arrayBuffer()))
-  } finally {
-    await context.close()
-  }
+  const samples = await decode()
 
   /*
    * Move each seam off the clock and into the nearest gap between words
@@ -133,6 +120,10 @@ export async function splitAndUpload(
     })
 
     if (!response.ok) {
+      // The status is in the message because the caller has to tell one
+      // failure from another: a signed upload URL lasts fifteen minutes,
+      // and a 403 on a long episode means it expired mid-upload — worth
+      // starting the episode again rather than abandoning the run.
       throw new Error(`chunk ${chunk.index} upload failed: ${response.status}`)
     }
 

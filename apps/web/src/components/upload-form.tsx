@@ -4,6 +4,7 @@ import type { Locale } from '@overtone/messages'
 import { useEffect, useId, useRef, useState } from 'react'
 import { audioDigest } from '../audio/audio-digest.js'
 import { audioTypeOf, FILE_INPUT_ACCEPT } from '../audio/audio-type.js'
+import { decodeInBrowser } from '../audio/decode-in-browser.js'
 import { measureDuration } from '../audio/measure-duration.js'
 import { splitAndUpload, type ChunkTarget } from '../audio/split-and-upload.js'
 import type { UiKey } from '../i18n/ui.js'
@@ -135,7 +136,16 @@ export function UploadForm({
       onEpisode(episodeId, true)
 
       await splitAndUpload(
-        file,
+        /*
+         * The tab's own decoder, handed in rather than reached for.
+         *
+         * `decodeAudioData` is the only part of splitting that needs a
+         * browser; everything the boundaries depend on is arithmetic. The
+         * seam is what lets the headless backfill tool run the same
+         * settling and reporting code with `ffmpeg` behind it, instead of
+         * a second copy of the one thing in this repo that fails silently.
+         */
+        () => decodeInBrowser(file),
         chunks,
         ({ done, total }) => {
           setProgress({ headline: `${labels.sendingPart} ${done + 1} / ${total}`, done, total })

@@ -22,7 +22,7 @@ Sunday night. Rafa has just finished the edit. The episode is **1 hour 54 minute
 | 6 | Waits | Chunks transcribe in parallel; the page reads "5 of 6 chunks transcribed" with elapsed time. Under a minute | A number, not a spinner | A spinner with no count is the single biggest abandonment point. Never ship one |
 | 7 🔥 | Reads the result | One episode, one set of stats: headline sentence naming the top three terms with counts, total words, words per minute. Counts are lemma-grouped, and each one expands to the surface forms behind it (`falar 14` → `falou 5 / falei 4 / falar 3 / falando 2`) | To recognise his own show in the output within 5 seconds | If the headline is `tipo, né, assim`, it looks like a toy — the pt-BR stop-word list must be aggressive by default. And a count with no surface-form breakdown hides an over-merge (`comer` folded into `com`) that he would otherwise have caught (D4) |
 | 8 🔥 | Clicks a count at 1:47:30 | Occurrences listed with timestamps and quotes; playback seeks to 1:47:30 of the episode, not of chunk 5 | To catch the product lying once, and find it isn't | A chunk offset applied wrong — or twice — sends every quote in the last 90 minutes to the wrong moment, and it fails silently |
-| 9 | Prompted: "Track a running joke?" | Inline suggestion seeded from his own top lemmas; one click creates the Topic `a parada do hotdog` with aliases `hotdog, hot dog, cachorro-quente, dogão` | The next action handed to him, not a blank taxonomy form | Asking him to invent a watchlist from nothing stalls everything that follows |
+| 9 | Prompted: "Track a running joke?" | Inline suggestion seeded from his own top lemmas; one click creates the Topic `a parada do guardachuva` with aliases `guardachuva, guarda chuva, guarda-chuva, guardachuvão` | The next action handed to him, not a blank taxonomy form | Asking him to invent a watchlist from nothing stalls everything that follows |
 
 **Success:** in one sitting of about ten minutes, Rafa has a two-hour episode analysed, has verified one count against the audio, and has created one running joke — without paying, installing, or reading anything.
 
@@ -30,7 +30,7 @@ Sunday night. Rafa has just finished the edit. The episode is **1 hour 54 minute
 
 ---
 
-## J2 — The Series view: "is the hotdog thing getting worse?" 🔥
+## J2 — The Series view: "is the guardachuva thing getting worse?" 🔥
 
 Six weeks later. Twelve episodes in the Series, four running jokes tracked. **This is the retention journey and the reason the app exists.** It must pay off in under 60 seconds.
 
@@ -39,10 +39,10 @@ Six weeks later. Twelve episodes in the Series, four running jokes tracked. **Th
 | Step | User action | System response | What he needs | Risk |
 |---|---|---|---|---|
 | 1 | Opens the Series | Episodes listed newest-first with number, date, duration, and a chip per running joke — **counts on the list page** | His answer before clicking anything | A list of filenames forces a click-hunt and the ritual dies |
-| 2 🔥 | Opens the season leaderboard | Every tracked Topic ranked by total mentions across 12 episodes: `né 312 · a parada do hotdog 212 · a conspiração do Davi 46`, plus episodes-appeared-in | **The screenshot moment.** One number that is funny and true | A per-episode-only product has no payoff here, and 12 episodes of per-episode stats is 12 toys, not one product |
-| 3 🔥 | Opens the Topic `a parada do hotdog` | Count per episode in order: `3 → 0 → 9 → 14 → 22 → 18 …` with mentions-per-hour beside raw counts | To see an *arc*, not a total | Raw counts across unequal episode lengths mislead. Always show the normalised rate too |
+| 2 🔥 | Opens the season leaderboard | Every tracked Topic ranked by total mentions across 12 episodes: `né 312 · a parada do guardachuva 212 · a conspiração do Theo 46`, plus episodes-appeared-in | **The screenshot moment.** One number that is funny and true | A per-episode-only product has no payoff here, and 12 episodes of per-episode stats is 12 toys, not one product |
+| 3 🔥 | Opens the Topic `a parada do guardachuva` | Count per episode in order: `3 → 0 → 9 → 14 → 22 → 18 …` with mentions-per-hour beside raw counts | To see an *arc*, not a total | Raw counts across unequal episode lengths mislead. Always show the normalised rate too |
 | 4 | Reads the trend | Plain words: "up from 3 to 18 over 12 episodes". No trend claimed below 3 episodes | Vindication | Drawing a trend line through two points invents a finding |
-| 5 | Invents a new bit mid-season | Creates Topic `a conspiração do Davi`, offered "Apply to all 12 episodes" | The past to become answerable | If Topics only apply going forward, the Series stops compounding and the product is back to being per-episode |
+| 5 | Invents a new bit mid-season | Creates Topic `a conspiração do Theo`, offered "Apply to all 12 episodes" | The past to become answerable | If Topics only apply going forward, the Series stops compounding and the product is back to being per-episode |
 | 6 | Confirms | Re-analysis runs from stored transcripts — no re-transcription, no daily budget spent — and finishes in seconds | It to be instant and free | Re-transcribing here would burn the whole day's budget on a Topic edit. Transcripts must be stored and re-analysable |
 
 **Success:** a running joke invented in episode 12 is counted across episodes 1–11 in seconds, for free, and the arc is readable at a glance.

@@ -23,13 +23,13 @@ describe('a fingerprint of the audio', () => {
    * The whole point of the thing.
    *
    * The same recording arrives as `ep-201.mp3` one day and
-   * `Sun Your Balls 201.m4a` the next, and a name cannot tell you it is the
-   * same two hours of audio.
+   * `Chuva de Canivetes 201.m4a` the next, and a name cannot tell you it is
+   * the same two hours of audio.
    */
   it('does not change when the file is renamed', async () => {
     const [first, second] = await Promise.all([
       audioDigest(fileOf('overtone', 'ep-201.mp3')),
-      audioDigest(fileOf('overtone', 'Sun Your Balls 201.m4a')),
+      audioDigest(fileOf('overtone', 'Chuva de Canivetes 201.m4a')),
     ])
 
     expect(first).toBe(second)
