@@ -57,14 +57,15 @@ The app is one deployable thing. You push to git; Vercel deploys it.
 
 | | A 2-hour episode |
 |---|---|
-| As 16 kHz mono Opus | ~21 MB — fits the 25 MB cap, but we chunk anyway (ADR 0011) |
+| As 16 kHz mono WAV | ~243 MB — Opus was never built, so a 10-minute chunk is ~19 MB and chunking is mandatory (ADR 0020) |
 | Audio-seconds consumed | 7 591 for a real 2 h 06 m episode — **391 s more than the whole hourly allowance**, so it must be chunked and paced (ADR 0020) |
 | So, throughput | **three episodes per day**, set by the 28 800-second daily cap (ADR 0020) |
 | Transcription wall-clock | **~5–8 minutes.** Six chunks drain a full balance, then the 391-second tail needs ~3 m 16 s of refill — the allowance is a bucket refilling at 2 audio-seconds per second, not a counter zeroed hourly (ADR 0021, measured in experiment 0003) |
-| Storage per episode | ~22 MB → **1 GB ≈ 37 episodes** |
+| Storage per episode | **transient** — each chunk's audio is freed as it is transcribed (ADR 0031), so the bucket holds only what is still untranscribed |
+| Database per episode | ~3.4 MB → **500 MB ≈ 110 episodes**, after ~106 MB of fixed dictionaries (ADR 0031) |
 | Back catalogue, 219 episodes | 462 audio-hours ≈ **58 days** of continuous processing |
 
-A weekly show is comfortable. **Storage is the ceiling that arrives first**, not money, not compute, not rate limits.
+A weekly show is comfortable. **Throughput is the ceiling that arrives first** — three episodes a day — and the database is the one after it, at ~110 episodes. Storage is not a ceiling at all since ADR 0031.
 
 Two gotchas worth knowing up front: a free Supabase project **pauses after 7 idle days** (a once-daily Vercel Cron ping prevents it), and Vercel Hobby is **non-commercial** (if this ever makes money, it needs a paid plan).
 
