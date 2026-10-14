@@ -14,7 +14,7 @@
   "ALLOWANCE_REMAINING": "Room for about {whole_episodes_remaining, number} more episodes today, out of a {allowance_hours, number} hour allowance.",
   "HOURLY_ALLOWANCE_EXHAUSTED": "This hour's allowance is spent — it's {allowance_hours, number} hours of audio per hour. Carrying on by itself in {minutes_until_reset, number} minutes.",
   "DAILY_ALLOWANCE_EXHAUSTED": "Today's allowance is spent — it's {allowance_hours, number} hours of audio per day. It comes back in {hours_until_reset, number} hours.",
-  "STORAGE_FULL": "Out of room: storage is using {used_bytes, number, ::compact-short} of {limit_bytes, number, ::compact-short}, and this episode needs {needed_bytes, number, ::compact-short}. Delete the audio from older episodes — their statistics stay.",
+  "STORAGE_FULL": "Out of room: storage is using {used_bytes, number, ::compact-short} of {limit_bytes, number, ::compact-short}, and this episode needs {needed_bytes, number, ::compact-short}. Wait for the episodes still being transcribed to finish: audio is freed as it is transcribed.",
   "TOPIC_NAME_TAKEN": "There's already a running joke called \"{name}\".",
   "TOPIC_NEEDS_A_NAME": "Give the running joke a name.",
   "TOPIC_NEEDS_A_TERM": "Add at least one word or phrase to count.",

@@ -26,10 +26,10 @@ Where the wording *is* the requirement — a limit, a refusal, a disclosure — 
 | Constant | Value | Why it is this number |
 |---|---|---|
 | **Typical episode** | **100–120 minutes** | What the show actually records. Two hours is the normal case, not an edge case |
-| **Supported episode length** | **up to 150 minutes** | Past that the daily allowance, not the code, is the wall |
-| Upload chunk length | **20–25 minutes**, cut on a silence boundary | Fits the service cap with margin, transcribes in parallel, isolates failure to one chunk |
-| Chunk codec | **16 kHz mono Opus** (~24 kbps) | A 25-minute chunk is ≈ 4.5 MB; a 2-hour episode ≈ 22 MB total |
-| Max size per chunk | 25 MB (hard service cap) | With Opus this stops being the binding limit — it stays in the AC to prove it |
+| **Supported episode length** | **up to 170 minutes** | Set by what a browser can decode without running out of memory (`MAX_EPISODE_MS`), not by the allowance |
+| Upload chunk length | **10 minutes**, cut on the nearest gap between words | Keeps a WAV chunk under the 25 MB cap with room for a seam to move ±45 s (ADR 0020) |
+| Chunk codec | **16 kHz mono 16-bit WAV** (32 KB/s) | Opus needs a codec in the browser, WAV needs forty-four bytes of header. A 10-minute chunk is ≈ 19 MB; a 2-hour episode ≈ 243 MB, freed as it transcribes (ADR 0031) |
+| Max size per chunk | 25 MB (hard service cap) | With WAV this is binding, and it is what sets the 10-minute chunk length |
 | **Transcription allowance** | **2 audio-hours per hour · 8 per day, shared across every user** | ≈ **one 2-hour episode per hour, four per day.** Ample for a weekly show, which is the only case there is: no back catalogue is ever imported (see *Not for this app*) |
 | Request limits | 20/min · 2 000/day (shared) | Free tier |
 | Per-chunk processing ceiling | **120 s** → `failed` | The platform hard-kills a request at 300 s; fail honestly first |
@@ -756,7 +756,7 @@ Scenario: Storage refuses with a specific remedy
   When I upload an Episode needing 22 MB
   Then it is refused with code `STORAGE_FULL`
   And the parameters are { used_bytes: 1073741824, limit_bytes: 1073741824, needed_bytes: 23068672 }
-  And both renderings name the space this upload needed, and both remedies: delete an episode, or purge an old episode's audio and keep its stats
+  And both renderings name the space this upload needed, and the remedy: wait for the episodes still transcribing, which frees their audio as it goes (ADR 0031)
   And the byte sizes are rendered by the locale formatter, "1 GB" in both and "22 MB" in both
 ```
 
@@ -862,6 +862,37 @@ Scenario: The original is kept
 > exact, so clicking a count still lands on the right line; only sub-second
 > position within a corrected line is approximate. Nobody can know where
 > inside a second a word that was never heard would have fallen.
+
+### US-050 — The library is not capped by the size of the audio
+*As any of us, I want to keep uploading episodes indefinitely, so that the series comparison has a series to compare.*
+Priority: **Must** · Size: **S**
+
+```gherkin
+Scenario: A chunk's audio is freed as soon as it is transcribed
+  Given a 13-chunk Episode with 4 chunks transcribed
+  When chunk 5 is transcribed
+  Then chunk 5's audio is removed from storage
+  And the 8 untranscribed chunks still have theirs
+
+Scenario: A failed chunk keeps its audio
+  Given a chunk whose transcription failed with `PROVIDER_UNAVAILABLE`
+  Then its audio is still in storage
+  And the retry transcribes it without a re-upload
+
+Scenario: Three episodes in one day do not collide
+  Given 3 Episodes of 2h06m uploaded within the same hour
+  Then storage never holds more than one episode's untranscribed remainder
+  And no upload is refused with `STORAGE_FULL`
+```
+
+> **Shipped.** `freedAudio` decides what an advance made dead weight: a
+> `transcribed` outcome frees that chunk, `ready` sweeps the episode as a
+> backstop, and `failed`/`waiting` free nothing because both expect a retry.
+>
+> Waiting for the whole episode was the bug. Pacing drains a 2h06m episode's
+> thirteen chunks over an hour or more, so three uploads in a day — the daily
+> cap — would have held ~729 MB at once on a 1 GB tier. See ADR 0031, which
+> supersedes the retention policy in ADR 0013.
 
 ### US-025 — Delete an episode permanently
 *As any user, I want deletion to be real, so that I trust the app with recordings of my friends.*

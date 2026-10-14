@@ -14,7 +14,7 @@
   "ALLOWANCE_REMAINING": "Ainda cabem cerca de {whole_episodes_remaining, number} episódios hoje, de uma cota de {allowance_hours, number} horas.",
   "HOURLY_ALLOWANCE_EXHAUSTED": "A cota desta hora acabou — são {allowance_hours, number} horas de áudio por hora. Continua sozinho em {minutes_until_reset, number} minutos.",
   "DAILY_ALLOWANCE_EXHAUSTED": "A cota de hoje acabou — são {allowance_hours, number} horas de áudio por dia. Ela volta em {hours_until_reset, number} horas.",
-  "STORAGE_FULL": "Não há espaço: o armazenamento usa {used_bytes, number, ::compact-short} de {limit_bytes, number, ::compact-short}, e este episódio precisa de {needed_bytes, number, ::compact-short}. Apague o áudio de episódios antigos — as estatísticas continuam lá.",
+  "STORAGE_FULL": "Não há espaço: o armazenamento usa {used_bytes, number, ::compact-short} de {limit_bytes, number, ::compact-short}, e este episódio precisa de {needed_bytes, number, ::compact-short}. Espere os episódios que ainda estão sendo transcritos terminarem: o áudio é liberado conforme é transcrito.",
   "TOPIC_NAME_TAKEN": "Já existe uma piada chamada \"{name}\".",
   "TOPIC_NEEDS_A_NAME": "Dê um nome à piada.",
   "TOPIC_NEEDS_A_TERM": "Escreva pelo menos uma palavra ou expressão para contar.",
