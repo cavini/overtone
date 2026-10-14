@@ -41,6 +41,7 @@ That design has a useful side effect. Once per-episode aggregates are stored que
 - Word and term counts with Brazilian Portuguese lemmatisation — diacritics preserved, enclitics split, dictionary before stemmer, and a short hand-written override list for the words a general dictionary gets right about the language and wrong about how people talk.
 - Running jokes: name a bit, list the spellings the transcriber actually produces, and get counts with a timestamp behind each one. Recounting past episodes is free, because the transcripts are kept.
 - Full-text search over every transcript, returning the handful of *moments* a conversation happened in rather than a column of near-identical timestamps.
+- A back catalogue can be walked in from the show's own RSS feed with one command, one episode at a time across days — paced to the transcription allowance rather than the connection, and safe to stop and re-run. See [`tools/backfill/`](tools/backfill/README.md).
 - Bilingual throughout, Portuguese and English.
 
 **What is not finished**
@@ -77,6 +78,7 @@ That design has a useful side effect. Once per-episode aggregates are stored que
 | [`system-design.md`](docs/architecture/system-design.md) | Pipeline, data model, API surface, the analysis engine |
 | [`testing-strategy.md`](docs/architecture/testing-strategy.md) | TDD in practice: Gherkin → tests, fakes, the credibility guards |
 | [`docs/adr/`](docs/adr/) | Numbered decision records — including three reversals, kept on the record |
+| [`tools/backfill/`](tools/backfill/README.md) | Getting a back catalogue in from the show's RSS feed: prerequisites, pacing, and how to resume |
 
 ## How this gets built
 

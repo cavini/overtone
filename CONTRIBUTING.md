@@ -81,6 +81,10 @@ pnpm test:integration  # needs: supabase start
 pnpm test:e2e          # Playwright
 pnpm verify            # exactly what CI runs
 pnpm typecheck
+pnpm backfill          # walk the show's feed and upload old episodes,
+                       # oldest first, one at a time, over days.
+                       # Needs ffmpeg and a running app - see
+                       # tools/backfill/README.md
 ```
 
 `pnpm verify` passing locally must mean CI passes. If they can disagree, CI is wrong - fix CI.
