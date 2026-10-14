@@ -57,10 +57,25 @@ export function database(): PostgresJsDatabase {
  * Absent is an ordinary state — a series with no feed simply keeps the
  * titles read from its filenames.
  */
-export function episodeDirectory(feedUrl?: string | null): RssEpisodeDirectory | undefined {
+export function episodeDirectory(
+  feedUrl?: string | null,
+  /**
+   * Which programme in the feed, when it carries several.
+   *
+   * This feed publishes every show the group makes and none of the items set
+   * `itunes:episode`, so the number comes from the title — where nine
+   * numbers are claimed by more than one programme. Unscoped, episodes 1 to
+   * 4 of Sun Your Balls came back titled "Chegou nos Normie".
+   */
+  show?: string,
+): RssEpisodeDirectory | undefined {
   const url = feedUrl ?? process.env['OVERTONE_FEED_URL']
+  if (url === undefined || url.length === 0) return undefined
 
-  return url === undefined || url.length === 0 ? undefined : new RssEpisodeDirectory({ feedUrl: url })
+  return new RssEpisodeDirectory({
+    feedUrl: url,
+    ...(show === undefined || show.length === 0 ? {} : { show }),
+  })
 }
 
 /**

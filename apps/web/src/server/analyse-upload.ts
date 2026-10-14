@@ -26,7 +26,7 @@ import {
   transcripts,
   episodeCorrections,
 } from '@overtone/db/schema'
-import { and, asc, desc, eq, sql } from 'drizzle-orm'
+import { and, asc, desc, eq, isNull, sql } from 'drizzle-orm'
 import { DrizzleAllowanceStore, DrizzleChunkStore } from '@overtone/db/repositories'
 import { chunkKey, freedAudio } from './freed-audio.js'
 import { isAbandoned } from './abandoned.js'
@@ -161,11 +161,23 @@ export async function seriesFor(userId: string): Promise<string> {
   return id
 }
 
-async function nextEpisodeNumber(seriesId: string): Promise<number> {
+/**
+ * The next number within one programme.
+ *
+ * Per category, because each show in the library counts from 1 — taking the
+ * highest number in the whole library would have an uncategorised upload
+ * land at 203 because Sun Your Balls is at 202.
+ */
+async function nextEpisodeNumber(seriesId: string, category?: string): Promise<number> {
   const rows = await database()
     .select({ number: episodes.number })
     .from(episodes)
-    .where(eq(episodes.seriesId, seriesId))
+    .where(
+      and(
+        eq(episodes.seriesId, seriesId),
+        category === undefined ? isNull(episodes.category) : eq(episodes.category, category),
+      ),
+    )
 
   return rows.reduce((highest, row) => Math.max(highest, row.number), 0) + 1
 }
@@ -241,6 +253,17 @@ export async function startEpisode(
    * from the filename is a perfectly good fallback, and refusing to accept
    * an episode because somebody else's XML is down would be absurd.
    */
+  /*
+   * Which programme this is, which is the name left once the number is taken
+   * off: `sun-your-balls-001.mp3` is episode 1 of Sun Your Balls.
+   *
+   * Undefined when the filename carries no number, because then there is no
+   * programme-and-number to split and the whole name is the title. Guessing
+   * a category there would file the episode under a show that does not
+   * exist.
+   */
+  const category = named.number === undefined ? undefined : named.title
+
   let published: PublishedEpisode | undefined
   if (named.number !== undefined) {
     const [series_] = await db
@@ -250,7 +273,9 @@ export async function startEpisode(
       .limit(1)
 
     try {
-      published = await episodeDirectory(series_?.feedUrl)?.find(named.number)
+      // Scoped to this programme: the feed holds several, numbered
+      // independently, and the number alone matches the wrong one.
+      published = await episodeDirectory(series_?.feedUrl, category)?.find(named.number)
     } catch (error) {
       console.warn('could not read the feed; keeping the name from the file', error)
     }
@@ -261,8 +286,9 @@ export async function startEpisode(
     .insert(episodes)
     .values({
       seriesId,
-      number: named.number ?? (await nextEpisodeNumber(seriesId)),
+      number: named.number ?? (await nextEpisodeNumber(seriesId, category)),
       title,
+      ...(category === undefined ? {} : { category }),
       // Stored now because every later step re-derives the chunk plan from
       // it, and the plan has to come out the same every time.
       durationMs,
