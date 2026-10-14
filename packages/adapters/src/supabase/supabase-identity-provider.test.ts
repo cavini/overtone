@@ -229,3 +229,125 @@ describe('SupabaseIdentityProvider', () => {
     })
   })
 })
+
+describe('SupabaseIdentityProvider, with a password', () => {
+  describe('signing in', () => {
+    it('asks for a token with the password grant', async () => {
+      const stub = answering(200, SESSION)
+      await provider(stub).signIn('dex@example.test', 'uma senha comprida')
+
+      const [url, init] = callTo(stub) ?? ['', {}]
+      expect(url).toBe(`${PROJECT}/auth/v1/token?grant_type=password`)
+      expect(JSON.parse(String(init.body))).toEqual({
+        email: 'dex@example.test',
+        password: 'uma senha comprida',
+      })
+    })
+
+    it('hands back the session', async () => {
+      const outcome = await provider(answering(200, SESSION)).signIn('dex@example.test', 'senha')
+
+      if (!outcome.ok) throw new Error(`expected a session, got ${outcome.failure.code}`)
+      expect(outcome.session.identity).toEqual({ userId: 'user-1', email: 'dex@example.test' })
+    })
+
+    /*
+     * Not `LINK_EXPIRED`, which is what the shared mapper says for a 400
+     * when redeeming a link. The service answers a wrong password and an
+     * unknown address with the same 400, which is the behaviour the contract
+     * wants — but calling it an expired link would put "ask for a new link"
+     * in front of somebody who mistyped their password.
+     */
+    it('calls a refusal a wrong email or password', async () => {
+      const outcome = await provider(
+        answering(400, { error: 'invalid_grant', error_description: 'Invalid login credentials' }),
+      ).signIn('dex@example.test', 'errada')
+
+      expect(outcome.ok).toBe(false)
+      if (!outcome.ok) expect(outcome.failure.code).toBe('WRONG_EMAIL_OR_PASSWORD')
+    })
+
+    it('says so when the service is unreachable', async () => {
+      const outcome = await provider(
+        vi.fn(() => Promise.reject(new Error('network'))) as unknown as typeof globalThis.fetch,
+      ).signIn('dex@example.test', 'senha')
+
+      expect(outcome.ok).toBe(false)
+      if (!outcome.ok) expect(outcome.failure.code).toBe('PROVIDER_UNAVAILABLE')
+    })
+  })
+
+  describe('registering', () => {
+    it('posts the address and password to signup', async () => {
+      const stub = answering(200, SESSION)
+      await provider(stub).register('dex@example.test', 'uma senha comprida')
+
+      const [url, init] = callTo(stub) ?? ['', {}]
+      expect(url).toBe(`${PROJECT}/auth/v1/signup`)
+      expect(JSON.parse(String(init.body))).toEqual({
+        email: 'dex@example.test',
+        password: 'uma senha comprida',
+      })
+    })
+
+    it('signs the new account straight in', async () => {
+      const outcome = await provider(answering(200, SESSION)).register('dex@example.test', 'senha')
+
+      if (!outcome.ok) throw new Error(`expected a session, got ${outcome.failure.code}`)
+      expect(outcome.session.accessToken).toBe('access-abc')
+    })
+
+    it('reads an outright refusal as the address being taken', async () => {
+      const outcome = await provider(
+        answering(422, { code: 'user_already_exists', msg: 'User already registered' }),
+      ).register('dex@example.test', 'senha')
+
+      expect(outcome.ok).toBe(false)
+      if (!outcome.ok) expect(outcome.failure.code).toBe('EMAIL_TAKEN')
+    })
+
+    /*
+     * The project's own anti-enumeration behaviour, and the reason this is
+     * not just `response.ok`. With email confirmation switched on, signing
+     * up an address that already exists is answered **200 with a user and
+     * no session**, and `identities` empty is the only thing that says which
+     * of the two happened.
+     */
+    it('reads a 200 with no session and no identities as taken', async () => {
+      const outcome = await provider(
+        answering(200, { id: 'user-1', email: 'dex@example.test', identities: [] }),
+      ).register('dex@example.test', 'senha')
+
+      expect(outcome.ok).toBe(false)
+      if (!outcome.ok) expect(outcome.failure.code).toBe('EMAIL_TAKEN')
+    })
+
+    /*
+     * The same shape but with an identity on it is a genuinely new account
+     * that the project will not let in until somebody clicks an email. That
+     * is a setting, and the deployment this runs on wants it off — so the
+     * refusal has to name it rather than look like a fault.
+     */
+    it('says the address needs confirming when that is what came back', async () => {
+      const outcome = await provider(
+        answering(200, {
+          id: 'user-1',
+          email: 'dex@example.test',
+          identities: [{ id: 'identity-1' }],
+        }),
+      ).register('dex@example.test', 'senha')
+
+      expect(outcome.ok).toBe(false)
+      if (!outcome.ok) expect(outcome.failure.code).toBe('EMAIL_NOT_CONFIRMED')
+    })
+
+    it('passes the service’s own password refusal through', async () => {
+      const outcome = await provider(
+        answering(422, { code: 'weak_password', msg: 'Password should be at least 6 characters' }),
+      ).register('dex@example.test', 'curta')
+
+      expect(outcome.ok).toBe(false)
+      if (!outcome.ok) expect(outcome.failure.code).toBe('PASSWORD_REJECTED')
+    })
+  })
+})

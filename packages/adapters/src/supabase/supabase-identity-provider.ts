@@ -171,6 +171,86 @@ export class SupabaseIdentityProvider implements IdentityProvider {
     return this.exchange('/verify', { type: 'magiclink', token_hash: tokenHash })
   }
 
+  /**
+   * The password grant.
+   *
+   * A refusal is mapped here rather than by the shared mapper, which calls a
+   * 400 an expired link: the service answers a wrong password and an unknown
+   * address with the same 400 — which is the behaviour wanted — but telling
+   * somebody their link expired when they mistyped a password sends them
+   * looking for an email that was never sent.
+   */
+  async signIn(email: string, password: string): Promise<SignInOutcome> {
+    const outcome = await this.exchange('/token?grant_type=password', { email, password })
+
+    if (!outcome.ok && outcome.failure.code === 'LINK_EXPIRED') {
+      return { ok: false, failure: { code: 'WRONG_EMAIL_OR_PASSWORD' } }
+    }
+
+    return outcome
+  }
+
+  /**
+   * Makes an account and signs it in.
+   *
+   * Not `exchange`, because a successful-looking 200 here is three different
+   * answers. With email confirmation switched on the service deliberately
+   * refuses to say whether an address is new: it returns a user and no
+   * session either way, and an empty `identities` is the only thing that
+   * distinguishes an address it already had.
+   */
+  async register(email: string, password: string): Promise<SignInOutcome> {
+    let response: Response
+    try {
+      response = await this.fetch(`${this.auth}/signup`, {
+        method: 'POST',
+        headers: this.headers(),
+        body: JSON.stringify({ email, password }),
+      })
+    } catch {
+      return { ok: false, failure: { code: 'PROVIDER_UNAVAILABLE' } }
+    }
+
+    const payload = (await response.json().catch(() => ({}))) as TokenResponse & {
+      code?: unknown
+      identities?: unknown
+    }
+
+    if (!response.ok) {
+      const code = asString(payload.code) ?? ''
+      if (code === 'user_already_exists' || code === 'email_exists') {
+        return { ok: false, failure: { code: 'EMAIL_TAKEN' } }
+      }
+      if (code.includes('password')) {
+        return { ok: false, failure: { code: 'PASSWORD_REJECTED' } }
+      }
+
+      // 422 is the service's "I will not take this address", which for a
+      // signup is almost always an address it already has.
+      if (response.status === 422) return { ok: false, failure: { code: 'EMAIL_TAKEN' } }
+
+      return {
+        ok: false,
+        failure: SupabaseIdentityProvider.failureFor(response.status, 'sending'),
+      }
+    }
+
+    const session = SupabaseIdentityProvider.sessionFrom(payload)
+    if (session !== undefined) return { ok: true, session }
+
+    /*
+     * A 200 with no session. Either the address is already taken — which the
+     * service will not admit, and reports as an empty `identities` — or the
+     * account is real and waiting on a confirmation email.
+     */
+    const identities = payload.identities
+    if (Array.isArray(identities) && identities.length === 0) {
+      return { ok: false, failure: { code: 'EMAIL_TAKEN' } }
+    }
+
+    return { ok: false, failure: { code: 'EMAIL_NOT_CONFIRMED' } }
+  }
+
   renew(refreshToken: string): Promise<SignInOutcome> {
     return this.exchange('/token?grant_type=refresh_token', { refresh_token: refreshToken })
   }
