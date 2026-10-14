@@ -323,11 +323,12 @@ export interface LibraryEpisode {
   readonly chunksDone: number
   readonly chunkCount: number
   /**
-   * Whether a link to this one is out there.
+   * Which programme it is, so the library can read in sections.
    *
-   * Whether, not which. The token is the permission, and a list the page
-   * asks for every few seconds is no place to carry one around.
+   * Null for an episode whose filename carried no number — a loose upload
+   * rather than part of a show.
    */
+  readonly category: string | null
 }
 
 /**
@@ -346,6 +347,7 @@ export async function listEpisodes(userId: string): Promise<LibraryEpisode[]> {
       id: episodes.id,
       number: episodes.number,
       title: episodes.title,
+      category: episodes.category,
       durationMs: episodes.durationMs,
       chunkStartsMs: episodes.chunkStartsMs,
       status: episodes.status,
@@ -369,6 +371,7 @@ export async function listEpisodes(userId: string): Promise<LibraryEpisode[]> {
       episodes.id,
       episodes.number,
       episodes.title,
+      episodes.category,
       episodes.durationMs,
       episodes.status,
     )
@@ -378,6 +381,7 @@ export async function listEpisodes(userId: string): Promise<LibraryEpisode[]> {
     episodeId: row.id,
     number: row.number,
     title: row.title,
+    category: row.category,
     durationMs: row.durationMs,
     status: row.status,
     chunksDone: row.chunksDone,

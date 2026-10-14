@@ -63,6 +63,9 @@ export const UI = {
     libraryDeleteCancel: 'Cancelar',
     libraryFilter: 'Filtrar por título',
     libraryNoMatch: 'Nenhum episódio com esse título.',
+    // The heading over episodes whose filename carried no number, so no
+    // programme could be read out of it.
+    libraryUncategorised: 'Sem programa',
     openInTranscript: 'Ver na transcrição',
     gotIt: 'Entendi',
     languageAffectsAudio: 'Isto também muda o idioma em que os próximos episódios serão transcritos. Os episódios já prontos não mudam.',
@@ -181,6 +184,7 @@ export const UI = {
     libraryDeleteCancel: 'Cancel',
     libraryFilter: 'Filter by title',
     libraryNoMatch: 'No episode with that title.',
+    libraryUncategorised: 'No programme',
     openInTranscript: 'See it in the transcript',
     gotIt: 'Got it',
     languageAffectsAudio: 'This also changes the language future episodes are transcribed in. Episodes already finished stay as they are.',

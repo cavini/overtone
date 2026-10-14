@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import type { UiKey } from '../i18n/ui.js'
 import { timestamp } from '../presenter/episode-view.js'
 import { episodesMatching } from '../presenter/library-filter.js'
+import { groupedByCategory } from '../presenter/library-sections.js'
 import { renderMessage, type Locale } from '@overtone/messages'
 import { ConfirmDialog } from './confirm-dialog.js'
 import { Panel } from './panel.js'
@@ -20,7 +21,13 @@ export interface LibraryEntry {
   readonly status: string
   readonly chunksDone: number
   readonly chunkCount: number
-  /** Whether a link to this one is out there. Never the link itself. */
+  /**
+   * Which programme it is, so the list can read in sections.
+   *
+   * Null for an episode whose filename carried no number — a loose upload
+   * rather than part of a show.
+   */
+  readonly category: string | null
 }
 
 /**
@@ -102,6 +109,17 @@ export function LibraryPanel({
 
   const shown = episodesMatching(episodes, typed)
 
+  /*
+   * Grouped after filtering, not before: typing narrows the library, and a
+   * programme whose every episode was filtered out should take its heading
+   * with it rather than sit there empty.
+   */
+  const sections = groupedByCategory(shown)
+
+  // Only worth headings when there is something to tell apart. A library
+  // that is all one show would otherwise grow a title that says nothing.
+  const named = sections.length > 1
+
   return (
     <Panel heading={labels.libraryHeading}>
       {episodes.length === 0 ? (
@@ -125,8 +143,18 @@ export function LibraryPanel({
               {labels.libraryNoMatch}
             </p>
           ) : (
-            <ul className="mt-4 space-y-1">
-              {shown.map((episode) => {
+            sections.map((section) => (
+              <section key={section.category ?? ''}>
+                {named ? (
+                  <h3
+                    className="mt-4 text-xs font-semibold uppercase tracking-wide"
+                    style={{ color: 'var(--quiet)' }}
+                  >
+                    {section.category ?? labels.libraryUncategorised}
+                  </h3>
+                ) : undefined}
+                <ul className="mt-2 space-y-1">
+              {section.episodes.map((episode) => {
                 const reading = episode.episodeId === selected
                 const unfinished = episode.chunksDone < episode.chunkCount
 
@@ -213,7 +241,9 @@ export function LibraryPanel({
                   </li>
                 )
               })}
-            </ul>
+                </ul>
+              </section>
+            ))
           )}
         </>
       )}
