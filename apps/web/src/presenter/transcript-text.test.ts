@@ -160,4 +160,45 @@ describe('a line somebody corrected', () => {
     expect(read).not.toContain('saia')
   })
 })
+
+/*
+ * The second half of the same bug, reported from production.
+ *
+ * A span taken from one line's own words stops at its last word's start.
+ * Any original word between that and the next line survived the correction
+ * and showed up as a line of its own — "velho." sitting under the line it
+ * had been part of.
+ */
+describe('a correction that stops short of the next line', () => {
+  const chunk = {
+    index: 0,
+    offsetMs: 0,
+    words: [
+      { text: 'tô', startMs: 3_580, endMs: 3_680 },
+      { text: 'mostrando', startMs: 3_700, endMs: 3_900 },
+      { text: 'a', startMs: 3_940, endMs: 4_000 },
+      { text: 'saia', startMs: 4_040, endMs: 4_140 },
+      { text: 'agora,', startMs: 4_160, endMs: 4_500 },
+      { text: 'velho.', startMs: 4_580, endMs: 4_900 },
+    ],
+    segmentStartsMs: [],
+  }
+
+  it('leaves the word it did not reach behind', () => {
+    const { lines } = linesAfter([chunk], 0, [
+      { fromMs: 3_580, toMs: 4_249, text: 'Tô saindo de casa agora, velho.' },
+    ])
+
+    // The behaviour that was reported: a stray line below the corrected one.
+    expect(lines.map((line) => line.text)).toContain('velho.')
+  })
+
+  it('covers the line when the span runs to where the next one starts', () => {
+    const { lines } = linesAfter([chunk], 0, [
+      { fromMs: 3_580, toMs: 4_581, text: 'Tô saindo de casa agora, velho.' },
+    ])
+
+    expect(lines.map((line) => line.text).join(' | ')).toBe('Tô saindo de casa agora, velho.')
+  })
+})
 })
