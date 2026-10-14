@@ -18,17 +18,17 @@ const envFile = resolve(here, '../../../../.env.local')
 if (existsSync(envFile)) process.loadEnvFile(envFile)
 
 const feedUrl = process.env['OVERTONE_FEED_URL']
-const SHOW = 'Sun Your Balls'
+const show = process.env['OVERTONE_FEED_SHOW']
 
-if (feedUrl === undefined || feedUrl.length === 0) {
+if (feedUrl === undefined || feedUrl.length === 0 || show === undefined || show.length === 0) {
   describe('RssEpisodeDirectory, live', () => {
-    it.skip('needs OVERTONE_FEED_URL', () => {})
+    it.skip('needs OVERTONE_FEED_URL and OVERTONE_FEED_SHOW', () => {})
   })
 } else {
   // One instance, so the feed is fetched once for the whole file rather than
   // once per assertion. It is a few hundred kilobytes over somebody's
   // bandwidth.
-  const directory = new RssEpisodeDirectory({ feedUrl, show: SHOW })
+  const directory = new RssEpisodeDirectory({ feedUrl, show })
 
   describe('RssEpisodeDirectory, live', () => {
     it('reads the feed at all', async () => {
@@ -39,16 +39,16 @@ if (feedUrl === undefined || feedUrl.length === 0) {
      * The ten the backfill starts with, and the regression that matters: this
      * feed publishes several programmes from one account, none of them set
      * `itunes:episode`, and nine numbers are claimed by more than one show.
-     * Unscoped, 1 to 4 came back as "Chegou nos Normie" and 9 as "Porao do
-     * Bunker" — a count filed under somebody else's episode, looking fine.
+     * Unscoped, 1 to 4 came back as "Outro Programa" and 9 as "Terceiro
+     * Programa" — a count filed under somebody else's episode, looking fine.
      */
     it.each([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])('finds episode %i of this show', async (number) => {
       const found = await directory.find(number)
 
       expect(found).toBeDefined()
-      // Case-insensitively: the show wrote "Sun your balls" for its first
-      // four episodes and "Sun Your Balls" after that.
-      expect(found?.title.toLowerCase()).toContain(SHOW.toLowerCase())
+      // Case-insensitively: the show's own casing varies across its back
+      // catalogue.
+      expect(found?.title.toLowerCase()).toContain(show.toLowerCase())
       expect(found?.number).toBe(number)
     })
 
@@ -56,9 +56,12 @@ if (feedUrl === undefined || feedUrl.length === 0) {
     // be clean. Without a show these numbers belong to other programmes.
     it('is the filter, not luck', async () => {
       const unscoped = new RssEpisodeDirectory({ feedUrl })
-      const titles = await Promise.all([1, 2, 3, 4, 9].map((n) => unscoped.find(n)))
+      const [titles, mine] = await Promise.all([
+        Promise.all([1, 2, 3, 4, 9].map((n) => unscoped.find(n))),
+        directory.find(1),
+      ])
 
-      expect(titles.map((episode) => episode?.title)).not.toContain('Sun your balls #001')
+      expect(titles.map((episode) => episode?.title)).not.toContain(mine?.title)
     })
   })
 }
