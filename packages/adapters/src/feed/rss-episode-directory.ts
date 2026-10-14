@@ -2,6 +2,22 @@ import type { EpisodeDirectory, PublishedEpisode } from '@overtone/core'
 
 export interface RssEpisodeDirectoryOptions {
   readonly feedUrl: string
+  /**
+   * Which show in the feed, when the feed carries more than one.
+   *
+   * A collective publishes every programme it makes from one account, so a
+   * single feed holds several shows — and since almost nobody sets
+   * `itunes:episode`, the number has to be read from the title, where the
+   * shows collide. One real feed has nine numbers claimed by two or more
+   * programmes.
+   *
+   * Matched against the start of the title, case-insensitively: a long back
+   * catalogue will have changed its own capitalisation at some point.
+   *
+   * Absent means every item counts, which is right for a feed with one show
+   * in it.
+   */
+  readonly show?: string
   readonly fetch?: typeof globalThis.fetch
 }
 
@@ -58,12 +74,19 @@ function numberOf(item: string): number | undefined {
  */
 export class RssEpisodeDirectory implements EpisodeDirectory {
   private readonly feedUrl: string
+  private readonly show: string | undefined
   private readonly fetch: typeof globalThis.fetch
   private published: Promise<Map<number, PublishedEpisode>> | undefined
 
   constructor(options: RssEpisodeDirectoryOptions) {
     this.feedUrl = options.feedUrl
+    this.show = options.show?.trim().toLowerCase()
     this.fetch = options.fetch ?? globalThis.fetch
+  }
+
+  /** Whether this item belongs to the show we were told to read. */
+  private mine(title: string): boolean {
+    return this.show === undefined || title.trim().toLowerCase().startsWith(this.show)
   }
 
   private async load(): Promise<Map<number, PublishedEpisode>> {
@@ -79,13 +102,20 @@ export class RssEpisodeDirectory implements EpisodeDirectory {
       const number = numberOf(item)
       if (number === undefined) continue
 
+      const title = asPlainText(between(item, 'title') ?? '')
+
+      // Another programme in the same feed. Skipped before the first-wins
+      // check below, because otherwise it claims the number and the episode
+      // we are actually looking for is the one discarded.
+      if (!this.mine(title)) continue
+
       // First wins. A feed lists newest first, and a re-release of an old
       // number should not overwrite the episode everybody means.
       if (episodes.has(number)) continue
 
       episodes.set(number, {
         number,
-        title: asPlainText(between(item, 'title') ?? ''),
+        title,
         description: asPlainText(
           between(item, 'content:encoded') ?? between(item, 'description') ?? '',
         ),
