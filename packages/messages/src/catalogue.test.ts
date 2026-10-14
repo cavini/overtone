@@ -18,8 +18,16 @@ describe('message codes', () => {
     expect(new Set(MESSAGE_CODES).size).toBe(MESSAGE_CODES.length)
   })
 
-  it('matches the count the backlog commits to', () => {
-    expect(MESSAGE_CODES).toHaveLength(47)
+  /*
+   * A tripwire, not a fact worth knowing. Both catalogues are checked below
+   * for a message per code, so what this adds is noticing that a code was
+   * added at all — the moment to ask whether both languages got a sentence
+   * and whether the presenter renders it.
+   *
+   * 49 since the two password rules (US-052).
+   */
+  it('matches the count the catalogues are kept to', () => {
+    expect(MESSAGE_CODES).toHaveLength(49)
   })
 
   it('names every code in SCREAMING_SNAKE_CASE', () => {

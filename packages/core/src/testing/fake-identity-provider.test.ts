@@ -5,10 +5,21 @@ import { describeIdentityProvider } from './identity-provider.contract.js'
 
 describeIdentityProvider('FakeIdentityProvider', () => {
   const provider = new FakeIdentityProvider()
+  /*
+   * A counter rather than `Math.random`, which `packages/core` does not get
+   * to call. The contract asks for an address nothing has registered, and
+   * each provider here is fresh, so counting from one is enough.
+   */
+  let made = 0
+
   return {
     provider,
     knownEmail: 'dex@example.test',
     tokenFor: (email: string) => Promise.resolve(provider.tokenFor(email)),
+    freshEmail: () => {
+      made += 1
+      return `fresh-${String(made)}@example.test`
+    },
   }
 })
 

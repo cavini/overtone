@@ -7,6 +7,14 @@ export interface IdentityUnderTest {
   readonly knownEmail: string
   /** Hands back the token a clicked link would carry, for that address. */
   readonly tokenFor: (email: string) => Promise<string>
+  /**
+   * An address with no account, different every time this is read.
+   *
+   * Different because registering is not undoable against the real service:
+   * a fixed address would pass once and then fail as `EMAIL_TAKEN` on every
+   * run after it.
+   */
+  readonly freshEmail: () => string
 }
 
 /**
@@ -87,6 +95,77 @@ export function describeIdentityProvider(
     it('recognises nobody from a made-up access token', async () => {
       const { provider } = await create()
       expect(await provider.whoIs('not-an-access-token')).toBeUndefined()
+    })
+
+    describe('a password', () => {
+      it('makes an account and signs it in', async () => {
+        const { provider, freshEmail } = await create()
+        const email = freshEmail()
+
+        const outcome = await provider.register(email, 'uma senha comprida')
+
+        if (!outcome.ok) throw new Error(`expected a session, got ${outcome.failure.code}`)
+        expect(outcome.session.identity.email).toBe(email)
+        expect(outcome.session.accessToken.length).toBeGreaterThan(0)
+      })
+
+      it('signs the same person back in afterwards', async () => {
+        const { provider, freshEmail } = await create()
+        const email = freshEmail()
+        const made = await provider.register(email, 'uma senha comprida')
+        if (!made.ok) throw new Error(`could not register: ${made.failure.code}`)
+
+        const again = await provider.signIn(email, 'uma senha comprida')
+
+        if (!again.ok) throw new Error(`expected a session, got ${again.failure.code}`)
+        // The id, not just the address: a second account for one person would
+        // be a second library, and their episodes would vanish.
+        expect(again.session.identity.userId).toBe(made.session.identity.userId)
+      })
+
+      it('refuses the wrong password', async () => {
+        const { provider, freshEmail } = await create()
+        const email = freshEmail()
+        await provider.register(email, 'uma senha comprida')
+
+        const outcome = await provider.signIn(email, 'outra senha comprida')
+
+        expect(outcome.ok).toBe(false)
+        if (!outcome.ok) expect(outcome.failure.code).toBe('WRONG_EMAIL_OR_PASSWORD')
+      })
+
+      /*
+       * The same refusal as a wrong password, which is the whole point. A
+       * form that answers "no such account" is a form that tells anybody who
+       * asks whether a given person is a member here.
+       */
+      it('refuses an address it has never seen the same way', async () => {
+        const { provider, freshEmail } = await create()
+
+        const outcome = await provider.signIn(freshEmail(), 'uma senha comprida')
+
+        expect(outcome.ok).toBe(false)
+        if (!outcome.ok) expect(outcome.failure.code).toBe('WRONG_EMAIL_OR_PASSWORD')
+      })
+
+      it('will not register the same address twice', async () => {
+        const { provider, freshEmail } = await create()
+        const email = freshEmail()
+        await provider.register(email, 'uma senha comprida')
+
+        const outcome = await provider.register(email, 'uma senha comprida')
+
+        expect(outcome.ok).toBe(false)
+        if (!outcome.ok) expect(outcome.failure.code).toBe('EMAIL_TAKEN')
+      })
+
+      it('hands back a session a token check accepts', async () => {
+        const { provider, freshEmail } = await create()
+        const made = await provider.register(freshEmail(), 'uma senha comprida')
+        if (!made.ok) throw new Error(`could not register: ${made.failure.code}`)
+
+        expect(await provider.whoIs(made.session.accessToken)).toEqual(made.session.identity)
+      })
     })
   })
 }

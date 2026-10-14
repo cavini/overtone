@@ -66,6 +66,13 @@ export const UI = {
     // The heading over episodes whose filename carried no number, so no
     // programme could be read out of it.
     libraryUncategorised: 'Sem programa',
+    // Deliberately one message for a wrong password and an address with no
+    // account. Two would answer whether somebody is a member here.
+    wrongEmailOrPassword: 'E-mail ou senha incorretos.',
+    emailTaken: 'Já existe uma conta com esse e-mail. Entre com a sua senha.',
+    passwordRejected: 'O serviço não aceitou essa senha. Tente uma mais longa.',
+    emailNotConfirmed:
+      'A conta foi criada, mas o projeto exige confirmação por e-mail. Desligue "Confirm email" no painel do Supabase.',
     openInTranscript: 'Ver na transcrição',
     gotIt: 'Entendi',
     languageAffectsAudio: 'Isto também muda o idioma em que os próximos episódios serão transcritos. Os episódios já prontos não mudam.',
@@ -117,7 +124,18 @@ export const UI = {
     wrongPassword: 'Essa senha não confere. Tente de novo.',
     enter: 'Entrar',
     emailLabel: 'Seu e-mail',
-    emailHint: 'Enviamos um link de entrada. Nenhuma senha.',
+    // The hint belongs to the recovery form now: the usual way in is a
+    // password, and a link is what you ask for when you have forgotten it.
+    emailHint: 'Enviamos um link de entrada, válido uma vez.',
+    accountPasswordLabel: 'Sua senha',
+    passwordPlaceholder: 'pelo menos 10 caracteres',
+    entering: 'Entrando…',
+    createAccount: 'Criar conta',
+    creatingAccount: 'Criando…',
+    needAnAccount: 'Não tem conta? Criar uma.',
+    haveAnAccount: 'Já tem conta? Entrar.',
+    forgotPassword: 'Esqueci a senha',
+    backToPassword: 'Voltar para a senha',
     emailPlaceholder: 'voce@exemplo.com',
     sendLink: 'Enviar o link',
     sendingLink: 'Enviando…',
@@ -186,6 +204,11 @@ export const UI = {
     libraryFilter: 'Filter by title',
     libraryNoMatch: 'No episode with that title.',
     libraryUncategorised: 'No programme',
+    wrongEmailOrPassword: 'Wrong email or password.',
+    emailTaken: 'An account with that email already exists. Sign in with your password.',
+    passwordRejected: 'The service would not accept that password. Try a longer one.',
+    emailNotConfirmed:
+      'The account was created, but the project requires email confirmation. Turn off "Confirm email" in the Supabase dashboard.',
     openInTranscript: 'See it in the transcript',
     gotIt: 'Got it',
     languageAffectsAudio: 'This also changes the language future episodes are transcribed in. Episodes already finished stay as they are.',
@@ -237,7 +260,16 @@ export const UI = {
     wrongPassword: 'That password does not match. Try again.',
     enter: 'Enter',
     emailLabel: 'Your email',
-    emailHint: 'We send a sign-in link. No password.',
+    emailHint: 'We send a sign-in link, good once.',
+    accountPasswordLabel: 'Your password',
+    passwordPlaceholder: 'at least 10 characters',
+    entering: 'Signing in…',
+    createAccount: 'Create account',
+    creatingAccount: 'Creating…',
+    needAnAccount: 'No account? Create one.',
+    haveAnAccount: 'Have an account? Sign in.',
+    forgotPassword: 'I forgot my password',
+    backToPassword: 'Back to the password',
     emailPlaceholder: 'you@example.com',
     sendLink: 'Send the link',
     sendingLink: 'Sending…',

@@ -21,6 +21,14 @@ export class FakeIdentityProvider implements IdentityProvider {
   private readonly pending = new Map<string, string>()
   private readonly live = new Map<string, Identity>()
   private readonly owners = new Map<string, string>()
+  /**
+   * Passwords in the clear, which is right here and nowhere else.
+   *
+   * This holds them only to answer "is this the one that was set". The real
+   * service never gives a password back and neither does this — nothing
+   * reads this map except `signIn`.
+   */
+  private readonly passwords = new Map<string, string>()
   private issued = 0
 
   /** The token the email would have carried. Tests reach for this. */
@@ -67,6 +75,32 @@ export class FakeIdentityProvider implements IdentityProvider {
     // thing that stops it being a permanent one.
     const [email] = found
     this.pending.delete(email)
+
+    return Promise.resolve({ ok: true, session: this.start(this.identityFor(email)) })
+  }
+
+  register(email: string, password: string): Promise<SignInOutcome> {
+    // Before anything else: the second registration must not quietly
+    // overwrite the first account's password.
+    if (this.passwords.has(email)) {
+      return Promise.resolve({ ok: false, failure: { code: 'EMAIL_TAKEN' } })
+    }
+
+    this.passwords.set(email, password)
+    return Promise.resolve({ ok: true, session: this.start(this.identityFor(email)) })
+  }
+
+  signIn(email: string, password: string): Promise<SignInOutcome> {
+    const held = this.passwords.get(email)
+
+    /*
+     * One answer for an unknown address and a wrong password, which is the
+     * contract. A fake that distinguished them would let a route be written
+     * that leaked the difference, and every test of that route would pass.
+     */
+    if (held === undefined || held !== password) {
+      return Promise.resolve({ ok: false, failure: { code: 'WRONG_EMAIL_OR_PASSWORD' } })
+    }
 
     return Promise.resolve({ ok: true, session: this.start(this.identityFor(email)) })
   }
