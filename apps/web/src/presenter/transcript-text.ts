@@ -1,3 +1,4 @@
+import { applyCorrections, type Correction } from '@overtone/core'
 import { groupWords, stitchBoundaries, stitchChunks } from '@overtone/core/analysis'
 import type { TimedWord } from '@overtone/core/domain'
 
@@ -69,6 +70,16 @@ interface TranscribedChunk {
 export function linesAfter(
   chunks: readonly TranscribedChunk[],
   from: number,
+  /*
+   * What somebody typed in place of what the transcriber heard (US-049).
+   *
+   * The reader reads the *chunks*, not the analysed segments — it has to,
+   * because it shows words as they land and segments only exist once the
+   * whole episode has been analysed. Which made it the one place a
+   * correction never reached: the counts changed, the search changed, the
+   * stored transcript changed, and the page still showed the misheard line.
+   */
+  corrections: readonly Correction[] = [],
 ): TranscriptSoFar {
   const byIndex = new Map(chunks.map((chunk) => [chunk.index, chunk]))
   const lines: TranscriptLine[] = []
@@ -80,7 +91,11 @@ export function linesAfter(
     const index = next
     // The transcriber's own breaks as well as the punctuation, so two
     // people's turns do not land on one line.
-    groupWords(stitchChunks([chunk]), undefined, stitchBoundaries([chunk])).forEach(
+    groupWords(
+      applyCorrections(stitchChunks([chunk]), corrections),
+      undefined,
+      stitchBoundaries([chunk]),
+    ).forEach(
       (group, position) => {
         const starts = group.words.map((word) => word.startMs)
         lines.push({

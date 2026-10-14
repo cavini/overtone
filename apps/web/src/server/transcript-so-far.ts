@@ -2,6 +2,7 @@ import type { TimedWord } from '@overtone/core/domain'
 import { chunkTranscripts } from '@overtone/db/schema'
 import { and, asc, eq, gte } from 'drizzle-orm'
 import { linesAfter, type TranscriptSoFar } from '../presenter/transcript-text.js'
+import { correctionsOf } from './analyse-upload.js'
 import { database } from './wiring.js'
 
 /**
@@ -42,5 +43,6 @@ export async function transcriptSoFar(
       segmentStartsMs: row.segmentStartsMs ?? [],
     })),
     since,
+    await correctionsOf(episodeId),
   )
 }
