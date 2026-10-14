@@ -469,3 +469,35 @@ export const heartbeats = pgTable('heartbeats', {
   id: smallint('id').primaryKey().default(1),
   pingedAt: timestamp('pinged_at', { withTimezone: true }).notNull().defaultNow(),
 })
+
+/**
+ * What somebody typed in place of what the transcriber heard.
+ *
+ * An overlay, not an edit: `chunkTranscripts.words` keeps exactly what came
+ * back from Whisper and this sits on top. A correction is undone by deleting
+ * a row, the original stays visible for comparison, and re-analysis picks
+ * corrections up for nothing because it already re-derives everything from
+ * the stored chunks.
+ *
+ * Addressed by time, not by word position — a position shifts the moment an
+ * earlier correction changes the word count, and word start times run
+ * backwards 4.5% of the time because people talk over each other.
+ */
+export const episodeCorrections = pgTable(
+  'episode_corrections',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    episodeId: uuid('episode_id')
+      .notNull()
+      .references(() => episodes.id, { onDelete: 'cascade' }),
+    fromMs: integer('from_ms').notNull(),
+    toMs: integer('to_ms').notNull(),
+    text: text('text').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    // One correction per line: editing the same line again replaces it.
+    unique('episode_corrections_one_per_span').on(table.episodeId, table.fromMs),
+    index('episode_corrections_episode').on(table.episodeId, table.fromMs),
+  ],
+)

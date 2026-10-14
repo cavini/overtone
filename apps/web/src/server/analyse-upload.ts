@@ -11,6 +11,7 @@ import {
   type AdvanceEpisodeOutcome,
   type EpisodeAnalysis,
   type UploadedChunk,
+  type Correction,
   VOCABULARY_VERSION,
 } from '@overtone/core'
 import {
@@ -23,6 +24,7 @@ import {
   termCounts,
   topics,
   transcripts,
+  episodeCorrections,
 } from '@overtone/db/schema'
 import { and, asc, desc, eq, sql } from 'drizzle-orm'
 import { DrizzleAllowanceStore, DrizzleChunkStore } from '@overtone/db/repositories'
@@ -532,6 +534,26 @@ export interface AdvancedEpisode {
  * it is always waiting for the allowance to refill (ADR 0020). The caller
  * comes back rather than the function sleeping.
  */
+
+/**
+ * What somebody typed in place of what the transcriber heard (US-049).
+ *
+ * Read on every advance, including the last one — which is what makes a
+ * correction turn into numbers: the analysis re-derives everything from the
+ * stitched words, and these go on before any of it is counted.
+ */
+export async function correctionsOf(episodeId: string): Promise<Correction[]> {
+  return database()
+    .select({
+      fromMs: episodeCorrections.fromMs,
+      toMs: episodeCorrections.toMs,
+      text: episodeCorrections.text,
+    })
+    .from(episodeCorrections)
+    .where(eq(episodeCorrections.episodeId, episodeId))
+    .orderBy(asc(episodeCorrections.fromMs))
+}
+
 export async function advanceOnce(episodeId: string): Promise<AdvancedEpisode> {
   const db = database()
   const [episode] = await db
@@ -650,6 +672,7 @@ export async function advanceOnce(episodeId: string): Promise<AdvancedEpisode> {
       episodeId,
       chunks: uploaded,
       topics: await topicsOfSeries(episode.seriesId),
+      corrections: await correctionsOf(episodeId),
       // The episode's own language, not the reader's.
       language: asAudioLanguage(episode.language),
     },
