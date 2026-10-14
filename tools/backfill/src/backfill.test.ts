@@ -769,3 +769,101 @@ describe('the line it prints while waiting', () => {
       .not.toContain('The Finished One')
   })
 })
+
+/** The fake as a plain `BackfillApp`, so one method can be swapped out. */
+const asApp = (app: FakeApp, override: Partial<BackfillApp> = {}): BackfillApp => ({
+  list: () => app.list(),
+  pending: () => app.pending(),
+  start: (request) => app.start(request),
+  recordBoundaries: (episodeId, startsMs) => app.recordBoundaries(episodeId, startsMs),
+  forget: (episodeId) => app.forget(episodeId),
+  ...override,
+})
+
+describe('when the app goes away mid-run', () => {
+  /*
+   * This happened. The dev server was restarted while the tool was waiting
+   * for an episode to drain, `/api/episodes/list` threw `fetch failed`, and
+   * because the room check sat outside the per-episode guard it took the
+   * whole run down — one episode into ten, with the rest still to pace. A
+   * run measured in days has to survive the app being redeployed, a laptop
+   * sleeping, and a wifi blip.
+   */
+  it('keeps waiting instead of ending the run', async () => {
+    const app = new FakeApp()
+    const rig = rigFor([1], 2_000, app)
+    let asked = 0
+    const tools: BackfillTools = {
+      ...rig.tools,
+      app: asApp(app, {
+        list: () => {
+          asked += 1
+          // Up at startup, away for two polls, then back.
+          return asked === 2 || asked === 3
+            ? Promise.reject(new Error('fetch failed'))
+            : app.list()
+        },
+      }),
+    }
+    // Something in flight, so there is a wait to interrupt.
+    app.library.push({
+      episodeId: 'busy',
+      number: 99,
+      title: 'Busy',
+      durationMs: 600_000,
+      status: 'transcribing',
+      chunksDone: 1,
+      chunkCount: 5,
+    })
+
+    await backfill(tools, plan(1))
+
+    expect(app.started, 'the outage ended the run').toHaveLength(1)
+    expect(rig.said.join('\n')).toMatch(/cannot reach the app/u)
+  })
+
+  // An app that never comes back must not poll politely forever either.
+  it('gives up when it never comes back', async () => {
+    const app = new FakeApp()
+    const rig = rigFor([1], 2_000, app)
+    let asked = 0
+    const tools: BackfillTools = {
+      ...rig.tools,
+      app: asApp(app, {
+        list: () => {
+          asked += 1
+          return asked === 1 ? app.list() : Promise.reject(new Error('fetch failed'))
+        },
+      }),
+    }
+    app.library.push({
+      episodeId: 'busy',
+      number: 99,
+      title: 'Busy',
+      durationMs: 600_000,
+      status: 'transcribing',
+      chunksDone: 1,
+      chunkCount: 5,
+    })
+
+    await expect(backfill(tools, plan(1))).rejects.toThrow(/unreachable/u)
+  })
+
+  /*
+   * At startup it is a different situation and deserves a different answer:
+   * nothing is in flight, nothing is half-done, and the overwhelmingly
+   * likely cause is that nobody started the app. Say that, rather than
+   * `fetch failed`, and stop.
+   */
+  it('says the app is not running when it cannot reach it at all', async () => {
+    const app = new FakeApp()
+    const rig = rigFor([1], 2_000, app)
+    const tools: BackfillTools = {
+      ...rig.tools,
+      app: asApp(app, { list: () => Promise.reject(new Error('fetch failed')) }),
+    }
+
+    await expect(backfill(tools, plan(1))).rejects.toThrow(/could not reach the app/u)
+    expect(rig.downloaded).toEqual([])
+  })
+})
