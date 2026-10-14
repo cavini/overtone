@@ -833,6 +833,36 @@ Scenario: The first episode is a complete page, not a page with holes
   And nothing on the page implies an episode is missing, unimported or still to be added
 ```
 
+### US-049 — Fix a line the transcriber got wrong
+*As any of us, I want to correct a line I know is wrong, so that the numbers are about what we actually said.*
+Priority: **Must** · Size: **M**
+
+```gherkin
+Scenario: A correction moves the counts, not just the words on screen
+  Given a line transcribed as "Tô mostrando a saia agora"
+  And the Episode counts `mostrar` once
+  When I click the line and type "Tô começando a sair de casa agora"
+  Then the Episode counts `mostrar` zero times and `começar` once
+  And the Transcript, Segments and search index all read the corrected words
+  And no transcription allowance is spent
+
+Scenario: The original is kept
+  Given a corrected line
+  Then `chunk_transcripts.words` still holds exactly what the transcriber said
+  And clearing the correction puts every count back where it was
+```
+
+> **Shipped.** Corrections are an overlay in `episode_corrections`, addressed
+> by time rather than word position — a position shifts as soon as an earlier
+> correction changes the word count, and word start times run backwards 4.5%
+> of the time because people talk over each other.
+>
+> Word timings inside a corrected line are **interpolated**: the typed words
+> are spread evenly across the line's own span. The line's start and end stay
+> exact, so clicking a count still lands on the right line; only sub-second
+> position within a corrected line is approximate. Nobody can know where
+> inside a second a word that was never heard would have fallen.
+
 ### US-025 — Delete an episode permanently
 *As any user, I want deletion to be real, so that I trust the app with recordings of my friends.*
 Priority: **Must** · Size: **M**

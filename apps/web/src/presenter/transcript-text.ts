@@ -15,6 +15,18 @@ export interface TranscriptLine {
   readonly position: number
   /** Where the line starts **in the episode**, which is what a search seeks to. */
   readonly startMs: number
+  /**
+   * The stretch of the episode this line's words occupy, for correcting it
+   * (US-049).
+   *
+   * Taken from the words rather than from the line's start and end, because
+   * `groupWords` divides words by position and their start times run
+   * backwards 4.5 % of the time — so a line's earliest word is not reliably
+   * its first one. A correction replaces every word whose start falls in
+   * this span, and this is the span that holds exactly them.
+   */
+  readonly fromMs: number
+  readonly toMs: number
   readonly text: string
 }
 
@@ -70,10 +82,14 @@ export function linesAfter(
     // people's turns do not land on one line.
     groupWords(stitchChunks([chunk]), undefined, stitchBoundaries([chunk])).forEach(
       (group, position) => {
+        const starts = group.words.map((word) => word.startMs)
         lines.push({
           chunk: index,
           position,
           startMs: group.startMs,
+          fromMs: Math.min(...starts),
+          // Exclusive, so the last word of the line is inside it.
+          toMs: Math.max(...starts) + 1,
           text: group.words.map((word) => word.text).join(' '),
         })
       },

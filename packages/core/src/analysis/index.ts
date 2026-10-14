@@ -14,6 +14,7 @@ export {
   stitchBoundaries,
   stitchChunks,
 } from './chunking.js'
+export { applyCorrections, type Correction } from './corrections.js'
 export { settleChunks } from './settle-chunks.js'
 export {
   MIN_SILENCE_MS,
