@@ -366,7 +366,23 @@ export function TranscriptView({
                       text={line.text}
                       busy={saving}
                       onCancel={() => setEditing(undefined)}
-                      onSave={(text: string) => void correct(line.fromMs, line.toMs, text)}
+                      /*
+                        * Up to where the *next* line starts, not to where
+                        * this one's last word does.
+                        *
+                        * A span taken from one line's own words leaves a gap
+                        * before the next line, and any original word in that
+                        * gap survives the correction as a line of its own.
+                        * Reported from production: correcting "Tô mostrando
+                        * a saia agora, velho." left a stray "velho." on the
+                        * line below it.
+                        *
+                        * Lines partition the words, so this covers exactly
+                        * one line's worth and never reaches into the next.
+                        */
+                      onSave={(text: string) =>
+                        void correct(line.fromMs, shown[position + 1]?.fromMs ?? line.toMs, text)
+                      }
                     />
                   ) : (
                     <button
