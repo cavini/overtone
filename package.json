@@ -18,6 +18,7 @@
     "prepare": "husky",
     "fetch:episode": "tsx scripts/fetch-episode.mts",
     "fetch:verb-forms": "tsx scripts/fetch-verb-forms.mts",
+    "backfill": "pnpm --filter @overtone/backfill backfill",
     "test:e2e": "pnpm --filter @overtone/web test:e2e"
   },
   "devDependencies": {

@@ -1,0 +1,12 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    // A command-line program, so the platform is Node and nothing else.
+    // Notably no `DOM`: the splitting code this shares with the browser was
+    // refactored until it needed none, and leaving the DOM out is what keeps
+    // it that way — an `AudioContext` creeping back into it would fail here
+    // rather than at runtime in a program that has no browser to offer.
+    "types": ["node"]
+  },
+  "include": ["src"]
+}
