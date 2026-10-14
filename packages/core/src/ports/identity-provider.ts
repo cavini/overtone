@@ -32,6 +32,28 @@ export type IdentityFailure =
   | { readonly code: 'EMAIL_REJECTED' }
   /** Too many links asked for, too fast. The free tier is strict about this. */
   | { readonly code: 'TOO_MANY_LINKS' }
+  /**
+   * The address and the password do not go together.
+   *
+   * One code for "no such account" and "wrong password" both, deliberately.
+   * Telling them apart turns the sign-in form into a way of asking whether
+   * somebody has an account here — the same reason `sendLink` never says
+   * whether it recognised an address.
+   */
+  | { readonly code: 'WRONG_EMAIL_OR_PASSWORD' }
+  /** Already registered. Only reachable behind the invitation list. */
+  | { readonly code: 'EMAIL_TAKEN' }
+  /** The service refused the password for its own reasons. */
+  | { readonly code: 'PASSWORD_REJECTED' }
+  /**
+   * The account was made but the project will not let it in yet.
+   *
+   * A project setting, not a fault: with email confirmation switched on,
+   * signing up returns a user and no session and nobody can enter until a
+   * link is clicked. Named rather than folded into `PROVIDER_UNAVAILABLE`,
+   * so the answer can say which setting to change.
+   */
+  | { readonly code: 'EMAIL_NOT_CONFIRMED' }
   | { readonly code: 'PROVIDER_UNAVAILABLE' }
 
 export type SignInOutcome =
@@ -56,6 +78,24 @@ export interface IdentityProvider {
    * anybody who asks.
    */
   sendLink(email: string, returnTo: string): Promise<LinkSent>
+  /**
+   * Creates an account and signs it straight in.
+   *
+   * Signed in rather than "now go and sign in", because an account made and
+   * not entered is a password somebody has already half-forgotten.
+   *
+   * Who may call this is not this port's business — the invitation list is
+   * checked above it. A provider that refused unknown addresses here could
+   * not be tested without one.
+   */
+  register(email: string, password: string): Promise<SignInOutcome>
+  /**
+   * Signs in with a password.
+   *
+   * Refuses an unknown address and a wrong password identically; see
+   * `WRONG_EMAIL_OR_PASSWORD`.
+   */
+  signIn(email: string, password: string): Promise<SignInOutcome>
   /** Turns the token from a clicked link into a session. */
   redeem(tokenHash: string): Promise<SignInOutcome>
   /** Who an access token belongs to, or nobody. */
