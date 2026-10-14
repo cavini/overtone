@@ -92,7 +92,11 @@ async function run(): Promise<void> {
     return
   }
 
-  const show = args[0] ?? defaultShow()
+  // A blank argument is not a show. `pnpm backfill "" 3` would otherwise
+  // hand `backfill` an empty filter, which it refuses — better to fall back
+  // to the environment, which is what was meant.
+  const named = args[0]?.trim()
+  const show = named === undefined || named.length === 0 ? defaultShow() : named
   const howMany = args[1] === undefined ? DEFAULT_HOW_MANY : Number(args[1])
 
   if (!Number.isInteger(howMany) || howMany <= 0) {
