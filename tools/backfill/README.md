@@ -115,10 +115,13 @@ Hence one episode in flight at a time. Before starting one, the tool asks
 `/api/episodes/list` whether anything is still `uploaded`, `transcribing` or
 `analyzing`, and waits a minute at a time until nothing is.
 
-> `/api/episodes/pending` is **not** the check, though it is used for the
-> progress line: it only reports an episode that is *transcribing*, so one that
-> has been uploaded and not yet picked up by the schedule — exactly what this
-> tool leaves behind — is invisible to it.
+> `/api/episodes/pending` is **not** the check, and not the progress line
+> either: it only reports an episode that is *transcribing*, and otherwise
+> falls back to the latest one worth reading — so in the window between an
+> upload and the schedule picking it up, it names an episode that has already
+> finished. A real run printed `waiting — #001, chunk 4 of 4` while it was
+> waiting for #002. Both the decision and the label come from
+> `/api/episodes/list`; `pending` is used once, to prove the session works.
 
 Leave it running in a terminal, or start it again tomorrow. It makes no
 difference.

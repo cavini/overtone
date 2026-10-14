@@ -152,11 +152,24 @@ async function waitForRoom(tools: BackfillTools): Promise<void> {
     )
     if (working.length === 0) return
 
-    const pending = await tools.app.pending()
+    /*
+     * Labelled from the list, not from `/api/episodes/pending`.
+     *
+     * Pending reports the oldest episode that is *transcribing*, and when
+     * none is, the most recent one worth reading — so in the window between
+     * an upload and the schedule picking it up it names an episode that has
+     * already finished. A real run printed `waiting — #001, chunk 4 of 4`
+     * for minutes while it was waiting for #002. The decision to wait was
+     * right, because that comes from the list; only the label was wrong, and
+     * over a run measured in days the log is the only window there is.
+     */
+    const [waitingOn] = working
+    const alsoWaiting = working.length - 1
     const line =
-      pending === undefined
+      waitingOn === undefined
         ? `waiting — ${String(working.length)} episode(s) still in flight`
-        : `waiting — ${pending.title}, chunk ${String(pending.chunksDone)} of ${String(pending.chunkCount)}`
+        : `waiting — ${waitingOn.title}, chunk ${String(waitingOn.chunksDone)} of ${String(waitingOn.chunkCount)}` +
+          (alsoWaiting > 0 ? ` (and ${String(alsoWaiting)} more)` : '')
 
     // Only when it changes. A two-hour episode takes over an hour to
     // transcribe, and a line a minute for an hour is a log nobody reads.
