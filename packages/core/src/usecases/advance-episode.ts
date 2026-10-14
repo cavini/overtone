@@ -14,6 +14,7 @@ import type { LemmaRepository } from '../ports/lemma-repository.js'
 import type { TranscriptionProvider } from '../ports/transcription-provider.js'
 import { annotate } from '../analysis/annotate.js'
 import { stitchBoundaries, stitchChunks } from '../analysis/chunking.js'
+import { applyCorrections, type Correction } from '../analysis/corrections.js'
 import { countTerms } from '../analysis/count-terms.js'
 import { findMentions } from '../analysis/find-mentions.js'
 import { nextChunkToSend } from '../analysis/pacing.js'
@@ -38,6 +39,14 @@ export interface AdvanceEpisodeRequest {
   readonly episodeId: string
   readonly chunks: readonly UploadedChunk[]
   readonly topics: readonly Topic[]
+  /**
+   * What somebody typed in place of what the transcriber heard (US-049).
+   *
+   * Passed in rather than fetched, the same as the topics above: a handful
+   * of rows the caller already has, and one less port for a thing that is
+   * not an external service.
+   */
+  readonly corrections?: readonly Correction[]
   /**
    * What the audio is spoken in.
    *
@@ -174,7 +183,13 @@ export async function advanceEpisode(
   const language = request.language ?? DEFAULT_AUDIO_LANGUAGE
 
   const stored = await chunks.transcripts(request.episodeId)
-  const words = stitchChunks(stored)
+  /*
+   * Corrections go on before anything is counted, which is the whole point
+   * of them: a fixed line changes the words, and the words are what every
+   * number is. Tokens, terms, running jokes, the segments the reader pages
+   * through and the text search reads — all of it comes off this one array.
+   */
+  const words = applyCorrections(stitchChunks(stored), request.corrections ?? [])
   // The transcriber's own line breaks, moved into episode time alongside the
   // words they belong to.
   const boundaries = stitchBoundaries(stored)
