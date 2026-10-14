@@ -863,6 +863,37 @@ Scenario: The original is kept
 > position within a corrected line is approximate. Nobody can know where
 > inside a second a word that was never heard would have fallen.
 
+### US-050 — The library is not capped by the size of the audio
+*As any of us, I want to keep uploading episodes indefinitely, so that the series comparison has a series to compare.*
+Priority: **Must** · Size: **S**
+
+```gherkin
+Scenario: A chunk's audio is freed as soon as it is transcribed
+  Given a 13-chunk Episode with 4 chunks transcribed
+  When chunk 5 is transcribed
+  Then chunk 5's audio is removed from storage
+  And the 8 untranscribed chunks still have theirs
+
+Scenario: A failed chunk keeps its audio
+  Given a chunk whose transcription failed with `PROVIDER_UNAVAILABLE`
+  Then its audio is still in storage
+  And the retry transcribes it without a re-upload
+
+Scenario: Three episodes in one day do not collide
+  Given 3 Episodes of 2h06m uploaded within the same hour
+  Then storage never holds more than one episode's untranscribed remainder
+  And no upload is refused with `STORAGE_FULL`
+```
+
+> **Shipped.** `freedAudio` decides what an advance made dead weight: a
+> `transcribed` outcome frees that chunk, `ready` sweeps the episode as a
+> backstop, and `failed`/`waiting` free nothing because both expect a retry.
+>
+> Waiting for the whole episode was the bug. Pacing drains a 2h06m episode's
+> thirteen chunks over an hour or more, so three uploads in a day — the daily
+> cap — would have held ~729 MB at once on a 1 GB tier. See ADR 0031, which
+> supersedes the retention policy in ADR 0013.
+
 ### US-025 — Delete an episode permanently
 *As any user, I want deletion to be real, so that I trust the app with recordings of my friends.*
 Priority: **Must** · Size: **M**
