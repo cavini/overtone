@@ -1,6 +1,6 @@
 # ADR 0013 — Keep recent audio, auto-purge the oldest
 
-**Date:** 2026-10-07 · **Status:** accepted · **Resolves:** open question Q15
+**Date:** 2026-10-07 · **Status:** ~~accepted~~ **superseded by [ADR 0031](0031-audio-is-freed-as-it-is-transcribed.md)** — no audio is retained at all: playback was never built, and the codec that made 22 MB an episode never shipped. · **Resolved:** open question Q15
 
 ## Context
 

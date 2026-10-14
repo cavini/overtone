@@ -7,10 +7,13 @@
  * fetches audio by URL rather than taking bytes from us — so the audio has to
  * outlive the request that carried it.
  *
- * Storage is the ceiling that arrives first on the free tier: 1 GB, against
- * ~22 MB an episode. `remove` is not housekeeping, it is what makes the
- * numbers work — chunk audio is dead weight once the episode is transcribed,
- * because `transcripts.raw_provider_payload` is what re-derivation reads.
+ * `remove` is not housekeeping, it is what makes the numbers work. At 16 kHz
+ * mono WAV a 2h06m episode is ~243 MB against a 1 GB tier, and pacing drains
+ * its chunks over an hour or more — so three uploads in one day would collide
+ * if the bytes were kept. Chunk audio is dead weight the moment its
+ * transcript is stored, because `transcripts.raw_provider_payload` is what
+ * re-derivation reads. Freed per chunk, storage stops being a ceiling at all;
+ * see `freedAudio`.
  */
 export interface BlobStore {
   /**
