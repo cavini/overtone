@@ -57,6 +57,19 @@ const RESTARTS = 1
  */
 const GIVE_UP_AFTER = 3
 
+/**
+ * How many times the room check may fail before the run gives up.
+ *
+ * It must tolerate some failure. The app is a thing that gets redeployed,
+ * restarted and slept, and this waits on it once a minute for days — a
+ * single `fetch failed` ending the run is what actually happened, one
+ * episode into ten, when the dev server was restarted underneath it.
+ *
+ * Not unlimited, because an app that is never coming back should say so
+ * rather than poll politely forever. Thirty polls is about half an hour.
+ */
+const OUTAGE_POLLS = 30
+
 /** Just the part of the app's API this needs, so a test can stand in. */
 export interface BackfillApp {
   list(): Promise<readonly LibraryEpisode[]>
@@ -145,11 +158,35 @@ function alreadyHeld(
  */
 async function waitForRoom(tools: BackfillTools): Promise<void> {
   let lastSaid = ''
+  let outage = 0
 
   for (;;) {
-    const working = (await tools.app.list()).filter((episode) =>
-      IN_FLIGHT_STATUSES.has(episode.status),
-    )
+    /*
+     * An unreachable app is a reason to wait, not a reason to stop.
+     *
+     * This is the one call that happens outside the per-episode guard, so
+     * before this it was the one call whose failure ended the run — which
+     * is precisely what a redeploy, a sleeping laptop or a wifi blip looks
+     * like from here.
+     */
+    let library
+    try {
+      library = await tools.app.list()
+      outage = 0
+    } catch (error) {
+      outage += 1
+      if (outage >= OUTAGE_POLLS) {
+        throw new Error(
+          `the app has been unreachable for ${String(outage)} polls: ${reasonOf(error)}`,
+        )
+      }
+
+      tools.say(`waiting — cannot reach the app (${reasonOf(error)}), retrying`)
+      await tools.sleep(POLL_MS)
+      continue
+    }
+
+    const working = library.filter((episode) => IN_FLIGHT_STATUSES.has(episode.status))
     if (working.length === 0) return
 
     /*
@@ -350,7 +387,23 @@ export async function backfill(tools: BackfillTools, plan: BackfillPlan): Promis
   }
 
   const feed = await tools.feed.list()
-  const library = await tools.app.list()
+
+  /*
+   * Fail here, clearly, rather than on the first upload.
+   *
+   * Unreachable *during* a run is something to wait out — see
+   * `waitForRoom`. Unreachable at the start is almost always that nobody
+   * started the app, and `fetch failed` on its own sends people looking at
+   * the feed, the network and the password instead.
+   */
+  let library
+  try {
+    library = await tools.app.list()
+  } catch (error) {
+    throw new Error(
+      `could not reach the app to ask what it already has (${reasonOf(error)}) — is it running?`,
+    )
+  }
 
   const todo = feed
     .filter((episode) => alreadyHeld(library, plan.show, episode) === undefined)
