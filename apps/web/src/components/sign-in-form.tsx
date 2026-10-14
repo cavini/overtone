@@ -18,6 +18,10 @@ const TROUBLE: Record<IdentityFailure['code'], UiKey> = {
   LINK_EXPIRED: 'linkExpired',
   EMAIL_REJECTED: 'emailRejected',
   TOO_MANY_LINKS: 'tooManyLinks',
+  WRONG_EMAIL_OR_PASSWORD: 'wrongEmailOrPassword',
+  EMAIL_TAKEN: 'emailTaken',
+  PASSWORD_REJECTED: 'passwordRejected',
+  EMAIL_NOT_CONFIRMED: 'emailNotConfirmed',
   PROVIDER_UNAVAILABLE: 'signInUnavailable',
 }
 

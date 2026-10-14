@@ -72,6 +72,8 @@ export const MESSAGE_PARAMS = {
     reset_at_utc: 'string',
     hours_until_reset: 'number',
   },
+  PASSWORD_TOO_SHORT: { min_chars: 'number' },
+  PASSWORD_NEEDS_CONTENT: {},
   STORAGE_FULL: {
     used_bytes: 'number',
     limit_bytes: 'number',
