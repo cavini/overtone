@@ -25,26 +25,36 @@ const jsonBody = (value: unknown): Response =>
     headers: { 'content-type': 'application/json' },
   })
 
-/** The redirect-with-a-cookie that a correct password gets back. */
+/** What a correct email and password get back: 200, and two cookies. */
 const entered = (): Response =>
-  new Response(null, {
-    status: 303,
+  new Response(JSON.stringify({ ok: true }), {
+    status: 200,
     headers: [
-      ['set-cookie', 'overtone_entry=abc123; Path=/; HttpOnly; SameSite=Lax'],
-      ['location', '/pt'],
+      ['content-type', 'application/json'],
+      ['set-cookie', 'overtone_access=access-abc; Path=/; HttpOnly; SameSite=Lax'],
+      ['set-cookie', 'overtone_refresh=refresh-abc; Path=/; HttpOnly; SameSite=Lax'],
     ],
   })
 
-/** The redirect a wrong one gets back: same status, no cookie. */
+/**
+ * What a wrong one gets back.
+ *
+ * The same 401 for a wrong password, an address with no account and one
+ * nobody invited — the app will not say which, so this fixture is all three.
+ */
 const refused = (): Response =>
-  new Response(null, { status: 303, headers: { location: '/pt/entrar?wrong=1' } })
+  new Response(JSON.stringify({ error: 'WRONG_EMAIL_OR_PASSWORD' }), { status: 401 })
 
 /** What the app answers a session it does not recognise. */
 const unauthorised = (): Response =>
   new Response(JSON.stringify({ error: 'NOT_SIGNED_IN' }), { status: 401 })
 
-/** A redirect whose headers the runtime refused to show. */
-const opaque = (): Response => new Response(null, { status: 200 })
+/** Accepted, but with no session attached — nothing to carry onward. */
+const cookieless = (): Response =>
+  new Response(JSON.stringify({ ok: true }), {
+    status: 200,
+    headers: { 'content-type': 'application/json' },
+  })
 
 /**
  * The two answers getting in costs: the cookie, and the authenticated
@@ -73,73 +83,86 @@ beforeEach(() => {
 })
 
 describe('getting in', () => {
-  it('posts the shared password to the door', async () => {
+  it('posts the address and password as json', async () => {
     answers = [entered()]
 
-    await apiOf().enter('hunter2', 'pt')
+    await apiOf().enter('dex@example.test', 'uma senha comprida')
 
-    expect(calls[0]?.url).toBe('https://overtone.example/api/enter')
+    expect(calls[0]?.url).toBe('https://overtone.example/api/auth/password')
     expect(calls[0]?.method).toBe('POST')
-    // A form, because that is what the route reads. JSON there is a 400.
-    expect(calls[0]?.body).toContain('password=hunter2')
-    expect(calls[0]?.body).toContain('locale=pt')
+    expect(JSON.parse(calls[0]?.body ?? '{}')).toEqual({
+      email: 'dex@example.test',
+      password: 'uma senha comprida',
+    })
   })
 
   /*
-   * The cookie is the whole purpose of the call, and following the redirect
-   * would land on a page — in the wrong-password case, a sign-in page that
-   * answers 200 and looks like success.
+   * Both cookies. The access token is what authenticates, and the refresh
+   * token is what the app renews it from — a run lasts days and the access
+   * token lasts an hour, so dropping the refresh would sign the tool out
+   * mid-catalogue.
    */
-  it('carries the session cookie into every later call', async () => {
+  it('carries both session cookies into every later call', async () => {
     answers = [...door(), jsonBody({ episodes: [] })]
     const api = apiOf()
 
-    await api.enter('hunter2', 'pt')
+    await api.enter('dex@example.test', 'uma senha comprida')
     await api.list()
 
-    expect(calls[2]?.headers['cookie']).toBe('overtone_entry=abc123')
+    expect(calls[2]?.headers['cookie']).toContain('overtone_access=access-abc')
+    expect(calls[2]?.headers['cookie']).toContain('overtone_refresh=refresh-abc')
   })
 
-  /*
-   * A wrong password and an unconfigured one both answer 303 to the sign-in
-   * page — deliberately, so the response says nothing about which passwords
-   * are close. From out here the only signal is the missing cookie, and
-   * without this check the first real call would fail as a confusing 401.
-   */
-  it('says the password was refused rather than failing later', async () => {
-    answers = [refused(), unauthorised()]
-
-    await expect(apiOf().enter('wrong', 'pt')).rejects.toThrow(/password/u)
-  })
-
-  /*
-   * The fetch standard says a redirect the caller asked not to follow comes
-   * back opaque — no status, no headers — so on a runtime that implements
-   * that there is no cookie to read even when the password was right. Its
-   * value is derived from the password, so it is computed instead.
-   */
-  it('works even when the runtime hides the redirect it was told not to follow', async () => {
-    // An opaque redirect cannot be built with the Response constructor —
-    // that is rather the point of it — so this stands in for it: an answer
-    // with nothing readable in it.
-    answers = [opaque(), jsonBody({ episode: null }), jsonBody({ episodes: [] })]
+  // Only the pair, never `Path` or `HttpOnly`: those are instructions to a
+  // browser, and this is not one.
+  it('sends no cookie attributes', async () => {
+    answers = [...door(), jsonBody({ episodes: [] })]
     const api = apiOf()
 
-    await api.enter('hunter2', 'pt')
+    await api.enter('dex@example.test', 'uma senha comprida')
     await api.list()
 
-    expect(calls[2]?.headers['cookie']).toMatch(/^overtone_entry=[0-9a-f]{64}$/u)
+    expect(calls[2]?.headers['cookie']).not.toMatch(/Path|HttpOnly|SameSite/u)
   })
 
   /*
-   * Proved, not assumed. A wrong password would otherwise surface as a 401
-   * from whatever call happened to be first, which reads like a broken tool
-   * rather than a typo in .env.local.
+   * One refusal covers a wrong password, an address with no account and one
+   * nobody invited — the app will not say which, on purpose. So the message
+   * names what to check instead of guessing which it was.
+   */
+  it('says the sign-in was refused, and what to check', async () => {
+    answers = [refused()]
+
+    await expect(apiOf().enter('dex@example.test', 'errada')).rejects.toThrow(
+      /OVERTONE_ACCOUNT_EMAIL.*OVERTONE_INVITED/su,
+    )
+  })
+
+  /*
+   * No way around a missing cookie any more. The shared password hashed to
+   * its own cookie value, so one could be computed when the runtime hid the
+   * response; these are tokens the service mints, and an absent one is the
+   * end of it. Better to say so than to send no cookie and read a 401 later.
+   */
+  it('says so when it is let in with no session attached', async () => {
+    answers = [cookieless()]
+
+    await expect(apiOf().enter('dex@example.test', 'uma senha comprida')).rejects.toThrow(
+      /handed back no session cookie/u,
+    )
+  })
+
+  /*
+   * Proved, not assumed. A session that does not work would otherwise
+   * surface as a 401 from whatever call happened to be first, which reads
+   * like a broken tool rather than a credential problem.
    */
   it('checks the session works before doing anything with it', async () => {
     answers = [entered(), unauthorised()]
 
-    await expect(apiOf().enter('hunter2', 'pt')).rejects.toThrow(/NOT_SIGNED_IN/u)
+    await expect(
+      apiOf().enter('dex@example.test', 'uma senha comprida'),
+    ).rejects.toThrow(/NOT_SIGNED_IN/u)
     expect(calls[1]?.url).toBe('https://overtone.example/api/episodes/pending')
   })
 
@@ -165,7 +188,7 @@ describe('starting an episode', () => {
     ]
 
     const api = apiOf()
-    await api.enter('hunter2', 'pt')
+    await api.enter('dex@example.test', 'uma senha comprida')
 
     return api.start({
       durationMs: 900_000,
@@ -213,7 +236,7 @@ describe('starting an episode', () => {
       jsonBody({ episodeId: 'ep-old', chunks: [], alreadyHave: true, title: 'Chuva de canivetes #001' }),
     ]
     const api = apiOf()
-    await api.enter('hunter2', 'pt')
+    await api.enter('dex@example.test', 'uma senha comprida')
 
     const started = await api.start({
       durationMs: 900_000,
@@ -232,7 +255,7 @@ describe('starting an episode', () => {
       new Response(JSON.stringify({ error: 'O episódio é longo demais' }), { status: 413 }),
     ]
     const api = apiOf()
-    await api.enter('hunter2', 'pt')
+    await api.enter('dex@example.test', 'uma senha comprida')
 
     await expect(
       api.start({
@@ -253,7 +276,7 @@ describe('starting an episode', () => {
   it('says what it got when the answer is not json at all', async () => {
     answers = [...door(), new Response('<html>Request Entity Too Large</html>', { status: 413 })]
     const api = apiOf()
-    await api.enter('hunter2', 'pt')
+    await api.enter('dex@example.test', 'uma senha comprida')
 
     await expect(
       api.start({
@@ -270,7 +293,7 @@ describe('recording where the seams landed', () => {
   const api = async () => {
     const made = apiOf()
     answers = [...door(), ...answers]
-    await made.enter('hunter2', 'pt')
+    await made.enter('dex@example.test', 'uma senha comprida')
     return made
   }
 
@@ -305,7 +328,7 @@ describe('asking what the app already has', () => {
   const api = async () => {
     const made = apiOf()
     answers = [...door(), ...answers]
-    await made.enter('hunter2', 'pt')
+    await made.enter('dex@example.test', 'uma senha comprida')
     return made
   }
 
@@ -391,7 +414,7 @@ describe('on its own', () => {
     answers = [...door(), jsonBody({ episodes: [] })]
     const api = new OvertoneApi({ baseUrl: 'https://overtone.example/', fetch: stubFetch })
 
-    await api.enter('hunter2', 'pt')
+    await api.enter('dex@example.test', 'uma senha comprida')
     await api.list()
 
     expect(calls[2]?.url).toBe('https://overtone.example/api/episodes/list')
@@ -405,7 +428,7 @@ describe('on its own', () => {
   it('says the status when the server refused without a reason', async () => {
     answers = [...door(), new Response(JSON.stringify({}), { status: 500 })]
     const api = apiOf()
-    await api.enter('hunter2', 'pt')
+    await api.enter('dex@example.test', 'uma senha comprida')
 
     await expect(api.list()).rejects.toThrow(/500/u)
   })
@@ -415,7 +438,7 @@ describe('on its own', () => {
   it('does not fall over on an answer missing its fields', async () => {
     answers = [...door(), jsonBody({ episodeId: 'ep-1' })]
     const api = apiOf()
-    await api.enter('hunter2', 'pt')
+    await api.enter('dex@example.test', 'uma senha comprida')
 
     const started = await api.start({
       durationMs: 1_000,

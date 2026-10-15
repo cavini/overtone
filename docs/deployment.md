@@ -126,12 +126,26 @@ select status, (response).status_code from net._http_response order by created d
 
 ## Signing in
 
-**Today: one shared password**, in `OVERTONE_PASSWORD`. That is the access
-model, not a leftover — see ADR 0028. Nothing below needs doing unless you
-want per-person libraries.
+**An email and a password per account.** Set `OVERTONE_INVITED` to the
+addresses allowed to register — registration **fails closed** without it,
+because uploading spends a free-tier allowance shared by every user and an
+open form is that allowance published to the internet.
 
-Magic links are built and dormant. To switch them on, three things have to be
-set up in the Supabase dashboard, and sign-in is broken until they are:
+One dashboard setting is required: **Authentication → Sign In / Providers →
+Email → turn off "Confirm email"**. With it on, registering creates the
+account and hands back no session, so nobody gets in without clicking an
+email. Check it with `GET /auth/v1/settings`, where `mailer_autoconfirm` must
+be `true`.
+
+The shared password that used to be here is gone. It returned one fixed id for
+whoever knew it, so every library was the same library.
+
+Magic links are built and used for one thing: recovering a forgotten password.
+Until the three things below are set up, that recovery path reaches nobody but
+the project owner — ordinary sign-in does not depend on them.
+
+To make password recovery work for everybody, three things have to be set up
+in the Supabase dashboard:
 
 1. **Authentication → URL Configuration → Site URL**: the deployed origin.
 2. **Redirect URLs**: add `https://<your-domain>/auth/callback`. A link whose

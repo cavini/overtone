@@ -93,10 +93,13 @@ Two things have to be set, and the second is the one that wastes an afternoon:
    Registration says so rather than failing opaquely: the refusal is
    `EMAIL_NOT_CONFIRMED` and it names the setting.
 
-While `OVERTONE_PASSWORD` is still set, **everyone who knows it is the same
-user** and there is no isolation at all. Removing it is what turns per-account
-isolation on — so do it only once somebody has a real account, or nobody can
-get in.
+The shared password is **gone**. It used to return one fixed id for whoever
+knew it, so every episode belonged to the same notional person and none of the
+per-account isolation meant anything. Removing it is what turned that on.
+
+`OVERTONE_ACCOUNT_EMAIL` and `OVERTONE_ACCOUNT_PASSWORD` are an account the
+e2e suite and the backfill tool sign in as — the episodes a backfill uploads
+land in that account's library.
 
 ## Commands
 

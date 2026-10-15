@@ -173,7 +173,7 @@ export function SignInForm({
       {asking ? null : (
         <>
           <label htmlFor={passwordId} className="mt-4 block text-sm font-medium">
-            {labels.accountPasswordLabel}
+            {labels.passwordLabel}
           </label>
           <input
             id={passwordId}
