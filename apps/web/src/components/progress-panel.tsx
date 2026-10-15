@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { splitDuration } from '../presenter/duration.js'
 import type { UiKey } from '../i18n/ui.js'
 
 type Labels = Record<UiKey, string>
@@ -16,9 +17,24 @@ export interface Progress {
   readonly notice?: string
 }
 
-const mmss = (ms: number): string => {
-  const total = Math.max(0, Math.ceil(ms / 1000))
-  return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, '0')}`
+/**
+ * The wait, in the units somebody would say it in.
+ *
+ * It was minutes and seconds with no hour rollover, so a wait for the daily
+ * allowance to refill read as "868:23". The waits are genuinely that long —
+ * the free tier refills eight audio-hours a day — so the hours have to be
+ * there.
+ */
+const asWait = (ms: number, labels: Labels): string => {
+  const { hours, minutes, seconds } = splitDuration(ms)
+
+  return [
+    hours === undefined ? undefined : `${String(hours)}${labels.hoursShort}`,
+    minutes === undefined ? undefined : `${String(minutes)}${labels.minutesShort}`,
+    seconds === undefined ? undefined : `${String(seconds)}${labels.secondsShort}`,
+  ]
+    .filter((part) => part !== undefined)
+    .join(' ')
 }
 
 /**
@@ -86,7 +102,7 @@ export function ProgressPanel({
       {waiting ? (
         <div className="mt-4 border-t pt-3" style={{ borderColor: 'var(--edge)' }}>
           <p className="text-sm">
-            {labels.nextPartIn} <span className="tabular font-medium">{mmss(remaining)}</span>
+            {labels.nextPartIn} <span className="tabular font-medium">{asWait(remaining, labels)}</span>
           </p>
           {/*
             * This said "keep this tab open" next to "nothing for you to
