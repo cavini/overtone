@@ -1,6 +1,11 @@
 # 0028 · Sign-in is a magic link, and a library belongs to a person
 
-**Status** accepted
+**Status** accepted, **amended 2026-10-15**: the ordinary way in is an email
+and a password. A link costs an email every time and the free tier rations
+them — which this ADR already noted as the reason the session lasts a month.
+What survives is everything below about the port, the contract, and checking a
+token locally; the link itself is now the password-recovery path. The shared
+password this replaced is gone rather than dormant.
 **Date** 2026-10-10
 **Replaces** the shared password in [0018](0018-one-shared-password.md)
 
