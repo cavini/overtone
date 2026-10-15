@@ -1,24 +1,23 @@
 import { hasLocale } from 'next-intl'
 import { setRequestLocale } from 'next-intl/server'
 import { notFound } from 'next/navigation'
-import { GateForm } from '../../../components/gate-form.js'
 import { OvertoneMark } from '../../../components/overtone-mark.js'
 import { SignInForm } from '../../../components/sign-in-form.js'
-import { whichDoor } from '../../../presenter/which-door.js'
 import { routing } from '../../../i18n/routing.js'
 import { UI } from '../../../i18n/ui.js'
 
 /**
- * The way in — whichever one is actually open.
+ * The way in: an email and a password.
  *
- * Magic links need an email provider before they reach anybody but the
- * project owner, so while `OVERTONE_PASSWORD` is set the password is the
- * only working door and this page asks for it (ADR 0028).
+ * Which form to show here went wrong twice, in opposite directions. PR #28
+ * showed the magic-link form while the only working way in was the shared
+ * password. Then an email-and-password form shipped that this page never
+ * rendered, because it drew whichever single door the environment implied and
+ * the shared password won whenever it was set. Both times the mismatch hid
+ * behind the builder's own month-long cookie — they were never shown this
+ * page, so they never saw that nobody else could get in.
  *
- * It asked for an email address regardless, which is how PR #28 shipped a
- * form that posted to a provider configured to deliver to one person. The
- * mismatch hid behind the builder's own month-long cookie: they were never
- * shown this page, so they never saw that nobody else could get past it.
+ * There is one door now, and nothing decides whether to draw it.
  */
 export default async function EnterPage({
   params,
@@ -48,15 +47,11 @@ export default async function EnterPage({
         {labels.tagline}
       </p>
 
-      {whichDoor(process.env['OVERTONE_PASSWORD']) === 'password' ? (
-        <GateForm locale={locale} labels={labels} wrong={wrong === '1'} />
-      ) : (
-        <SignInForm
-          locale={locale}
-          labels={labels}
-          {...(trouble === undefined ? {} : { trouble })}
-        />
-      )}
+      <SignInForm
+        locale={locale}
+        labels={labels}
+        {...(trouble === undefined ? {} : { trouble })}
+      />
     </main>
   )
 }
