@@ -7,6 +7,7 @@ import { digestOf } from './audio-digest.js'
 import { splitAndUpload } from './borrowed-from-the-app.js'
 import { decodeWithFfmpeg, requireFfmpeg } from './decode-with-ffmpeg.js'
 import { downloadAudio } from './download-audio.js'
+import { feedFetch } from './feed-from-file.js'
 import { OvertoneApi } from './overtone-api.js'
 import { readArguments } from './read-arguments.js'
 import { spawnProgram } from './spawn-program.js'
@@ -61,6 +62,9 @@ Walks a show's own RSS feed and uploads the back catalogue, oldest first.
 Reads OVERTONE_FEED_URL, OVERTONE_FEED_SHOW, OVERTONE_ACCOUNT_EMAIL and
 OVERTONE_ACCOUNT_PASSWORD from .env.local at the repo root, and
 OVERTONE_BASE_URL if the app is not at ${DEFAULT_BASE_URL}.
+
+Set OVERTONE_FEED_FILE to a saved copy of the feed to read it off disk
+instead of asking the show's own feed on every run.
 
 The episodes land in the library of whichever account it signs in as.
 
@@ -121,7 +125,19 @@ async function run(): Promise<void> {
   await app.enter(required('OVERTONE_ACCOUNT_EMAIL'), required('OVERTONE_ACCOUNT_PASSWORD'))
 
   const tools: BackfillTools = {
-    feed: new RssEpisodeDirectory({ feedUrl: required('OVERTONE_FEED_URL'), show }),
+    /*
+     * From a saved copy when one is named, over the network otherwise.
+     *
+     * `OVERTONE_FEED_FILE` exists because the show's private feed URL
+     * started answering 401 part-way through a backfill while the audio
+     * links inside it kept working — a private feed is meant for one
+     * listener's app, not a tool asking for it on every run.
+     */
+    feed: new RssEpisodeDirectory({
+      feedUrl: process.env['OVERTONE_FEED_FILE'] ?? required('OVERTONE_FEED_URL'),
+      show,
+      fetch: feedFetch(process.env['OVERTONE_FEED_FILE']),
+    }),
     app,
     download: (url, toPath) => downloadAudio(url, toPath, spawnProgram),
     digest: (path) => digestOf(createReadStream(path)),
