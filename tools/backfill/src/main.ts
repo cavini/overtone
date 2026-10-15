@@ -57,9 +57,11 @@ Walks a show's own RSS feed and uploads the back catalogue, oldest first.
               (default: OVERTONE_FEED_SHOW from .env.local)
   how-many    how many to upload in this run (default: ${String(DEFAULT_HOW_MANY)})
 
-Reads OVERTONE_FEED_URL, OVERTONE_FEED_SHOW and OVERTONE_PASSWORD from
-.env.local at the repo root, and OVERTONE_BASE_URL if the app is not at
-${DEFAULT_BASE_URL}.
+Reads OVERTONE_FEED_URL, OVERTONE_FEED_SHOW, OVERTONE_ACCOUNT_EMAIL and
+OVERTONE_ACCOUNT_PASSWORD from .env.local at the repo root, and
+OVERTONE_BASE_URL if the app is not at ${DEFAULT_BASE_URL}.
+
+The episodes land in the library of whichever account it signs in as.
 
 One episode is uploaded at a time and the next waits until the app has
 finished with the last, because transcription drains about three episodes a
@@ -122,7 +124,7 @@ async function run(): Promise<void> {
 
   const app = new OvertoneApi({ baseUrl })
   console.log(`overtone: ${baseUrl}`)
-  await app.enter(required('OVERTONE_PASSWORD'), locale)
+  await app.enter(required('OVERTONE_ACCOUNT_EMAIL'), required('OVERTONE_ACCOUNT_PASSWORD'))
 
   const tools: BackfillTools = {
     feed: new RssEpisodeDirectory({ feedUrl: required('OVERTONE_FEED_URL'), show }),

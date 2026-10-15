@@ -1,5 +1,5 @@
 import type { EpisodeStatus } from '@overtone/core'
-import { GATE_COOKIE, tokenFor, type ChunkTarget } from './borrowed-from-the-app.js'
+import { ACCESS_COOKIE, REFRESH_COOKIE, type ChunkTarget } from './borrowed-from-the-app.js'
 
 /**
  * The app's HTTP API, as a program sees it.
@@ -120,30 +120,57 @@ export class OvertoneApi {
    *    whatever call happened to be first, which reads like a broken tool
    *    rather than a typo in `.env.local`.
    */
-  async enter(password: string, locale: string): Promise<void> {
-    const response = await this.fetch(`${this.baseUrl}/api/enter`, {
+  async enter(email: string, password: string): Promise<void> {
+    const response = await this.fetch(`${this.baseUrl}/api/auth/password`, {
       method: 'POST',
-      // A form, not JSON: the route reads `request.formData()` and answers
-      // anything else with 400.
-      headers: { 'content-type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({ password, locale }).toString(),
-      redirect: 'manual',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ email, password }),
     })
 
+    if (!response.ok) {
+      /*
+       * One refusal for a wrong password, an address with no account and one
+       * nobody invited — the app will not say which, on purpose, so neither
+       * can this. What it can do is name the two things to check.
+       */
+      throw new Error(
+        `the app at ${this.baseUrl} would not sign in as ${email} (${String(response.status)}): check OVERTONE_ACCOUNT_EMAIL and OVERTONE_ACCOUNT_PASSWORD, and that the address is in OVERTONE_INVITED`,
+      )
+    }
+
+    /*
+     * Read, never derived. The old shared password hashed to its own cookie
+     * value, so a missing `Set-Cookie` could be worked around; these are
+     * tokens the service mints, so an absent one is the end of it.
+     *
+     * Only the name=value pair, never the attributes: `Path` and `HttpOnly`
+     * are instructions to a browser, and this is not one.
+     */
     const handed = response.headers
       .getSetCookie()
-      .find((cookie) => cookie.startsWith(`${GATE_COOKIE}=`))
+      .filter(
+        (cookie) => cookie.startsWith(`${ACCESS_COOKIE}=`) || cookie.startsWith(`${REFRESH_COOKIE}=`),
+      )
+      .map((cookie) => cookie.split(';')[0] ?? '')
+      .filter((pair) => pair.length > 0)
 
-    // Only the pair, never the attributes. `Path` and `HttpOnly` are
-    // instructions to a browser, and this is not one.
-    this.cookie = handed?.split(';')[0] ?? `${GATE_COOKIE}=${await tokenFor(password)}`
+    if (handed.length === 0) {
+      throw new Error(
+        `the app at ${this.baseUrl} accepted the sign-in but handed back no session cookie`,
+      )
+    }
 
+    this.cookie = handed.join('; ')
+
+    // Proved rather than assumed, with one cheap authenticated request: a
+    // session that does not work should fail here and not as a puzzling 401
+    // from whatever call happens to be first.
     try {
       await this.pending()
     } catch (error) {
       this.cookie = undefined
       throw new Error(
-        `the app at ${this.baseUrl} would not accept the password (${error instanceof Error ? error.message : String(error)}): check OVERTONE_PASSWORD matches what the app is running with`,
+        `the app at ${this.baseUrl} signed in but would not answer an authenticated request (${error instanceof Error ? error.message : String(error)})`,
       )
     }
   }

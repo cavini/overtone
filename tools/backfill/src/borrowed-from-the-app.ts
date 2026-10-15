@@ -37,13 +37,14 @@ export {
 export { SAMPLE_RATE } from '../../../apps/web/src/audio/wav.js'
 
 /**
- * The name of the session cookie, and how its value is derived.
+ * The names of the session cookies.
  *
- * Both from the app, for the same reason as above. The cookie holds a hash
- * of the shared password rather than the password itself, and a second
- * implementation of that derivation would be a second thing to keep in step
- * with the gate — on the one call that decides whether anything works at
- * all. `gate.ts` is a pure module: a text encoder and a digest, no
- * framework anywhere near it.
+ * From the app, for the same reason as above: a second copy here would be a
+ * second thing to keep in step on the one call that decides whether anything
+ * works at all. Their own module in the app precisely so this import does
+ * not pull `next/headers` into a CLI.
+ *
+ * The values cannot be derived — they are tokens the service mints — so they
+ * are read from the sign-in response and a missing one is a hard failure.
  */
-export { GATE_COOKIE, tokenFor } from '../../../apps/web/src/server/gate.js'
+export { ACCESS_COOKIE, REFRESH_COOKIE } from '../../../apps/web/src/server/session-cookies.js'
