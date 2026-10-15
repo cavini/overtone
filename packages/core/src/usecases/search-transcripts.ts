@@ -2,13 +2,19 @@ import { groupIntoMoments } from '../analysis/moments.js'
 import type { TranscriptMatch, TranscriptSearch } from '../ports/transcript-search.js'
 
 /**
- * Enough rows to find the conversations, not enough to list every mention.
+ * Enough rows per episode to find the conversations in it.
  *
  * A word said four hundred times does not need four hundred rows to show
  * someone where it was discussed — the moments collapse to a handful either
  * way, and the rest is work nobody reads.
+ *
+ * Per episode, not across the library. One flat budget was spent
+ * busiest-episode-first, so a word said constantly filled every row from a
+ * single episode and the rest of the series simply did not appear. Twenty
+ * lines is several moments once they are grouped, and fifteen episodes of
+ * it is the same work the flat three hundred was.
  */
-const MATCH_LIMIT = 300
+const MATCHES_PER_EPISODE = 20
 
 export interface SearchTranscriptsRequest {
   /** Whose library to look in. Never optional — see the port. */
@@ -62,7 +68,7 @@ export async function searchTranscripts(
   // A blank query is not a question, so it is not asked.
   if (query.length === 0) return []
 
-  const matches = await deps.search.search(request.seriesId, query, MATCH_LIMIT)
+  const matches = await deps.search.search(request.seriesId, query, MATCHES_PER_EPISODE)
 
   const byEpisode = new Map<string, TranscriptMatch[]>()
   for (const match of matches) {

@@ -82,31 +82,37 @@ describe('DrizzleTranscriptSearch', () => {
   })
 
   /*
-   * The row budget has to go to the episodes that actually discuss the
-   * thing, not to the most recent ones.
+   * The budget is spent per episode, so every episode that matched is in
+   * the answer.
    *
-   * Ordering by episode number meant the 300 rows were handed out newest
-   * first. A term talked about at length in episode 1 disappears entirely
-   * the moment 300 segments in later episodes mention it in passing — and
-   * it disappears silently, which is the worst way for a search to be
-   * wrong.
+   * Two earlier versions of this got it wrong in the same silent way. The
+   * first handed the 300 rows out newest-first, so a term discussed at
+   * length in episode 1 vanished once later episodes mentioned it in
+   * passing. The second ranked by how much each episode matched, which
+   * sounds like a ranking and behaves like a cliff: on a real library the
+   * busiest episode's 321 lines took all 300 rows and the other fourteen
+   * episodes were never looked at.
+   *
+   * Numbering within each episode and cutting at the budget is the only one
+   * of the three that cannot hide an episode.
    */
-  it('gives the budget to the episodes that discuss it most', async () => {
-    await search.search(SERIES, 'cachorro', 300)
+  it('numbers the rows within each episode', async () => {
+    await search.search(SERIES, 'cachorro', 20)
 
     const sql = statements[0] ?? ''
-    expect(sql).toMatch(/count\(\*\) over \(partition by/i)
-    // The count comes before recency in the ordering, not after.
-    const byHits = sql.search(/count\(\*\) over[^)]*\)[^,]*desc/i)
-    const byNumber = sql.search(/"number" desc/i)
-    expect(byHits).toBeGreaterThan(-1)
-    expect(byHits).toBeLessThan(byNumber)
+    expect(sql).toMatch(/row_number\(\) over\s*\(\s*partition by/i)
+    // Partitioned by episode, not by anything else: partitioning by the
+    // transcript or the series would bound the wrong thing.
+    expect(sql).toMatch(/partition by "episodes"\."id"/i)
   })
 
-  it('bounds the rows it asks for', async () => {
+  it('cuts each episode at the budget it was given', async () => {
     await search.search(SERIES, 'x', 50)
 
-    expect(statements[0]).toMatch(/limit/i)
+    const sql = statements[0] ?? ''
+    // A window function cannot go in `where`, so the cut is on the subquery.
+    expect(sql).toMatch(/"rank" <=/i)
+    expect(sql).not.toMatch(/limit/i)
   })
 })
 
