@@ -8,6 +8,7 @@ import { splitAndUpload } from './borrowed-from-the-app.js'
 import { decodeWithFfmpeg, requireFfmpeg } from './decode-with-ffmpeg.js'
 import { downloadAudio } from './download-audio.js'
 import { OvertoneApi } from './overtone-api.js'
+import { readArguments } from './read-arguments.js'
 import { spawnProgram } from './spawn-program.js'
 
 /**
@@ -94,16 +95,9 @@ async function run(): Promise<void> {
     return
   }
 
-  // A blank argument is not a show. `pnpm backfill "" 3` would otherwise
-  // hand `backfill` an empty filter, which it refuses — better to fall back
-  // to the environment, which is what was meant.
-  const named = args[0]?.trim()
-  const show = named === undefined || named.length === 0 ? defaultShow() : named
-  const howMany = args[1] === undefined ? DEFAULT_HOW_MANY : Number(args[1])
-
-  if (!Number.isInteger(howMany) || howMany <= 0) {
-    throw new Error(`"${String(args[1])}" is not a number of episodes`)
-  }
+  const asked = readArguments(args)
+  const show = asked.show ?? defaultShow()
+  const howMany = asked.howMany ?? DEFAULT_HOW_MANY
 
   // Before anything is downloaded. ffmpeg is the one thing this needs that
   // the repo does not install.
