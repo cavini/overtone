@@ -1,6 +1,6 @@
 // US-049
 import { describe, expect, it } from 'vitest'
-import { readEpisodeName } from './episode-name.js'
+import { readEpisodeName, titleFor } from './episode-name.js'
 
 describe('readEpisodeName', () => {
   /*
@@ -12,13 +12,18 @@ describe('readEpisodeName', () => {
     expect(readEpisodeName('chuva-de-canivetes-201.m4a')).toEqual({
       title: 'Chuva de Canivetes',
       number: 201,
+      numberAsWritten: '201',
     })
   })
 
   it.each(['chuva_de_canivetes_199.mp3', 'chuva de canivetes 199.wav', 'Chuva-de-Canivetes-199.M4A'])(
     'reads %o the same way',
     (filename) => {
-      expect(readEpisodeName(filename)).toEqual({ title: 'Chuva de Canivetes', number: 199 })
+      expect(readEpisodeName(filename)).toEqual({
+        title: 'Chuva de Canivetes',
+        number: 199,
+        numberAsWritten: '199',
+      })
     },
   )
 
@@ -54,7 +59,11 @@ describe('readEpisodeName', () => {
   })
 
   it('copes with a file that is only a number', () => {
-    expect(readEpisodeName('201.mp3')).toEqual({ title: '', number: 201 })
+    expect(readEpisodeName('201.mp3')).toEqual({
+      title: '',
+      number: 201,
+      numberAsWritten: '201',
+    })
   })
 
   it.each(['', '.mp3', '   .wav'])('has nothing to say about %o', (filename) => {
@@ -65,6 +74,7 @@ describe('readEpisodeName', () => {
     expect(readEpisodeName('chuva--de__canivetes  201 .m4a')).toEqual({
       title: 'Chuva de Canivetes',
       number: 201,
+      numberAsWritten: '201',
     })
   })
 
@@ -74,3 +84,42 @@ describe('readEpisodeName', () => {
     expect(readEpisodeName('mixdown-320000.mp3').number).toBeUndefined()
   })
 })
+
+/*
+ * What a library shows when the feed cannot be reached.
+ *
+ * The real failure: the show's private feed URL began answering 401, so the
+ * publisher's title was unavailable and the fallback was the name with the
+ * number *stripped off* — every episode reading "Chuva de Canivetes", one
+ * indistinguishable from the next, while the number sat in the row beside it
+ * the whole time.
+ */
+describe('titleFor', () => {
+  it('keeps the number, written the way the filename wrote it', () => {
+    expect(titleFor('chuva-de-canivetes-016.mp3')).toBe('Chuva de Canivetes #016')
+  })
+
+  /*
+   * Not re-padded to some fixed width. The feed writes `#016` and the
+   * filename came from the feed, so reusing the digits exactly is what keeps
+   * a fallback title next to a real one without one of them looking wrong.
+   */
+  it.each([
+    ['chuva-de-canivetes-7.mp3', 'Chuva de Canivetes #7'],
+    ['chuva-de-canivetes-07.mp3', 'Chuva de Canivetes #07'],
+    ['chuva-de-canivetes-0007.mp3', 'Chuva de Canivetes #0007'],
+  ])('%s -> %s', (filename, expected) => {
+    expect(titleFor(filename)).toBe(expected)
+  })
+
+  it('leaves a name with no number alone', () => {
+    expect(titleFor('carequinha-dourado.mp3')).toBe('Carequinha Dourado')
+  })
+
+  // Nothing readable in the name at all, so the filename is the honest answer
+  // — it is at least what the person uploaded.
+  it('falls back to the filename when there is no name to read', () => {
+    expect(titleFor('-.mp3')).toBe('-.mp3')
+  })
+})
+
