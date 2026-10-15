@@ -97,6 +97,11 @@ export const UI = {
     waitingForAllowance: 'Esperando a cota voltar',
     continuesAlone: 'Continua sozinho — não precisa fazer nada.',
     nextPartIn: 'Próxima parte em',
+    // The units the countdown is read in. Short forms: this sits inline in a
+    // line that already says what it is counting down to.
+    hoursShort: 'h',
+    minutesShort: 'min',
+    secondsShort: 'seg',
     resuming: 'Retomando de onde parou',
     episodeAlreadyHere: 'Esse áudio já está aqui. Nada foi enviado e nenhuma cota foi gasta.',
     credits: 'Créditos e licenças',
@@ -230,6 +235,9 @@ export const UI = {
     waitingForAllowance: 'Waiting for the allowance to refill',
     continuesAlone: 'It carries on by itself — nothing for you to do.',
     nextPartIn: 'Next part in',
+    hoursShort: 'h',
+    minutesShort: 'min',
+    secondsShort: 's',
     resuming: 'Picking up where it left off',
     episodeAlreadyHere: 'This audio is already here. Nothing was uploaded and no allowance was spent.',
     credits: 'Credits and licences',

@@ -50,6 +50,10 @@ describe('the interface chrome', () => {
     // be showing the reader something they can never type.
     'jokeNamePlaceholder',
     'jokeSpellingsPlaceholder',
+    // Unit symbols, which are the same in both. `secondsShort` is not here:
+    // Portuguese writes `seg` where English writes `s`.
+    'hoursShort',
+    'minutesShort',
   ])
 
   it('differs between languages where it should', () => {
