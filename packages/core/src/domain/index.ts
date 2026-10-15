@@ -57,7 +57,7 @@ export {
   DEFAULT_AUDIO_LANGUAGE,
   type AudioLanguage,
 } from './audio-language.js'
-export { readEpisodeName, type EpisodeName } from './episode-name.js'
+export { readEpisodeName, titleFor, type EpisodeName } from './episode-name.js'
 export {
   checkPassword,
   MIN_PASSWORD_CHARS,

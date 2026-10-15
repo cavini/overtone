@@ -32,6 +32,15 @@ const HIGHEST_EPISODE = 9_999
 export interface EpisodeName {
   readonly title: string
   readonly number?: number
+  /**
+   * The number exactly as the filename wrote it, zeros and all.
+   *
+   * Kept beside the number itself because a title built from it has to read
+   * like the publisher's own: the feed writes `#016`, so re-padding to some
+   * width this module chose would put `#16` next to `#015` in the same list.
+   * Absent whenever `number` is.
+   */
+  readonly numberAsWritten?: string
 }
 
 /** Capitalised unless it is a small word that is not first. */
@@ -64,5 +73,25 @@ export function readEpisodeName(filename: string): EpisodeName {
     .map((word, index) => asTitleWord(word, index === 0))
     .join(' ')
 
-  return number === undefined ? { title } : { title, number }
+  return number === undefined ? { title } : { title, number, numberAsWritten: last ?? '' }
+}
+
+/**
+ * The name to store for an episode when nothing better is available.
+ *
+ * "Better" means the publisher's own title, read from the show's feed. This
+ * is the fallback, and it used to drop the number: a feed that could not be
+ * reached gave every episode the bare programme name, so a library read as
+ * the same title fifteen times over while the number sat in the row beside
+ * it the whole time.
+ *
+ * The filename is the last resort, because it is at least what the person
+ * uploaded.
+ */
+export function titleFor(filename: string): string {
+  const named = readEpisodeName(filename)
+  if (named.title.length === 0) return filename
+  if (named.numberAsWritten === undefined) return named.title
+
+  return `${named.title} #${named.numberAsWritten}`
 }

@@ -5,6 +5,7 @@ import {
   type AudioChunk,
   asAudioLanguage,
   readEpisodeName,
+  titleFor,
   type PublishedEpisode,
   type AudioLanguage,
   planFromTranscripts,
@@ -281,7 +282,17 @@ export async function startEpisode(
     }
   }
 
-  const title = published?.title ?? (named.title.length > 0 ? named.title : filename)
+  /*
+   * The publisher's own title, or one built from the filename that keeps the
+   * number.
+   *
+   * The fallback used to be `named.title`, which is the name with the number
+   * taken *off* — so when the show's feed started answering 401, an upload
+   * was stored as the bare programme name and the library read as the same
+   * title over and over, with the number sitting in the row beside it the
+   * whole time.
+   */
+  const title = published?.title ?? titleFor(filename)
   const [created] = await db
     .insert(episodes)
     .values({
