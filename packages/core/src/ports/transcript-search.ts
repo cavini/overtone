@@ -38,9 +38,21 @@ export interface TranscriptSearch {
   /**
    * Segments matching the words, across every episode.
    *
-   * `limit` bounds the work, not the answer: a word said four hundred times
-   * does not need four hundred rows to tell someone where the conversation
-   * about it was.
+   * `perEpisode` bounds the work, not the answer: a word said four hundred
+   * times does not need four hundred rows to tell someone where the
+   * conversation about it was.
+   *
+   * **Per episode, and that is the whole point.** It was one flat budget
+   * spent busiest-episode-first, which sounds like a ranking and behaves
+   * like a cliff: measured on a real library, one episode's 321 matching
+   * lines took all 300 rows and the other fourteen episodes were never
+   * looked at. The answer read as "it was only said in that one episode",
+   * which is the failure this product cannot afford — a wrong answer that
+   * looks like a right one.
+   *
+   * Bounding each episode instead costs no more. Returning every match for
+   * a very common word measured 66 ms against 62 ms for 300 rows: the work
+   * is the index scan, and the rows were the cheap half.
    */
   /**
    * `seriesId` is not optional, and that is deliberate.
@@ -50,5 +62,5 @@ export interface TranscriptSearch {
    * — so the scope is a required argument rather than a filter a caller
    * might forget.
    */
-  search(seriesId: string, query: string, limit: number): Promise<readonly TranscriptMatch[]>
+  search(seriesId: string, query: string, perEpisode: number): Promise<readonly TranscriptMatch[]>
 }
