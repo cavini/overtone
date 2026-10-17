@@ -21,8 +21,8 @@ const chunk = (
   words: words.map(([text, startMs]) => ({ text, startMs, endMs: startMs + 100 })),
 })
 
-const stitched = (chunks: Parameters<typeof stitchChunks>[0]) =>
-  stitchChunks(chunks).map((word) => [word.text, word.startMs] as const)
+const stitched = (chunks: Parameters<typeof stitchChunks>[0], episodeEndMs?: number) =>
+  stitchChunks(chunks, episodeEndMs).map((word) => [word.text, word.startMs] as const)
 
 describe('a chunk cannot spill into the next one', () => {
   it('holds a word back to its own chunk when the transcriber overran', () => {
@@ -99,4 +99,38 @@ describe('a chunk cannot spill into the next one', () => {
       ['tarde', 600_500],
     ])
   })
+
+  /*
+   * The final chunk had nothing to bound it, and the transcriber overruns
+   * that one too. Measured across thirty real episodes: three ran past their
+   * own end — by 7, 8 and 30 seconds — so a citation pointed at audio that is
+   * not there.
+   *
+   * The episode's duration is known by the time anything is stitched, so the
+   * last chunk is bounded by it when it is given.
+   */
+  it('holds the last chunk to the end of the episode', () => {
+    const words = stitched(
+      [chunk(0, 0, [
+        ['dentro', 1_000],
+        ['depois', 2_030_000],
+      ])],
+      2_000_000,
+    )
+
+    expect(words.find(([text]) => text === 'depois')?.[1]).toBeLessThanOrEqual(2_000_000)
+  })
+
+  // Still unbounded when nobody says how long the episode is, which is what
+  // the transcript reader does when it stitches one chunk at a time.
+  it('leaves the last chunk alone when no end is given', () => {
+    expect(stitched([chunk(0, 0, [['fim', 900_000]])])).toEqual([['fim', 900_000]])
+  })
+
+  it('leaves a word inside the episode exactly where it was', () => {
+    const words = stitched([chunk(0, 0, [['bom', 1_000], ['dia', 1_999_000]])], 2_000_000)
+
+    expect(words).toEqual([['bom', 1_000], ['dia', 1_999_000]])
+  })
+
 })

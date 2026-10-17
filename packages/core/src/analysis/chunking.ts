@@ -150,6 +150,16 @@ export function planFromTranscripts(
  * Chunks are ordered by index rather than by arrival, because they are paced
  * against the allowance and may well finish out of order.
  *
+ * **A stitched episode steps backwards sometimes, and it is not this code.**
+ * Measured across thirty real episodes: 156 consecutive segment pairs start
+ * earlier than the one before them, typically by 1.5 s and at worst by 10.5 s.
+ * That looks exactly like a stitching bug and is the first place to suspect,
+ * so the check is recorded here — **154 of the 156 fall inside a chunk and
+ * only 2 near a seam.** They are the transcriber's own word timings, which
+ * run backwards when people talk over each other. The order words were
+ * spoken in is preserved, which is what the reader pages through; only the
+ * timestamp of a line can sit slightly behind its predecessor.
+ *
  * **A chunk is also held to its own stretch of the episode.** Measured on a
  * real episode: the transcriber gave the last 5 of a chunk's 1557 words
  * timestamps 24 seconds past the end of the audio it was handed — it kept
@@ -164,18 +174,32 @@ export function planFromTranscripts(
  * its own chunk is also roughly true: it was spoken near the end of that
  * audio.
  */
-export function stitchChunks(chunks: readonly ChunkTranscript[]): TimedWord[] {
+export function stitchChunks(
+  chunks: readonly ChunkTranscript[],
+  /**
+   * How long the episode is, when the caller knows.
+   *
+   * The last chunk has no next offset to be bounded by, and the transcriber
+   * overruns that one as readily as the others: measured across thirty real
+   * episodes, three ran past their own end — by 7, 8 and 30 seconds — so a
+   * citation pointed at audio that is not there.
+   *
+   * Optional because the transcript reader stitches one chunk at a time to
+   * show a correction against it, and has no episode in hand. Then the last
+   * chunk stays unbounded, which is what it was before.
+   */
+  episodeEndMs?: number,
+): TimedWord[] {
   const ordered = [...chunks].sort((a, b) => a.index - b.index)
 
   return ordered.flatMap((chunk, at) => {
     /*
-     * Where the next chunk begins, which is where this one must stop. The
-     * last chunk has no bound: there is no next offset, and this knows
-     * nothing of the episode's duration. A word past the end of the final
-     * chunk reads as the last moment rather than as somebody else's.
+     * Where the next chunk begins, which is where this one must stop — or
+     * the end of the episode for the last one, when that is known.
      */
     const next = ordered[at + 1]?.offsetMs
-    const limit = next === undefined ? Number.POSITIVE_INFINITY : next - 1
+    const limit =
+      next !== undefined ? next - 1 : (episodeEndMs ?? Number.POSITIVE_INFINITY)
 
     return chunk.words.map((word) => ({
       text: word.text,

@@ -189,7 +189,22 @@ export async function advanceEpisode(
    * number is. Tokens, terms, running jokes, the segments the reader pages
    * through and the text search reads — all of it comes off this one array.
    */
-  const words = applyCorrections(stitchChunks(stored), request.corrections ?? [])
+  /*
+   * Where the episode actually ends, from the chunk plan rather than from
+   * the words.
+   *
+   * The last chunk has no next offset to be bounded by, and the transcriber
+   * overruns it as readily as any other: measured across thirty real
+   * episodes, three ran past their own end — by 7, 8 and 30 seconds — so a
+   * citation pointed at audio that is not there. The plan knows the length
+   * because the plan is what cut the audio.
+   */
+  const episodeEndMs = request.chunks.reduce((end, chunk) => Math.max(end, chunk.endMs), 0)
+
+  const words = applyCorrections(
+    stitchChunks(stored, episodeEndMs > 0 ? episodeEndMs : undefined),
+    request.corrections ?? [],
+  )
   // The transcriber's own line breaks, moved into episode time alongside the
   // words they belong to.
   const boundaries = stitchBoundaries(stored)
