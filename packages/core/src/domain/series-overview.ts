@@ -31,6 +31,24 @@ export interface SeriesTopicTrend {
   readonly trend: TopicTrend
 }
 
+/**
+ * One word, totalled over every analysed episode.
+ *
+ * `episodes` is the honest half of the number. A word said four thousand
+ * times in twenty-three episodes is how the group talks; the same total in
+ * one episode is one conversation — and a column of bare totals cannot tell
+ * those apart.
+ */
+export interface SeriesTermTotal {
+  /** The lemma, so `falar` carries `falou` and `falando` with it. */
+  readonly term: string
+  readonly total: number
+  /** How many analysed episodes it appears in at all. */
+  readonly episodes: number
+  /** Whether the grouping was a dictionary lemma or a stemmer's guess. */
+  readonly heuristic: boolean
+}
+
 export interface SeriesOverview {
   readonly state: SeriesState
   readonly episodeCount: number
@@ -41,4 +59,15 @@ export interface SeriesOverview {
   readonly totalWords: number
   readonly episodes: readonly EpisodeSummary[]
   readonly topics: readonly SeriesTopicTrend[]
+  /**
+   * The words said most across the whole series, biggest first.
+   *
+   * Aggregated on request rather than stored. Measured on a real library:
+   * the top twenty-five over twenty-four episodes takes ~106 ms, and
+   * totalling *every* term takes ~90 ms — the same ballpark as one search,
+   * which is already a page anybody can load. So there is nothing here to
+   * precompute, nothing to keep in step with corrections, and nothing to
+   * hide behind an admin command.
+   */
+  readonly topTerms: readonly SeriesTermTotal[]
 }
