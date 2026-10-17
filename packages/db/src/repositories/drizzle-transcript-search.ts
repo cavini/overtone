@@ -150,7 +150,13 @@ export class DrizzleTranscriptSearch implements TranscriptSearch {
          * How many the episode has in all, so the budget can be spread over
          * them rather than spent on whichever came first.
          */
-        matches: sql<number>`count(*) over (partition by ${episodes.id})`.as('matches'),
+        /*
+         * Cast, because `count(*)` is a bigint and a bigint arrives as a
+         * *string*. `sql<number>` is a claim about the type, not a
+         * conversion — so summing these concatenated them: a match count
+         * came back as "015518018815314918817022..." instead of 4,208.
+         */
+        matches: sql<number>`(count(*) over (partition by ${episodes.id}))::int`.as('matches'),
       })
       .from(segments)
       .innerJoin(transcripts, eq(transcripts.id, segments.transcriptId))
@@ -175,6 +181,9 @@ export class DrizzleTranscriptSearch implements TranscriptSearch {
         endMs: ranked.endMs,
         text: ranked.text,
         highlighted: ranked.highlighted,
+        // Already computed for the sampling below; returned so the page can
+        // say how much of the answer it is showing.
+        episodeMatches: ranked.matches,
       })
       .from(ranked)
       /*

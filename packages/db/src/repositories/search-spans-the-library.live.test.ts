@@ -138,6 +138,30 @@ if (url === undefined || url.length === 0) {
       expect(latest).toBeGreaterThan(lastLine / 2)
     })
 
+    /*
+     * A number, not a string. `count(*)` is a bigint and a bigint arrives as
+     * a string — `sql<number>` is a claim about the type, not a conversion.
+     * Summing them concatenated instead of adding, so a match count came back
+     * as "015518018815314918817022..." rather than 4,208, and the page showed
+     * it to the reader.
+     */
+    it('reports the episode total as a number', async () => {
+      const found = await search.search(seriesId, 'guardachuva', 10)
+      const loud = found.find((row) => row.episodeNumber === 1)
+
+      expect(typeof loud?.episodeMatches).toBe('number')
+      expect(loud?.episodeMatches).toBe(LOUD_LINES)
+    })
+
+    // What the page says when it is showing part of the answer.
+    it('reports the whole episode total, not the sample size', async () => {
+      const found = await search.search(seriesId, 'guardachuva', 10)
+      const loud = found.filter((row) => row.episodeNumber === 1)
+
+      expect(loud.length).toBeLessThan(LOUD_LINES)
+      expect(loud[0]?.episodeMatches).toBe(LOUD_LINES)
+    })
+
     it('reads in order within an episode', async () => {
       const found = await search.search(seriesId, 'guardachuva', 10)
       const loud = found.filter((row) => row.episodeNumber === 1).map((row) => row.startMs)
