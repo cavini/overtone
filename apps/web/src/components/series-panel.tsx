@@ -260,7 +260,7 @@ function TopWords({
 
       {terms === undefined ? (
         <p className="px-4 pb-4 pt-3 text-sm" style={{ color: 'var(--quiet)' }}>
-          {labels.transcriptLoading}
+          {labels.seriesCountingWords}
         </p>
       ) : terms.length === 0 ? (
         <p className="px-4 pb-4 pt-3 text-sm" style={{ color: 'var(--quiet)' }}>
