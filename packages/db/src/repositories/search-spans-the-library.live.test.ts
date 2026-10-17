@@ -75,7 +75,6 @@ if (url === undefined || url.length === 0) {
           startMs: at * 1_000,
           endMs: at * 1_000 + 500,
           text: 'falamos do guardachuva de novo',
-          words: [],
         })),
       )
     }

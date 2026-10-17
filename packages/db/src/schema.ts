@@ -361,14 +361,27 @@ export const segments = pgTable(
     startMs: integer('start_ms').notNull(),
     endMs: integer('end_ms').notNull(),
     text: text('text').notNull(),
-    /**
-     * `[[surface, lemma, startMs, endMs, class], …]`.
+    /*
+     * Per-word timings used to be here and deliberately are not.
      *
-     * One row per token would be ~20,000 rows and 4–5 MB per episode, filling
-     * the free database at around 110 episodes. Counting reads `term_counts`;
-     * this is read only for the handful of segments actually on screen.
+     * Nothing read them: the only query touching this table is the search,
+     * which selects the times and the text. The transcript reader did read
+     * them, until corrections made it rebuild lines from `chunk_transcripts`
+     * so a line could be shown with its correction applied — which left this
+     * column written and never read.
+     *
+     * Measured over 23 episodes before dropping it: 22.2 MB on disk against
+     * 24.2 MB raw, a ratio of 1.09, while the identical data in
+     * `chunk_transcripts.words` managed 3.51. Every row sat under the ~2 KB
+     * threshold where TOAST begins compressing — 749 bytes on average, all
+     * 29,610 of them — so it was both unread and the worst-stored thing in
+     * the database.
+     *
+     * The timings live in `chunk_transcripts.words` per chunk, and in
+     * `transcripts.raw_provider_payload` as the transcriber gave them. Both
+     * are what re-analysis reads, so this was always derived and never
+     * source.
      */
-    words: jsonb('words').notNull(),
   },
   (table) => [
     unique('segments_transcript_position').on(table.transcriptId, table.position),

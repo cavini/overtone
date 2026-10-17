@@ -87,7 +87,6 @@ if (url === undefined || url.length === 0) {
       startMs: 0,
       endMs: 4_000,
       text: 'a thing nobody else should read',
-      words: [],
     })
     await db.insert(chunkTranscripts).values({ episodeId, index: 0, offsetMs: 0, words: [] })
     await db.insert(termCounts).values({ episodeId, lemma: 'confidência', surfaceForms: [], count: 1 })
