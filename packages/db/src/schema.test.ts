@@ -8,6 +8,7 @@
 import type { EpisodeStatus, TopicTally } from '@overtone/core'
 import { describe, expect, expectTypeOf, it } from 'vitest'
 import {
+  chunkTranscripts,
   episodes,
   insights,
   lemmas,
@@ -77,11 +78,22 @@ describe('the decisions the schema is supposed to encode', () => {
     expect(Object.keys(episodes)).not.toContain('failureMessage')
   })
 
-  // ADR 0011. One row per token would fill the free database at around 110
-  // episodes, so word timings ride on the segment as compact JSON.
-  it('keeps word timings on the segment rather than one row per token', () => {
-    expectTypeOf<Row<typeof segments>>().toHaveProperty('words')
-    expect(Object.keys(segments)).toContain('words')
+  /*
+   * ADR 0011 forbids one row per token, which would fill the free database at
+   * around 110 episodes. Word timings ride on the **chunk** as compact JSON —
+   * they used to ride on the segment too, which nothing read: the only query
+   * touching `segments` is the search, and the transcript reader rebuilds
+   * lines from the chunks so a correction can be applied to them.
+   *
+   * Measured over 23 episodes, the segment copy was 22.2 MB at a compression
+   * ratio of 1.09 while the identical chunk copy managed 3.51 — every segment
+   * row sat under the ~2 KB threshold where TOAST begins compressing. Unread
+   * and worst-stored, so it went.
+   */
+  it('keeps word timings per chunk, and not a second copy per segment', () => {
+    expectTypeOf<Row<typeof chunkTranscripts>>().toHaveProperty('words')
+    expect(Object.keys(chunkTranscripts)).toContain('words')
+    expect(Object.keys(segments)).not.toContain('words')
   })
 
   // ADR 0005. The expensive, rate-limited step is kept so the cheap,

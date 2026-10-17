@@ -77,7 +77,6 @@ if (url === undefined || url.length === 0) {
       startMs: 0,
       endMs: 4_000,
       text: `nós falamos de ${word} o tempo todo`,
-      words: [],
     })
 
     return episodeId

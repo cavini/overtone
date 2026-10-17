@@ -1,0 +1,25 @@
+-- Stop storing per-word timings on segments.
+--
+-- Nothing reads them. The only query that touches `segments` is the search,
+-- and it selects `start_ms`, `end_ms` and `text`. The transcript reader used
+-- to read this column — the comment on it said "read only for the handful of
+-- segments actually on screen" — until corrections made it rebuild lines from
+-- `chunk_transcripts` instead, so a line could be shown with its correction
+-- applied. That change left this column written and never read.
+--
+-- Measured on a 23-episode library before dropping it:
+--
+--   segments.words            22.2 MB on disk, 24.2 MB raw  — 1.09x
+--   chunk_transcripts.words    3.7 MB on disk, 13.1 MB raw  — 3.51x
+--
+-- The same data, compressing thirty times worse, because every row is under
+-- the ~2 KB threshold where TOAST starts compressing — 749 bytes on average,
+-- and 100% of 29,610 rows below it. So it was both unread and the worst-stored
+-- thing in the database: 22 MB of 178, and 31% of everything that is not the
+-- fixed lemma dictionaries.
+--
+-- The timings are not lost. `chunk_transcripts.words` holds them per chunk and
+-- `transcripts.raw_provider_payload` holds what the transcriber actually said
+-- — which is what re-analysis reads anyway, so this column was always derived
+-- rather than source.
+alter table "segments" drop column if exists "words";

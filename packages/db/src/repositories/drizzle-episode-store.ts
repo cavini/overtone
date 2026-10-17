@@ -81,7 +81,6 @@ export async function writeAnalysis(
         startMs: segment.startMs,
         endMs: segment.endMs,
         text: segment.text,
-        words: segment.words,
       })),
     )
   }
