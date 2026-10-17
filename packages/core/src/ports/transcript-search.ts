@@ -32,6 +32,16 @@ export interface TranscriptMatch {
    * sanitise, HTML built in SQL.
    */
   readonly highlighted: string
+  /**
+   * How many lines matched in that episode altogether.
+   *
+   * Not how many came back. The budget samples across each episode, so a
+   * word said three hundred times returns a handful — and without this the
+   * page cannot tell somebody that the rest exist. A search that shows part
+   * of the answer and says nothing is the failure this product can least
+   * afford.
+   */
+  readonly episodeMatches: number
 }
 
 export interface TranscriptSearch {

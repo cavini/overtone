@@ -59,14 +59,28 @@ export interface FoundMoment {
  * Grouping a flat list would merge a conversation in one episode with an
  * unrelated one in another and report a moment that never happened.
  */
+/** What a search found, and how much of it is on the page. */
+export interface SearchResult {
+  readonly moments: FoundMoment[]
+  /**
+   * Lines that matched across the library — not how many are shown.
+   *
+   * Counted from each episode's own total, so it is the real figure rather
+   * than the size of the sample.
+   */
+  readonly matchCount: number
+  /** Whether any episode held more matches than came back. */
+  readonly sampled: boolean
+}
+
 export async function searchTranscripts(
   request: SearchTranscriptsRequest,
   deps: SearchTranscriptsDependencies,
-): Promise<FoundMoment[]> {
+): Promise<SearchResult> {
   const query = request.query.trim()
 
   // A blank query is not a question, so it is not asked.
-  if (query.length === 0) return []
+  if (query.length === 0) return { moments: [], matchCount: 0, sampled: false }
 
   const matches = await deps.search.search(request.seriesId, query, MATCHES_PER_EPISODE)
 
@@ -99,6 +113,26 @@ export async function searchTranscripts(
     }
   }
 
-  // The longest discussion first, whichever episode it happened in.
-  return found.sort((a, b) => b.hitCount - a.hitCount || a.episodeNumber - b.episodeNumber)
+  /*
+   * Counted per episode and summed, because every match of an episode
+   * carries that episode's total — reading it off one row each is the figure,
+   * while adding them all up would multiply it by the sample size.
+   */
+  let matchCount = 0
+  let sampled = false
+  for (const episodeMatches of byEpisode.values()) {
+    const first = episodeMatches[0]
+    /* c8 ignore next -- a map entry always has the match that created it. */
+    if (first === undefined) continue
+
+    matchCount += first.episodeMatches
+    if (first.episodeMatches > episodeMatches.length) sampled = true
+  }
+
+  return {
+    // The longest discussion first, whichever episode it happened in.
+    moments: found.sort((a, b) => b.hitCount - a.hitCount || a.episodeNumber - b.episodeNumber),
+    matchCount,
+    sampled,
+  }
 }
