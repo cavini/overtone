@@ -15,6 +15,24 @@ export interface IdentityUnderTest {
    * run after it.
    */
   readonly freshEmail: () => string
+  /**
+   * Whether this implementation can be asked to actually send a link.
+   *
+   * False for the real service, and not a gap in the contract so much as a
+   * fact about it. Supabase validates deliverability when it is asked to
+   * *send*: `/signup` takes an `@example.test` address happily, while `/otp`
+   * answers `email_address_invalid` for `.test`, `example.com` and
+   * `.invalid` alike. So there is no address that both proves sending works
+   * and cannot reach a real person — and a contract suite that mails
+   * somebody is worse than one that skips a line.
+   *
+   * Everything downstream of the send is still held: a token comes from the
+   * admin API instead of an inbox, so redeeming, spending a token once,
+   * recognising a holder and renewing all run against the real service.
+   *
+   * Defaults to true, so a fake has to opt out rather than forget.
+   */
+  readonly canSendLinks?: boolean
 }
 
 /**
@@ -31,7 +49,11 @@ export function describeIdentityProvider(
 ): void {
   describe(`${name} (identity provider contract)`, () => {
     it('sends a link to an address', async () => {
-      const { provider, knownEmail } = await create()
+      const { provider, knownEmail, canSendLinks = true } = await create()
+      // See `canSendLinks`: the real service will not send to any address
+      // that cannot receive, so this one line cannot be held against it.
+      if (!canSendLinks) return
+
       expect(await provider.sendLink(knownEmail, 'https://example.test/callback')).toEqual({
         ok: true,
       })

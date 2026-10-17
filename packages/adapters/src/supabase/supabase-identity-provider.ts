@@ -121,8 +121,17 @@ export class SupabaseIdentityProvider implements IdentityProvider {
         {
           method: 'POST',
           headers: this.headers(),
-          // A new address becomes an account. The group is small and the
-          // gate on who may join is the invitation, not the sign-in form.
+          /*
+           * A new address becomes an account. The group is small and the
+           * gate on who may join is the invitation, not the sign-in form.
+           *
+           * Worth knowing: the account is created *before* deliverability is
+           * checked. An address Supabase will not send to — `.test`,
+           * `example.com`, anything with no mail behind it — comes back 400
+           * `email_address_invalid` and leaves a real account behind anyway.
+           * Harmless here because the route checks the invitation list first,
+           * so only addresses somebody vouched for ever reach this.
+           */
           body: JSON.stringify({ email, create_user: true }),
         },
       )
