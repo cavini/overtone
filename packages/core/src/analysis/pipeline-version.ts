@@ -34,5 +34,14 @@
  * land inside the next chunk, so two chunks claimed the same moment and a
  * citation could point at the wrong one. Counts are unchanged; every
  * timestamp near a seam can move.
+ *
+ * **7** — the last chunk is held to the end of the episode too. Version 6
+ * bounded every chunk by the next one and left the final one unbounded,
+ * having nothing to bound it with; the chunk plan turned out to know, since
+ * the plan is what cut the audio. Measured across thirty episodes, three ran
+ * past their own end by 7, 8 and 30 seconds, so a citation pointed at audio
+ * that is not there. Counts are unchanged; the last few timestamps of an
+ * overrunning episode move, and its pace is no longer computed against a
+ * transcript longer than the recording.
  */
-export const PIPELINE_VERSION = 6
+export const PIPELINE_VERSION = 7
