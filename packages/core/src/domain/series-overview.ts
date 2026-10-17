@@ -59,15 +59,17 @@ export interface SeriesOverview {
   readonly totalWords: number
   readonly episodes: readonly EpisodeSummary[]
   readonly topics: readonly SeriesTopicTrend[]
-  /**
-   * The words said most across the whole series, biggest first.
-   *
-   * Aggregated on request rather than stored. Measured on a real library:
-   * the top twenty-five over twenty-four episodes takes ~106 ms, and
-   * totalling *every* term takes ~90 ms — the same ballpark as one search,
-   * which is already a page anybody can load. So there is nothing here to
-   * precompute, nothing to keep in step with corrections, and nothing to
-   * hide behind an admin command.
-   */
-  readonly topTerms: readonly SeriesTermTotal[]
 }
+
+/*
+ * The series' most-said words are deliberately **not** here.
+ *
+ * This overview is what the page asks for on every load and again after
+ * every upload, so anything in it is paid for whether or not somebody looks
+ * at it. The word totals are a table that arrives folded shut — so they are
+ * asked for separately, the first time it is opened, and never otherwise.
+ *
+ * Not because they are expensive: measured on a real library, the top
+ * twenty-five costs about what one search does. Because a thing nobody has
+ * looked at should not be computed on their behalf.
+ */

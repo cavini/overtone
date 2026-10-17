@@ -8,16 +8,6 @@ import type {
 import type { SeriesRepository } from '../ports/series-repository.js'
 import { compareByCountThenLabel } from '../analysis/ranking.js'
 
-/**
- * Twenty-five, which is a table somebody reads rather than scrolls.
- *
- * Asked of the database rather than sliced here, so it orders and cuts in
- * one pass: slicing in memory means moving every term of every episode —
- * about a hundred and eighty thousand rows at a hundred episodes — to return
- * twenty-five of them.
- */
-export const TOP_TERMS = 25
-
 export interface GetSeriesOverviewRequest {
   readonly seriesId: string
 }
@@ -70,11 +60,10 @@ export async function getSeriesOverview(
   request: GetSeriesOverviewRequest,
   { series }: GetSeriesOverviewDependencies,
 ): Promise<SeriesOverview> {
-  const [episodes, topics, tallies, topTerms] = await Promise.all([
+  const [episodes, topics, tallies] = await Promise.all([
     series.episodes(request.seriesId),
     series.topics(request.seriesId),
     series.topicTallies(request.seriesId),
-    series.topTerms(request.seriesId, TOP_TERMS),
   ])
 
   const newestFirst = [...episodes].sort((a, b) => b.number - a.number)
@@ -124,8 +113,5 @@ export async function getSeriesOverview(
     totalWords: analysed.reduce((sum, episode) => sum + episode.wordTokens, 0),
     episodes: newestFirst,
     topics: trends,
-    // Already ordered and cut by the database; re-sorting here would be a
-    // second opinion about what "most" means.
-    topTerms,
   }
 }

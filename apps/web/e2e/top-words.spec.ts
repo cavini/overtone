@@ -17,18 +17,30 @@ test.describe('the words said most across the series', () => {
     // Collapsed to begin with: it is a reference table, not the headline.
     await expect(folded.locator('table')).toBeHidden()
 
+    /*
+     * Nothing asked for yet either. The totals are stored, so reading them
+     * is cheap — but the panel around this is fetched on every page load,
+     * and a table nobody has opened should not be fetched for them.
+     */
+    const asked: string[] = []
+    page.on('request', (request) => asked.push(request.url()))
+    expect(asked.filter((url) => url.includes('/api/series/words'))).toEqual([])
+
     await folded.locator('summary').click()
 
     const table = folded.locator('table')
     await expect(table).toBeVisible()
 
     // A word, a total and how many episodes — the third column is the one
-    // that tells "how the group talks" from "one long conversation".
+    // that tells "how we talk" from "one long conversation".
     const headers = await table.locator('thead th').allTextContents()
     expect(headers.map((h) => h.trim())).toEqual(['Palavra', 'Total', 'Episódios'])
 
     const rows = table.locator('tbody tr')
     await expect(rows).toHaveCount(25)
+
+    // Asked for exactly once, on the open.
+    expect(asked.filter((url) => url.includes('/api/series/words'))).toHaveLength(1)
 
     /*
      * Biggest first. Read off the rendered page rather than the response, so

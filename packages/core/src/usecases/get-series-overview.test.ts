@@ -7,7 +7,7 @@ import type {
   TopicTally,
 } from '../ports/series-repository.js'
 import type { Topic } from '../domain/topic.js'
-import { getSeriesOverview, TOP_TERMS } from './get-series-overview.js'
+import { getSeriesOverview } from './get-series-overview.js'
 
 const SERIES = 'series-1'
 
@@ -29,9 +29,6 @@ const episode = (
   ...overrides,
 })
 
-/** What `topTerms` was asked for, so a test can check the ask itself. */
-let askedFor: number | undefined
-
 const repository = (
   episodes: readonly EpisodeSummary[],
   topics: readonly Topic[] = [],
@@ -41,10 +38,13 @@ const repository = (
   episodes: () => Promise.resolve(episodes),
   topics: () => Promise.resolve(topics),
   topicTallies: () => Promise.resolve(tallies),
-  topTerms: (_seriesId, howMany) => {
-    askedFor = howMany
-    return Promise.resolve(terms)
-  },
+  /*
+   * Part of the port, and deliberately not part of this overview. The word
+   * totals are read separately, the first time somebody opens the table —
+   * this answer is fetched on every page load and anything in it is paid for
+   * whether or not it is looked at.
+   */
+  topTerms: () => Promise.resolve(terms),
 })
 
 const overviewOf = async (
@@ -200,49 +200,5 @@ describe('getSeriesOverview', () => {
     ]] as const
     const once = await overviewOf(...args)
     expect(JSON.stringify(await overviewOf(...args))).toBe(JSON.stringify(once))
-  })
-})
-
-describe('the words said most across the series', () => {
-  it('passes them through, biggest first as the database ordered them', async () => {
-    const overview = await overviewOf(
-      [episode(1)],
-      [],
-      [],
-      [term('cara', 4208, 23), term('falar', 1686, 23)],
-    )
-
-    expect(overview.topTerms.map((t) => [t.term, t.total])).toEqual([
-      ['cara', 4208],
-      ['falar', 1686],
-    ])
-  })
-
-  /*
-   * Asked for at the top rather than sliced here. The database can order and
-   * cut in one pass over an index; slicing in memory means moving every term
-   * of every episode — a hundred and eighty thousand rows at a hundred
-   * episodes — in order to return twenty-five.
-   */
-  it('asks the database for exactly the number it will show', async () => {
-    askedFor = undefined
-    await overviewOf([episode(1)])
-
-    expect(askedFor).toBe(TOP_TERMS)
-  })
-
-  /*
-   * A word in one episode is not a habit, and the column that says so has to
-   * survive to the page. Without it a total of four thousand reads the same
-   * whether it was said across the whole series or once in one conversation.
-   */
-  it('keeps how many episodes each word appears in', async () => {
-    const overview = await overviewOf([episode(1)], [], [], [term('cara', 4208, 23)])
-
-    expect(overview.topTerms[0]?.episodes).toBe(23)
-  })
-
-  it('has nothing to show for a series with no episodes', async () => {
-    expect((await overviewOf([])).topTerms).toEqual([])
   })
 })

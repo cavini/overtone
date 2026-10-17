@@ -109,9 +109,7 @@ export function SeriesPanel({
             </ul>
           )}
 
-          {overview.topTerms.length === 0 ? null : (
-            <TopWords terms={overview.topTerms} locale={locale} labels={labels} />
-          )}
+          <TopWords locale={locale} labels={labels} reloadToken={reloadToken} />
         </>
       )}
     </Panel>
@@ -204,87 +202,122 @@ function TopicRow({
 /**
  * The words the series says most, folded away.
  *
- * Collapsed by default because it is a reference table, not a headline: the
- * page above it is about what changed, and twenty-five rows of totals would
- * push that off the screen. `<details>` rather than state, so it works
- * before any JavaScript arrives and remembers nothing it does not need to.
+ * Collapsed because it is a reference table and the page above it is about
+ * what changed — twenty-five rows of totals would push that off the screen.
+ * `<details>` rather than state, so it folds before any JavaScript arrives.
  *
- * Totalled on request, not stored. Measured on a real library it costs about
- * what one search does, so there is nothing to precompute and nothing that
- * can go stale when a line is corrected.
+ * **Asked for on the first open, and not before.** The totals are stored,
+ * rebuilt when an episode finishes analysis, so reading them is a cheap
+ * indexed select — but the panel above is fetched on every page load and
+ * again after every upload, and a table nobody has opened should not be
+ * fetched on their behalf. Kept once fetched: it cannot change while the
+ * page is open except by an upload, which moves `reloadToken`.
  */
 function TopWords({
-  terms,
   locale,
   labels,
+  reloadToken,
 }: {
-  readonly terms: readonly SeriesTermTotal[]
   readonly locale: Locale
   readonly labels: Labels
+  readonly reloadToken: number
 }) {
+  const [terms, setTerms] = useState<readonly SeriesTermTotal[] | undefined>(undefined)
+  const [asking, setAsking] = useState(false)
+
+  // Dropped when an upload lands, so the next open asks again rather than
+  // showing totals from before the new episode.
+  useEffect(() => {
+    setTerms(undefined)
+  }, [reloadToken])
+
+  async function open(event: React.SyntheticEvent<HTMLDetailsElement>): Promise<void> {
+    if (!event.currentTarget.open || terms !== undefined || asking) return
+
+    setAsking(true)
+    try {
+      const response = await fetch('/api/series/words').catch(() => undefined)
+      const payload = ((await response?.json().catch(() => ({}))) ?? {}) as {
+        terms?: readonly SeriesTermTotal[]
+      }
+      setTerms(payload.terms ?? [])
+    } finally {
+      setAsking(false)
+    }
+  }
+
   return (
-    <details className="mt-6 rounded-lg border" style={{ borderColor: 'var(--edge)' }}>
-      <summary className="px-4 py-3 text-sm font-medium">
-        {labels.seriesTopWords}
-        <span className="ml-2 font-normal" style={{ color: 'var(--quiet)' }}>
-          {number(terms.length, locale)}
-        </span>
-      </summary>
+    <details
+      onToggle={(event) => void open(event)}
+      className="mt-6 rounded-lg border"
+      style={{ borderColor: 'var(--edge)' }}
+    >
+      <summary className="px-4 py-3 text-sm font-medium">{labels.seriesTopWords}</summary>
 
       <p className="px-4 text-xs" style={{ color: 'var(--quiet)' }}>
         {labels.seriesTopWordsHint}
       </p>
 
-      {/* Its own scroller, so a long word never makes the page scroll sideways. */}
-      <div className="overflow-x-auto px-4 pb-4">
-        <table className="mt-3 w-full text-sm">
-          <thead>
-            <tr style={{ color: 'var(--quiet)' }}>
-              <th scope="col" className="text-left font-normal">
-                {labels.seriesWord}
-              </th>
-              {/* Right-aligned and tabular, so the digits line up in a column. */}
-              <th scope="col" className="text-right font-normal">
-                {labels.seriesWordTotal}
-              </th>
-              <th scope="col" className="text-right font-normal">
-                {labels.seriesWordEpisodes}
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {terms.map((entry) => (
-              <tr key={entry.term}>
-                <th scope="row" className="py-1 text-left font-normal">
-                  {entry.term}
-                  {/*
-                   * Said where it is true, because a stemmed grouping is a
-                   * guess — Portuguese stemmers fold `comer` into `com` — and
-                   * a total resting on one should not read as solidly as a
-                   * total that does not.
-                   */}
-                  {entry.heuristic ? (
-                    <span className="ml-2 text-xs" style={{ color: 'var(--quiet)' }}>
-                      {labels.seriesWordGuessed}
-                    </span>
-                  ) : null}
+      {terms === undefined ? (
+        <p className="px-4 pb-4 pt-3 text-sm" style={{ color: 'var(--quiet)' }}>
+          {labels.transcriptLoading}
+        </p>
+      ) : terms.length === 0 ? (
+        <p className="px-4 pb-4 pt-3 text-sm" style={{ color: 'var(--quiet)' }}>
+          {labels.seriesNoTopics}
+        </p>
+      ) : (
+        /* Its own scroller, so a long word never makes the page scroll sideways. */
+        <div className="overflow-x-auto px-4 pb-4">
+          <table className="mt-3 w-full text-sm">
+            <thead>
+              <tr style={{ color: 'var(--quiet)' }}>
+                <th scope="col" className="text-left font-normal">
+                  {labels.seriesWord}
                 </th>
-                <td className="tabular py-1 text-right font-medium">
-                  {number(entry.total, locale)}
-                </td>
-                {/*
-                 * The honest half of the number: four thousand across
-                 * twenty-three episodes is how the group talks, the same
-                 * total in one episode is one conversation.
-                 */}
-                <td className="tabular py-1 text-right" style={{ color: 'var(--quiet)' }}>
-                  {number(entry.episodes, locale)}
-                </td>
+                {/* Right-aligned and tabular, so the digits line up. */}
+                <th scope="col" className="text-right font-normal">
+                  {labels.seriesWordTotal}
+                </th>
+                <th scope="col" className="text-right font-normal">
+                  {labels.seriesWordEpisodes}
+                </th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+            </thead>
+            <tbody>
+              {terms.map((entry) => (
+                <tr key={entry.term}>
+                  <th scope="row" className="py-1 text-left font-normal">
+                    {entry.term}
+                    {/*
+                     * Said where it is true, because a stemmed grouping is a
+                     * guess — Portuguese stemmers fold `comer` into `com` —
+                     * and a total resting on one should not read as solidly
+                     * as a total that does not.
+                     */}
+                    {entry.heuristic ? (
+                      <span className="ml-2 text-xs" style={{ color: 'var(--quiet)' }}>
+                        {labels.seriesWordGuessed}
+                      </span>
+                    ) : null}
+                  </th>
+                  <td className="tabular py-1 text-right font-medium">
+                    {number(entry.total, locale)}
+                  </td>
+                  {/*
+                   * The honest half of the number: four thousand across
+                   * twenty-three episodes is how we talk, the same total in
+                   * one episode is one conversation.
+                   */}
+                  <td className="tabular py-1 text-right" style={{ color: 'var(--quiet)' }}>
+                    {number(entry.episodes, locale)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </details>
   )
 }
