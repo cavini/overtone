@@ -12,7 +12,7 @@ import { drizzle } from 'drizzle-orm/postgres-js'
 import { eq } from 'drizzle-orm'
 import postgres from 'postgres'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { DrizzleSeriesRepository } from './drizzle-series-repository.js'
+import { DrizzleSeriesRepository, recountSeriesTerms } from './drizzle-series-repository.js'
 import { episodes, series, seriesMembers, termCounts } from '../schema.js'
 
 const here = dirname(fileURLToPath(import.meta.url))
@@ -81,6 +81,10 @@ if (url === undefined || url.length === 0) {
   })
 
   describe('topTerms', () => {
+    beforeAll(async () => {
+      await recountSeriesTerms(db, seriesId)
+    })
+
     it('totals a word across the episodes it was said in', async () => {
       const found = await repository.topTerms(seriesId, 25)
 
@@ -132,6 +136,55 @@ if (url === undefined || url.length === 0) {
       const stranger = new DrizzleSeriesRepository(db, '00000000-0000-4000-8000-000000000999')
 
       expect(await stranger.topTerms(seriesId, 25)).toEqual([])
+    })
+  })
+
+  describe('recountTerms', () => {
+    /*
+     * Everything, not a delta. A correction can make a word's total go down
+     * and an episode can be deleted, so adding to what is already stored
+     * would drift upward forever with no reader able to tell.
+     */
+    it('replaces what was there rather than adding to it', async () => {
+      await recountSeriesTerms(db, seriesId)
+      const once = await repository.topTerms(seriesId, 25)
+
+      await recountSeriesTerms(db, seriesId)
+      const twice = await repository.topTerms(seriesId, 25)
+
+      expect(twice).toEqual(once)
+    })
+
+    /*
+     * A word nobody says any more has to leave. Rebuilding by upsert alone
+     * would keep it at its old total forever — the worst kind of wrong,
+     * because the number looks like a number.
+     */
+    it('drops a word that is no longer counted anywhere', async () => {
+      const [episode] = await db
+        .insert(episodes)
+        .values({ seriesId, number: 9, title: 'Counted #9', status: 'ready', durationMs: 60_000 })
+        .returning({ id: episodes.id })
+      await db.insert(termCounts).values({
+        episodeId: episode?.id ?? '',
+        lemma: 'passageiro',
+        surfaceForms: ['passageiro'],
+        count: 4,
+      })
+
+      await recountSeriesTerms(db, seriesId)
+      expect((await repository.topTerms(seriesId, 50)).map((t) => t.term)).toContain('passageiro')
+
+      await db.delete(episodes).where(eq(episodes.id, episode?.id ?? ''))
+      await recountSeriesTerms(db, seriesId)
+
+      expect((await repository.topTerms(seriesId, 50)).map((t) => t.term)).not.toContain(
+        'passageiro',
+      )
+    })
+
+    it('says how many words it stored', async () => {
+      expect(await recountSeriesTerms(db, seriesId)).toBeGreaterThan(0)
     })
   })
 }
