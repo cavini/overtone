@@ -17,6 +17,38 @@ describe('mergesGenderPt', () => {
   })
 
   /*
+   * The other direction, which the rule treats the same and nothing tested.
+   *
+   * The bundled list maps feminine onto masculine, so that is the case this
+   * was written for — but a list that mapped the other way is suppressed for
+   * exactly the same reason: a son is not a daughter whichever of the two the
+   * dictionary decided to call the citation form. Worth pinning, because a
+   * rule that is symmetric by accident becomes asymmetric by accident too.
+   */
+  it.each([
+    ['menino', 'menina'],
+    ['novo', 'nova'],
+    ['músico', 'música'],
+    ['irmão', 'irmã'],
+  ])('catches %s being folded into %s as well', (surface, lemma) => {
+    expect(mergesGenderPt(surface, lemma)).toBe(true)
+  })
+
+  /*
+   * A vowel swap it must *not* claim. These pairs look like the rule's shape
+   * and are unrelated words, so the answer depends on the dictionary having
+   * grouped them — which it has not, and this is what that looks like
+   * arriving here.
+   */
+  it.each([
+    ['ano', 'anel'],
+    ['copo', 'cópia'],
+    ['mesa', 'mês'],
+  ])('leaves %s and %s apart, which no swap connects', (surface, lemma) => {
+    expect(mergesGenderPt(surface, lemma)).toBe(false)
+  })
+
+  /*
    * The guarantee this rests on: a Portuguese infinitive always ends in -r.
    * So a lemma that does not cannot be a verb, and these can never be caught
    * by the rule however much they look like a vowel swap.

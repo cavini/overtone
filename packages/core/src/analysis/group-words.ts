@@ -110,6 +110,8 @@ export function groupWords(
   for (const [at, word] of words.entries()) {
     while (
       boundary < inOrder.length &&
+      /* c8 ignore next -- unreachable: the line above checks `boundary` is
+         inside `inOrder`, so the read is always a number. */
       (inOrder[boundary] ?? 0) - BOUNDARY_TOLERANCE_MS <= word.startMs
     ) {
       if (at > 0) startsALine.add(at)
@@ -144,6 +146,9 @@ function joinStrandedTails(groups: readonly WordGroup[], maxWords: number): Word
   for (const group of groups) {
     const previous = joined.at(-1)
     const continuesASentence =
+      /* c8 ignore next -- unreachable: `flush` refuses to push an empty
+         group and a join concatenates two non-empty ones, so a group always
+         has a last word. */
       previous !== undefined && !endsASentence(previous.words.at(-1)?.text ?? '')
 
     if (
