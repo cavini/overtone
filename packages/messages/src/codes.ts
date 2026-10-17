@@ -72,6 +72,8 @@ export const MESSAGE_PARAMS = {
     reset_at_utc: 'string',
     hours_until_reset: 'number',
   },
+  SEARCH_SHOWING_A_SAMPLE: { match_count: 'number' },
+  SEARCH_FOUND_EVERY_ONE: { match_count: 'number' },
   PASSWORD_TOO_SHORT: { min_chars: 'number' },
   PASSWORD_NEEDS_CONTENT: {},
   STORAGE_FULL: {

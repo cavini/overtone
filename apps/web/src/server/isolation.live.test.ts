@@ -136,7 +136,9 @@ if (url === undefined || url.length === 0) {
         { search },
       )
 
-      expect(mine).toEqual([])
+      expect(mine.moments).toEqual([])
+      // And it does not report a count from somebody else's episodes either.
+      expect(mine.matchCount).toBe(0)
     })
 
     it('still finds a word from my own', async () => {
@@ -147,7 +149,7 @@ if (url === undefined || url.length === 0) {
         { search },
       )
 
-      expect(mine.length).toBeGreaterThan(0)
+      expect(mine.moments).not.toHaveLength(0)
     })
 
     it('lists only my own running jokes', async () => {

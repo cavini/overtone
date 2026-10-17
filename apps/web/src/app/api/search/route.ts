@@ -20,12 +20,12 @@ export async function GET(request: Request): Promise<Response> {
     // Only this person's library. Search reads every stored segment.
     const seriesId = await seriesFor((await requireUser()).userId)
 
-    const moments = await searchTranscripts(
+    const found = await searchTranscripts(
       { seriesId, query },
       { search: new DrizzleTranscriptSearch(database()) },
     )
 
-    return Response.json({ moments })
+    return Response.json(found)
   } catch (error) {
     const denied = refusal(error)
     if (denied !== undefined) return denied

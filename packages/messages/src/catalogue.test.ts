@@ -24,10 +24,10 @@ describe('message codes', () => {
    * added at all — the moment to ask whether both languages got a sentence
    * and whether the presenter renders it.
    *
-   * 49 since the two password rules (US-052).
+   * 51 since the two password rules and the two search-count lines.
    */
   it('matches the count the catalogues are kept to', () => {
-    expect(MESSAGE_CODES).toHaveLength(49)
+    expect(MESSAGE_CODES).toHaveLength(51)
   })
 
   it('names every code in SCREAMING_SNAKE_CASE', () => {

@@ -73,6 +73,7 @@ export function Workspace({
       <SeriesPanel locale={locale} labels={labels} reloadToken={reloadToken} />
 
       <SearchPanel
+        locale={locale}
         labels={labels}
         onOpen={(episodeId, startMs) =>
           setShowing({
