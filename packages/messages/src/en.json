@@ -41,8 +41,6 @@
   "ANALYSIS_ALWAYS_PTBR": "Analysis is always in Brazilian Portuguese. Changing the language here changes the interface only, never a number.",
   "TRANSCRIPT_QUALITY_POOR": "Transcription quality came in at {quality_score, number} out of 100, below {threshold, number}. Treat these counts with suspicion.",
   "AUDIO_MAY_NOT_BE_PTBR": "This audio may not be in Portuguese — we detected {detected_language}, at quality {quality_score, number} out of 100.",
-  "SHARE_LINK_DISCLOSURE": "Anyone with the link can see this episode's counts and quotes without signing in. The full transcript is not shown.",
-  "SHARE_LINK_NOT_FOUND": "This link no longer exists.",
   "STATUS_UPLOADED": "Uploaded",
   "STATUS_TRANSCRIBING": "Transcribing",
   "STATUS_ANALYZING": "Analysing",

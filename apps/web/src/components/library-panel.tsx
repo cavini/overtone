@@ -18,7 +18,6 @@ export interface LibraryEntry {
   readonly number: number
   readonly title: string
   readonly durationMs: number
-  readonly status: string
   readonly chunksDone: number
   readonly chunkCount: number
   /**

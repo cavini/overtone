@@ -41,8 +41,6 @@
   "ANALYSIS_ALWAYS_PTBR": "A análise é sempre em português do Brasil. Mudar o idioma aqui muda só a interface, nunca um número.",
   "TRANSCRIPT_QUALITY_POOR": "A qualidade da transcrição ficou em {quality_score, number} de 100, abaixo de {threshold, number}. Trate estas contagens com desconfiança.",
   "AUDIO_MAY_NOT_BE_PTBR": "Este áudio pode não estar em português — detectamos {detected_language}, com qualidade {quality_score, number} de 100.",
-  "SHARE_LINK_DISCLOSURE": "Quem tiver o link vê as contagens e as citações deste episódio, sem precisar entrar. A transcrição completa não aparece.",
-  "SHARE_LINK_NOT_FOUND": "Este link não existe mais.",
   "STATUS_UPLOADED": "Enviado",
   "STATUS_TRANSCRIBING": "Transcrevendo",
   "STATUS_ANALYZING": "Analisando",
