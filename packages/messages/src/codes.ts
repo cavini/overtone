@@ -118,8 +118,6 @@ export const MESSAGE_PARAMS = {
     quality_score: 'number',
     detected_language: 'string',
   },
-  SHARE_LINK_DISCLOSURE: {},
-  SHARE_LINK_NOT_FOUND: {},
 
   // Status labels. The stored value is the contract; this is only its label.
   STATUS_UPLOADED: {},
