@@ -1,6 +1,6 @@
 # Overtone
 
-Analytics for the Brazilian Portuguese podcast you record with your friends.
+Analytics for the podcast you record with your friends.
 
 Upload each episode. Overtone transcribes it and tells you how often the running jokes actually came up, which words you can't stop saying, and how all of it is changing **across the series** — with a timestamped quote behind every single number.
 
