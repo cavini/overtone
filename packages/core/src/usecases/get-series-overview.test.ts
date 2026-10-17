@@ -1,6 +1,11 @@
 // US-022, US-038, US-042 · the cross-episode view the product exists for
 import { describe, expect, it } from 'vitest'
-import type { EpisodeSummary, SeriesRepository, TopicTally } from '../ports/series-repository.js'
+import type {
+  EpisodeSummary,
+  SeriesRepository,
+  SeriesTermTotal,
+  TopicTally,
+} from '../ports/series-repository.js'
 import type { Topic } from '../domain/topic.js'
 import { getSeriesOverview } from './get-series-overview.js'
 
@@ -28,17 +33,37 @@ const repository = (
   episodes: readonly EpisodeSummary[],
   topics: readonly Topic[] = [],
   tallies: readonly TopicTally[] = [],
+  terms: readonly SeriesTermTotal[] = [],
 ): SeriesRepository => ({
   episodes: () => Promise.resolve(episodes),
   topics: () => Promise.resolve(topics),
   topicTallies: () => Promise.resolve(tallies),
+  /*
+   * Part of the port, and deliberately not part of this overview. The word
+   * totals are read separately, the first time somebody opens the table —
+   * this answer is fetched on every page load and anything in it is paid for
+   * whether or not it is looked at.
+   */
+  topTerms: () => Promise.resolve(terms),
 })
 
 const overviewOf = async (
   episodes: readonly EpisodeSummary[],
   topics: readonly Topic[] = [],
   tallies: readonly TopicTally[] = [],
-) => getSeriesOverview({ seriesId: SERIES }, { series: repository(episodes, topics, tallies) })
+  terms: readonly SeriesTermTotal[] = [],
+) =>
+  getSeriesOverview(
+    { seriesId: SERIES },
+    { series: repository(episodes, topics, tallies, terms) },
+  )
+
+const term = (name: string, total: number, episodes = 1): SeriesTermTotal => ({
+  term: name,
+  total,
+  episodes,
+  heuristic: false,
+})
 
 describe('getSeriesOverview', () => {
   // There is no back catalogue, so a series genuinely starts at nothing and

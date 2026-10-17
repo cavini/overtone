@@ -34,6 +34,7 @@ export {
 export type {
   SeriesOverview,
   SeriesState,
+  SeriesTermTotal,
   SeriesTopicTrend,
   TopicCountInEpisode,
   TopicTrend,

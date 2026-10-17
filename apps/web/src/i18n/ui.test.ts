@@ -54,6 +54,8 @@ describe('the interface chrome', () => {
     // Portuguese writes `seg` where English writes `s`.
     'hoursShort',
     'minutesShort',
+    // The same word in both languages.
+    'seriesWordTotal',
   ])
 
   it('differs between languages where it should', () => {

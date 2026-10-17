@@ -1,11 +1,19 @@
-import type { EpisodeSummary, SeriesRepository, Topic, TopicTally } from '@overtone/core'
-import { and, eq, exists, sql } from 'drizzle-orm'
+import type {
+  EpisodeSummary,
+  SeriesRepository,
+  SeriesTermTotal,
+  Topic,
+  TopicTally,
+} from '@overtone/core'
+import { and, asc, desc, eq, exists, sql } from 'drizzle-orm'
 import type { PgDatabase, PgQueryResultHKT } from 'drizzle-orm/pg-core'
 import {
   episodes,
   insights,
   mentions,
   seriesMembers,
+  seriesTermTotals,
+  termCounts,
   topicTerms,
   topics,
 } from '../schema.js'
@@ -118,4 +126,97 @@ export class DrizzleSeriesRepository implements SeriesRepository {
 
     return rows
   }
+
+  /**
+   * The stored totals, read straight off the index.
+   *
+   * No aggregation here. These were totalled when an episode last finished
+   * analysis, which is the only moment they move — so a page load, a second
+   * reader and a tenth fold-open all read the same rows rather than asking
+   * the database to add the same numbers up again.
+   */
+  async topTerms(seriesId: string, howMany: number): Promise<readonly SeriesTermTotal[]> {
+    const rows = await this.db
+      .select({
+        term: seriesTermTotals.term,
+        total: seriesTermTotals.total,
+        episodes: seriesTermTotals.episodes,
+        heuristic: seriesTermTotals.heuristic,
+      })
+      .from(seriesTermTotals)
+      .where(and(eq(seriesTermTotals.seriesId, seriesId), this.memberOf(seriesId)))
+      // Then the word itself, so two on the same total come back in the same
+      // order every time rather than whichever the planner happened to emit.
+      .orderBy(desc(seriesTermTotals.total), asc(seriesTermTotals.term))
+      .limit(howMany)
+
+    return rows
+  }
+}
+
+/**
+ * Rebuilds a series' word totals from its episodes.
+ *
+ * A function rather than a method on `DrizzleSeriesRepository`, because that
+ * class scopes every query to a signed-in member and this has nobody to
+ * scope to: it runs from the scheduled step, which has no user. Hiding an
+ * unscoped write among member-scoped reads is how one of them quietly loses
+ * its check.
+ *
+ * Safe without one. It reads a series' own finished episodes and writes that
+ * series' own roll-up — it cannot be aimed at somebody else's library, and
+ * the caller is the pipeline, not a request.
+ *
+ * One statement: the aggregate and the write are the same round trip, so
+ * nothing travels to this process to be added up and sent back. At a hundred
+ * episodes that is about 180,000 rows that stay where they are.
+ *
+ * Everything, not a delta. A correction can make a word's total go *down*,
+ * and an episode can be deleted — so adding to what is there would drift
+ * upward forever with no reader able to tell. Rebuilding is cheap enough that
+ * being obviously right is worth more than being incremental.
+ *
+ * `ready` only. An episode still transcribing has counts for whichever
+ * chunks happened to land, and letting those in makes the totals move for
+ * reasons nobody can see.
+ */
+export async function recountSeriesTerms(db: Database, seriesId: string): Promise<number> {
+  const totalled = db
+    .select({
+      seriesId: episodes.seriesId,
+      term: termCounts.lemma,
+      total: sql<number>`sum(${termCounts.count})::int`.as('total'),
+      episodes: sql<number>`count(distinct ${episodes.id})::int`.as('episodes'),
+      /*
+       * True if *any* episode grouped the word by stemming rather than from
+       * the dictionary — Portuguese stemmers merge `comer` into `com`, so a
+       * total resting partly on a guess must not read as solidly as one that
+       * is not.
+       */
+      heuristic: sql<boolean>`bool_or(${termCounts.heuristic})`.as('heuristic'),
+      /*
+       * Last, and named explicitly, because an insert-from-select has to give
+       * every column of the table in its own order. Stamped by the database,
+       * so the time is the database's rather than this process's.
+       */
+      countedAt: sql<Date>`now()`.as('counted_at'),
+    })
+    .from(termCounts)
+    .innerJoin(episodes, eq(episodes.id, termCounts.episodeId))
+    .where(and(eq(episodes.seriesId, seriesId), eq(episodes.status, 'ready')))
+    .groupBy(episodes.seriesId, termCounts.lemma)
+
+  await db.transaction(async (tx) => {
+    // Cleared inside the transaction, so a reader never sees a half-built
+    // table — and a word that has dropped out entirely actually goes.
+    await tx.delete(seriesTermTotals).where(eq(seriesTermTotals.seriesId, seriesId))
+    await tx.insert(seriesTermTotals).select(totalled)
+  })
+
+  const [counted] = await db
+    .select({ rows: sql<number>`count(*)`.mapWith(Number) })
+    .from(seriesTermTotals)
+    .where(eq(seriesTermTotals.seriesId, seriesId))
+
+  return counted?.rows ?? 0
 }

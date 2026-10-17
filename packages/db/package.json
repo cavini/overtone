@@ -24,7 +24,8 @@
     "db:rename-episodes": "tsx src/rename-episodes.mts",
     "schedule-advance": "tsx src/schedule-advance.mts",
     "claim-library": "tsx src/claim-library.mts",
-    "db:load-verb-forms": "tsx src/load-verb-forms.mts"
+    "db:load-verb-forms": "tsx src/load-verb-forms.mts",
+    "db:recount-words": "tsx src/recount-words.mts"
   },
   "dependencies": {
     "@overtone/core": "workspace:*",

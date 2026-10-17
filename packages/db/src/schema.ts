@@ -1,4 +1,4 @@
-import { sql } from 'drizzle-orm'
+import { desc, sql } from 'drizzle-orm'
 import { AUDIO_LANGUAGES, EPISODE_STATUSES, SERIES_ROLES } from '@overtone/core'
 import {
   bigint,
@@ -401,6 +401,39 @@ export const insights = pgTable('insights', {
  * tokens. It is also the table the assistant will query for "how many times
  * ever", which is why it exists before the assistant does (ADR 0007).
  */
+/**
+ * The words a series says most, totalled once and read many times.
+ *
+ * Rebuilt when an episode finishes analysis or a correction re-derives one —
+ * the only moments the answer moves. Everything else reads it: every page
+ * load, every reader, every time the table is folded open.
+ *
+ * `term_counts` stays the source of truth, per episode. This is the
+ * whole-series roll-up of it.
+ */
+export const seriesTermTotals = pgTable(
+  'series_term_totals',
+  {
+    seriesId: uuid('series_id')
+      .notNull()
+      .references(() => series.id, { onDelete: 'cascade' }),
+    /** The lemma, so `falar` carries `falou` and `falando` with it. */
+    term: text('term').notNull(),
+    total: integer('total').notNull(),
+    /** How many finished episodes the word appears in at all. */
+    episodes: integer('episodes').notNull(),
+    /** True if any episode grouped it by stemming rather than the dictionary. */
+    heuristic: boolean('heuristic').notNull().default(false),
+    /** When it was last rebuilt, so a stale table can be spotted. */
+    countedAt: timestamp('counted_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.seriesId, table.term] }),
+    // The one read there is: a series' top N, biggest first.
+    index('series_term_totals_ranked').on(table.seriesId, desc(table.total)),
+  ],
+)
+
 export const termCounts = pgTable(
   'term_counts',
   {

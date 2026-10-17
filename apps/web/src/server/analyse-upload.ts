@@ -28,7 +28,11 @@ import {
   episodeCorrections,
 } from '@overtone/db/schema'
 import { and, asc, desc, eq, isNull, sql } from 'drizzle-orm'
-import { DrizzleAllowanceStore, DrizzleChunkStore } from '@overtone/db/repositories'
+import {
+  DrizzleAllowanceStore,
+  DrizzleChunkStore,
+  recountSeriesTerms,
+} from '@overtone/db/repositories'
 import { chunkKey, freedAudio } from './freed-audio.js'
 import { isAbandoned } from './abandoned.js'
 import { topicsOfSeries } from './topics.js'
@@ -726,6 +730,26 @@ export async function advanceOnce(episodeId: string): Promise<AdvancedEpisode> {
   if (dead.length > 0) await blobs.remove(dead)
 
   if (outcome.state !== 'ready') return { outcome, chunkCount: plan.length, chunksDone }
+
+  /*
+   * The series' word totals, rebuilt here because this is the only moment
+   * they move: an episode has just finished analysis, or a correction has
+   * just re-derived one.
+   *
+   * Everything afterwards reads them — every page load, every reader, every
+   * time the table is folded open — so they are totalled once per change
+   * rather than once per look.
+   *
+   * Not allowed to fail the episode. The episode is analysed and stored by
+   * now; a roll-up that could not be written is a stale table, which
+   * `pnpm --filter @overtone/db db:recount-words` fixes, and it is not a
+   * reason to report an episode as broken.
+   */
+  try {
+    await recountSeriesTerms(database(), episode.seriesId)
+  } catch (error) {
+    console.error('could not rebuild the series word totals', error)
+  }
 
   return {
     outcome,

@@ -31,6 +31,24 @@ export interface SeriesTopicTrend {
   readonly trend: TopicTrend
 }
 
+/**
+ * One word, totalled over every analysed episode.
+ *
+ * `episodes` is the honest half of the number. A word said four thousand
+ * times in twenty-three episodes is how the group talks; the same total in
+ * one episode is one conversation — and a column of bare totals cannot tell
+ * those apart.
+ */
+export interface SeriesTermTotal {
+  /** The lemma, so `falar` carries `falou` and `falando` with it. */
+  readonly term: string
+  readonly total: number
+  /** How many analysed episodes it appears in at all. */
+  readonly episodes: number
+  /** Whether the grouping was a dictionary lemma or a stemmer's guess. */
+  readonly heuristic: boolean
+}
+
 export interface SeriesOverview {
   readonly state: SeriesState
   readonly episodeCount: number
@@ -42,3 +60,16 @@ export interface SeriesOverview {
   readonly episodes: readonly EpisodeSummary[]
   readonly topics: readonly SeriesTopicTrend[]
 }
+
+/*
+ * The series' most-said words are deliberately **not** here.
+ *
+ * This overview is what the page asks for on every load and again after
+ * every upload, so anything in it is paid for whether or not somebody looks
+ * at it. The word totals are a table that arrives folded shut — so they are
+ * asked for separately, the first time it is opened, and never otherwise.
+ *
+ * Not because they are expensive: measured on a real library, the top
+ * twenty-five costs about what one search does. Because a thing nobody has
+ * looked at should not be computed on their behalf.
+ */
