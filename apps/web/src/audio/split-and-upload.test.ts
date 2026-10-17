@@ -252,4 +252,42 @@ describe('splitAndUpload', () => {
     expect(reported).toEqual(settled)
     expect(settled[0]).toBe(0)
   })
+
+  /*
+   * A chunk with no upload URL used to be allowed to happen quietly.
+   *
+   * The URL was read as `chunks[at]?.uploadUrl ?? ''`, which only matters if
+   * `settleChunks` ever hands back a different number of chunks than it was
+   * given — it maps over its input, so today it cannot. But the failure that
+   * fallback allowed is the worst shape available here: a `PUT` to an empty
+   * URL, resolving against the page, succeeding or failing somewhere nobody
+   * is looking, while every other chunk uploads normally and the episode
+   * reports itself fine with a hole in it.
+   *
+   * So the invariant is checked rather than papered over. There is no way to
+   * reach it through `settleChunks`, which is the point: this asserts the
+   * thing that must stay true, and says so if it ever stops.
+   */
+  it('refuses a chunk it has no url for', async () => {
+    const sent: string[] = []
+    const fetchImpl = vi.fn((url: string) => {
+      sent.push(String(url))
+      return Promise.resolve(new Response(null, { status: 200 }))
+    })
+    vi.stubGlobal('fetch', fetchImpl)
+
+    await expect(
+      splitAndUpload(
+        () => Promise.resolve(new Float32Array(SAMPLE_RATE * 2)),
+        // A chunk whose url is missing, which is what a mismatch would look
+        // like by the time it reached the upload.
+        [{ index: 0, startMs: 0, endMs: 2_000, uploadUrl: '' }],
+        () => {},
+        () => Promise.resolve(),
+      ),
+    ).rejects.toThrow(/url/iu)
+
+    expect(sent, 'it uploaded to an empty url').toEqual([])
+  })
+
 })

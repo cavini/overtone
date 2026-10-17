@@ -92,7 +92,25 @@ export async function splitAndUpload(
     chunks.map(({ index, startMs, endMs }) => ({ index, startMs, endMs })),
     [...loudnessProfile(samples, SAMPLE_RATE)],
     FRAME_MS,
-  ).map((chunk, at) => ({ ...chunk, uploadUrl: chunks[at]?.uploadUrl ?? '' }))
+  ).map((chunk, at) => {
+    /*
+     * Checked rather than defaulted.
+     *
+     * This read `chunks[at]?.uploadUrl ?? ''`, which only matters if
+     * `settleChunks` returns a different number of chunks than it was given —
+     * it maps over its input, so today it cannot. But the failure that
+     * allowed is the worst shape available here: a `PUT` to an empty URL,
+     * resolving against the page, succeeding or failing somewhere nobody is
+     * watching, while every other chunk uploads normally and the episode
+     * reports itself finished with a hole in it.
+     */
+    const uploadUrl = chunks[at]?.uploadUrl
+    if (uploadUrl === undefined || uploadUrl.length === 0) {
+      throw new Error(`chunk ${chunk.index} has no upload url`)
+    }
+
+    return { ...chunk, uploadUrl }
+  })
 
   // Before any bytes go out. See `onBoundariesSettled`.
   await onBoundariesSettled(settled.map((chunk) => chunk.startMs))
