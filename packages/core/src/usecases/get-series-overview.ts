@@ -23,6 +23,20 @@ export interface GetSeriesOverviewDependencies {
 function trendOf(counts: readonly number[]): TopicTrend {
   if (counts.length < 2) return 'unknown'
 
+  /*
+   * A joke nobody has counted has no direction, and saying "flat" about it is
+   * a finding rather than a gap.
+   *
+   * Adding a joke after the episodes are analysed is the normal way round —
+   * you upload first, and the counting is a separate button — so every new
+   * joke sits here for a while. It read "the same as the episode before"
+   * across thirty episodes, for a word that appears in thirteen of them.
+   *
+   * Only *all* zeros. A joke that was counted and simply did not come up in
+   * the last two episodes is genuinely flat, and that is worth saying.
+   */
+  if (counts.every((count) => count === 0)) return 'unknown'
+
   const latest = counts.at(-1) ?? 0
   const previous = counts.at(-2) ?? 0
 

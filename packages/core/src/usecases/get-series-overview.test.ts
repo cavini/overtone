@@ -170,6 +170,40 @@ describe('getSeriesOverview', () => {
       expect(overview.topics[0]?.trend).toBe(expected)
     })
 
+    /*
+     * A joke that has never been counted. Adding one after the episodes are
+     * analysed is the normal way round — you upload first — and the counting
+     * is a separate button, so this is what every new joke looks like for a
+     * while.
+     *
+     * It used to read "flat": the same as the episode before. That is a
+     * finding, and it was being asserted about a joke nobody had counted,
+     * across thirty episodes in which the word appears in thirteen.
+     */
+    it('will not call a trend on a joke with no counts at all', async () => {
+      const episodes = [1, 2, 3].map((n) => episode(n))
+      const overview = await overviewOf(episodes, [GUARDACHUVA], [])
+
+      expect(overview.topics[0]?.trend).toBe('unknown')
+      expect(overview.topics[0]?.total).toBe(0)
+    })
+
+    /*
+     * But a joke that *has* been counted and simply did not come up in the
+     * last two episodes is genuinely flat, and that is worth saying. The
+     * difference is whether there is any count anywhere.
+     */
+    it('still calls it flat when it was counted and missed the last two', async () => {
+      const episodes = [1, 2, 3, 4].map((n) => episode(n))
+      const overview = await overviewOf(episodes, [GUARDACHUVA], [
+        { episodeId: 'ep-1', topicId: 't-guardachuva', count: 7 },
+        { episodeId: 'ep-2', topicId: 't-guardachuva', count: 3 },
+      ])
+
+      expect(overview.topics[0]?.trend).toBe('flat')
+      expect(overview.topics[0]?.total).toBe(10)
+    })
+
     it('will not call a trend on a single episode', async () => {
       const overview = await overviewOf([episode(1)], [GUARDACHUVA], [
         { episodeId: 'ep-1', topicId: 't-guardachuva', count: 4 },
