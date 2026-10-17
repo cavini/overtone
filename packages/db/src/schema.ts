@@ -140,7 +140,6 @@ export const episodes = pgTable(
      */
     failureCode: text('failure_code'),
     failureParams: jsonb('failure_params'),
-    pipelineVersion: integer('pipeline_version').notNull().default(1),
     durationMs: integer('duration_ms').notNull().default(0),
     /*
      * Where the chunk boundaries actually ended up, once the browser moved
@@ -201,10 +200,24 @@ export const episodes = pgTable(
      * against has no description and an invented one would be worse.
      */
     description: text('description'),
-    byteSize: bigint('byte_size', { mode: 'number' }).notNull().default(0),
-    blobKey: text('blob_key'),
-    audioPurgedAt: timestamp('audio_purged_at', { withTimezone: true }),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    /*
+     * Four columns used to be here and nothing ever wrote them:
+     * `pipeline_version`, `byte_size`, `blob_key`, `audio_purged_at`.
+     *
+     * The first cost me something. NOT NULL DEFAULT 1 and never written, so
+     * every episode reported version 1 while the real version sits on
+     * `insights` and is at 6 — I read it while checking whether a fix had
+     * landed, concluded the library was on the old pipeline, and went looking
+     * for a bug that was not there. An unwritten column is worse than no
+     * column, because it reads as data.
+     *
+     * The rest: the upload size stopped being recorded once the browser began
+     * cutting chunks, `blob_key` dates from when an episode was one object,
+     * and `audio_purged_at` was for a retention policy that shipped
+     * differently — audio is freed per chunk now (ADR 0031), and a ready
+     * episode having no audio makes the state derivable anyway.
+     */
   },
   (table) => [
     /*
@@ -476,7 +489,6 @@ export const mentions = pgTable(
     topicId: uuid('topic_id')
       .notNull()
       .references(() => topics.id, { onDelete: 'cascade' }),
-    segmentId: uuid('segment_id').references(() => segments.id, { onDelete: 'set null' }),
     matchedText: text('matched_text').notNull(),
     startMs: integer('start_ms').notNull(),
     endMs: integer('end_ms').notNull(),
