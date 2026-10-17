@@ -1,6 +1,11 @@
 'use client'
 
-import type { SeriesOverview, SeriesTopicTrend, TopicTrend } from '@overtone/core'
+import type {
+  SeriesOverview,
+  SeriesTermTotal,
+  SeriesTopicTrend,
+  TopicTrend,
+} from '@overtone/core'
 import type { Locale } from '@overtone/messages'
 import { useEffect, useState } from 'react'
 import type { UiKey } from '../i18n/ui.js'
@@ -103,6 +108,10 @@ export function SeriesPanel({
               ))}
             </ul>
           )}
+
+          {overview.topTerms.length === 0 ? null : (
+            <TopWords terms={overview.topTerms} locale={locale} labels={labels} />
+          )}
         </>
       )}
     </Panel>
@@ -189,5 +198,93 @@ function TopicRow({
         ))}
       </ol>
     </li>
+  )
+}
+
+/**
+ * The words the series says most, folded away.
+ *
+ * Collapsed by default because it is a reference table, not a headline: the
+ * page above it is about what changed, and twenty-five rows of totals would
+ * push that off the screen. `<details>` rather than state, so it works
+ * before any JavaScript arrives and remembers nothing it does not need to.
+ *
+ * Totalled on request, not stored. Measured on a real library it costs about
+ * what one search does, so there is nothing to precompute and nothing that
+ * can go stale when a line is corrected.
+ */
+function TopWords({
+  terms,
+  locale,
+  labels,
+}: {
+  readonly terms: readonly SeriesTermTotal[]
+  readonly locale: Locale
+  readonly labels: Labels
+}) {
+  return (
+    <details className="mt-6 rounded-lg border" style={{ borderColor: 'var(--edge)' }}>
+      <summary className="px-4 py-3 text-sm font-medium">
+        {labels.seriesTopWords}
+        <span className="ml-2 font-normal" style={{ color: 'var(--quiet)' }}>
+          {number(terms.length, locale)}
+        </span>
+      </summary>
+
+      <p className="px-4 text-xs" style={{ color: 'var(--quiet)' }}>
+        {labels.seriesTopWordsHint}
+      </p>
+
+      {/* Its own scroller, so a long word never makes the page scroll sideways. */}
+      <div className="overflow-x-auto px-4 pb-4">
+        <table className="mt-3 w-full text-sm">
+          <thead>
+            <tr style={{ color: 'var(--quiet)' }}>
+              <th scope="col" className="text-left font-normal">
+                {labels.seriesWord}
+              </th>
+              {/* Right-aligned and tabular, so the digits line up in a column. */}
+              <th scope="col" className="text-right font-normal">
+                {labels.seriesWordTotal}
+              </th>
+              <th scope="col" className="text-right font-normal">
+                {labels.seriesWordEpisodes}
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {terms.map((entry) => (
+              <tr key={entry.term}>
+                <th scope="row" className="py-1 text-left font-normal">
+                  {entry.term}
+                  {/*
+                   * Said where it is true, because a stemmed grouping is a
+                   * guess — Portuguese stemmers fold `comer` into `com` — and
+                   * a total resting on one should not read as solidly as a
+                   * total that does not.
+                   */}
+                  {entry.heuristic ? (
+                    <span className="ml-2 text-xs" style={{ color: 'var(--quiet)' }}>
+                      {labels.seriesWordGuessed}
+                    </span>
+                  ) : null}
+                </th>
+                <td className="tabular py-1 text-right font-medium">
+                  {number(entry.total, locale)}
+                </td>
+                {/*
+                 * The honest half of the number: four thousand across
+                 * twenty-three episodes is how the group talks, the same
+                 * total in one episode is one conversation.
+                 */}
+                <td className="tabular py-1 text-right" style={{ color: 'var(--quiet)' }}>
+                  {number(entry.episodes, locale)}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </details>
   )
 }
