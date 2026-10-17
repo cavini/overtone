@@ -42,6 +42,8 @@ if (url === undefined || url.length === 0) {
    */
   const LOUD_LINES = 40
   const QUIET_LINES = 3
+  /** The loud episode's lines are spread over an hour, like a real one. */
+  const LOUD_SPACING_MS = 90_000
 
   beforeAll(async () => {
     const [made] = await db
@@ -68,12 +70,15 @@ if (url === undefined || url.length === 0) {
         .returning({ id: transcripts.id })
 
       const lines = number === 1 ? LOUD_LINES : QUIET_LINES
+      // Spread across the episode for the loud one, so a cap that only ever
+      // takes the earliest hits is visible.
+      const spacing = number === 1 ? LOUD_SPACING_MS : 1_000
       await db.insert(segments).values(
         Array.from({ length: lines }, (_, at) => ({
           transcriptId: transcript?.id ?? '',
           position: at,
-          startMs: at * 1_000,
-          endMs: at * 1_000 + 500,
+          startMs: at * spacing,
+          endMs: at * spacing + 500,
           text: 'falamos do guardachuva de novo',
         })),
       )
@@ -112,6 +117,25 @@ if (url === undefined || url.length === 0) {
       const found = await search.search(seriesId, 'guardachuva', 10)
 
       expect(found.filter((row) => row.episodeNumber === 2)).toHaveLength(QUIET_LINES)
+    })
+
+    /*
+     * The bug the first version of this cap had. Taking the earliest N lines
+     * of each episode means a word said throughout only ever shows the
+     * opening: measured on the real library, every moment for a word said
+     * 2,500 times landed in the first 13 minutes of episodes running 35 to 90
+     * minutes. The other 80% of each episode was invisible, and the answer
+     * looked complete.
+     */
+    it('covers the whole episode, not just its opening', async () => {
+      const found = await search.search(seriesId, 'guardachuva', 10)
+      const loud = found.filter((row) => row.episodeNumber === 1)
+
+      const lastLine = (LOUD_LINES - 1) * LOUD_SPACING_MS
+      const latest = Math.max(...loud.map((row) => row.startMs))
+
+      // Something from the back half of the episode, not just the front.
+      expect(latest).toBeGreaterThan(lastLine / 2)
     })
 
     it('reads in order within an episode', async () => {

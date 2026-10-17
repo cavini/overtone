@@ -6,7 +6,7 @@ import {
   type TranscriptMatch,
   type TranscriptSearch,
 } from '@overtone/core'
-import { and, asc, desc, eq, lte, sql, type SQL } from 'drizzle-orm'
+import { and, asc, desc, eq, sql, type SQL } from 'drizzle-orm'
 import type { PgDatabase, PgQueryResultHKT } from 'drizzle-orm/pg-core'
 import { episodes, segments, transcripts } from '../schema.js'
 
@@ -146,6 +146,11 @@ export class DrizzleTranscriptSearch implements TranscriptSearch {
         rank: sql<number>`row_number() over (
           partition by ${episodes.id} order by ${segments.startMs} asc
         )`.as('rank'),
+        /*
+         * How many the episode has in all, so the budget can be spread over
+         * them rather than spent on whichever came first.
+         */
+        matches: sql<number>`count(*) over (partition by ${episodes.id})`.as('matches'),
       })
       .from(segments)
       .innerJoin(transcripts, eq(transcripts.id, segments.transcriptId))
@@ -172,7 +177,25 @@ export class DrizzleTranscriptSearch implements TranscriptSearch {
         highlighted: ranked.highlighted,
       })
       .from(ranked)
-      .where(lte(ranked.rank, perEpisode))
+      /*
+       * Every nth hit, spread across the episode — not the first n of it.
+       *
+       * Taking the earliest hits was the first version of this cap and it was
+       * wrong in a way that looked right: measured on the real library, every
+       * moment for a word said 2,500 times landed in the opening 13 minutes
+       * of episodes running 35 to 90. The rest of each episode was invisible
+       * and the answer looked complete.
+       *
+       * `greatest(1, …)` so an episode with fewer hits than the budget
+       * returns all of them rather than dividing by less than one — and
+       * `rank - 1` so the step starts at the first hit. Written as
+       * `rank % step = 1` first, which is silently empty when the step is 1:
+       * every rank mod 1 is zero, so the episodes under the budget — the
+       * ones that should return everything — returned nothing.
+       */
+      .where(
+        sql`(${ranked.rank} - 1) % greatest(1, ceil(${ranked.matches}::numeric / ${perEpisode})) = 0`,
+      )
       // Newest episode first, then in the order it was said. The reader is
       // looking at a series, so the most recent conversation leads.
       .orderBy(desc(ranked.episodeNumber), asc(ranked.startMs))
