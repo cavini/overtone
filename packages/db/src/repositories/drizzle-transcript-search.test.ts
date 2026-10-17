@@ -106,12 +106,19 @@ describe('DrizzleTranscriptSearch', () => {
     expect(sql).toMatch(/partition by "episodes"\."id"/i)
   })
 
-  it('cuts each episode at the budget it was given', async () => {
+  /*
+   * Spread over the episode, not the first n of it. Taking the earliest hits
+   * was the first version and it hid the back of every episode: on the real
+   * library, every moment for a word said 2,500 times landed in the opening
+   * 13 minutes of episodes running 35 to 90.
+   */
+  it('spreads the budget across each episode', async () => {
     await search.search(SERIES, 'x', 50)
 
     const sql = statements[0] ?? ''
-    // A window function cannot go in `where`, so the cut is on the subquery.
-    expect(sql).toMatch(/"rank" <=/i)
+    // Every nth row, where n is the episode's own count over the budget.
+    expect(sql).toMatch(/count\(\*\) over\s*\(\s*partition by "episodes"\."id"/i)
+    expect(sql).toMatch(/"rank" - 1\) % greatest\(1, ceil\(/i)
     expect(sql).not.toMatch(/limit/i)
   })
 })
