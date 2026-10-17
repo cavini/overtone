@@ -149,7 +149,8 @@ if (url === undefined || url.length === 0) {
     // End to end through the use case: scattered segments become the few
     // moments a person actually meant.
     it('collapses a conversation into one moment', async () => {
-      const moments = mine(await searchTranscripts({ seriesId, query: 'cachorro' }, { search }))
+      const found = await searchTranscripts({ seriesId, query: 'cachorro' }, { search })
+      const moments = mine(found.moments)
 
       // Four segments said it: three inside a minute and a half, one ten
       // minutes later. That is two moments, not four results.

@@ -1,5 +1,6 @@
 'use client'
 
+import { renderMessage, type Locale } from '@overtone/messages'
 import { useState } from 'react'
 import type { UiKey } from '../i18n/ui.js'
 import { timestamp } from '../presenter/episode-view.js'
@@ -27,15 +28,29 @@ interface Moment {
  * someone wants is usually the longest stretch, so that is first.
  */
 export function SearchPanel({
+  locale,
   labels,
   onOpen,
 }: {
+  /** Which language to render the match count in. Never affects the search. */
+  readonly locale: Locale
   readonly labels: Labels
   /** Open this moment in the transcript below. */
   readonly onOpen: (episodeId: string, startMs: number) => void
 }) {
   const [query, setQuery] = useState('')
   const [moments, setMoments] = useState<readonly Moment[] | undefined>(undefined)
+  /**
+   * How many lines matched in all, and whether the list is a sample.
+   *
+   * The per-episode budget samples across each episode, so a word said two
+   * and a half thousand times comes back as a few hundred moments. Without
+   * saying so, nothing on the page tells that apart from "this is all there
+   * is" — which is the one kind of wrong this product cannot afford.
+   */
+  const [summary, setSummary] = useState<{ count: number; sampled: boolean } | undefined>(
+    undefined,
+  )
   const [busy, setBusy] = useState(false)
 
   async function run(): Promise<void> {
@@ -44,10 +59,16 @@ export function SearchPanel({
     setBusy(true)
     try {
       const response = await fetch(`/api/search?q=${encodeURIComponent(query)}`)
-      const payload = (await response.json()) as { moments?: Moment[] }
+      const payload = (await response.json()) as {
+        moments?: Moment[]
+        matchCount?: number
+        sampled?: boolean
+      }
       setMoments(payload.moments ?? [])
+      setSummary({ count: payload.matchCount ?? 0, sampled: payload.sampled === true })
     } catch {
       setMoments([])
+      setSummary(undefined)
     } finally {
       setBusy(false)
     }
@@ -94,7 +115,17 @@ export function SearchPanel({
             {labels.searchNothing}
           </p>
         ) : (
-          <ul className="mt-4 space-y-2">
+          <>
+            {summary === undefined ? null : (
+              <p className="mt-4 text-xs" style={{ color: 'var(--quiet)' }}>
+                {renderMessage(
+                  locale,
+                  summary.sampled ? 'SEARCH_SHOWING_A_SAMPLE' : 'SEARCH_FOUND_EVERY_ONE',
+                  { match_count: summary.count },
+                )}
+              </p>
+            )}
+            <ul className="mt-2 space-y-2">
             {moments.map((moment) => (
               <li key={`${moment.episodeId}-${moment.startMs}`}>
                 <button
@@ -139,7 +170,8 @@ export function SearchPanel({
                 </button>
               </li>
             ))}
-          </ul>
+            </ul>
+          </>
         )
       ) : null}
     </Panel>
