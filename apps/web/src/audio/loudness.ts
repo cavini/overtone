@@ -27,6 +27,10 @@ export function loudnessProfile(samples: Float32Array, sampleRate: number): Floa
     const from = frame * perFrame
     let total = 0
     for (let at = from; at < from + perFrame; at += 1) {
+      /* c8 ignore next -- unreachable: the frame count is floor(length /
+         perFrame), so the last index read is frames * perFrame - 1, which is
+         inside the array by construction. The fallback is what
+         `noUncheckedIndexedAccess` asks for, not a case. */
       const sample = samples[at] ?? 0
       total += sample * sample
     }
