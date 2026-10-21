@@ -1,6 +1,6 @@
 // US-041 · an upload that never finished arriving
 import { describe, expect, it } from 'vitest'
-import { isAbandoned, UPLOAD_GRACE_MS } from './abandoned.js'
+import { isAbandoned, isStalled, STALL_GRACE_MS, UPLOAD_GRACE_MS } from './abandoned.js'
 
 const NOW = 1_700_000_000_000
 
@@ -35,5 +35,42 @@ describe('isAbandoned', () => {
 
   it('does not give up on an episode from the future', () => {
     expect(isAbandoned(NOW + 60_000, NOW)).toBe(false)
+  })
+})
+
+/*
+ * The other end of the same question, for an episode whose audio is there
+ * and whose chunks keep being refused.
+ *
+ * A transient refusal leaves the episode in `transcribing` so the next run
+ * retries it, which is what stops one bad response costing a whole episode.
+ * The cost of that is this: a chunk that fails *every* time now holds the
+ * head of the queue, because the scheduler takes the oldest in-flight
+ * episode, and nothing behind it moves.
+ */
+describe('isStalled', () => {
+  it('does not give up on an episode that just got a chunk in', () => {
+    expect(isStalled(NOW, NOW)).toBe(false)
+  })
+
+  /*
+   * The longest *legitimate* gap between chunks is a daily-allowance wait,
+   * which lasts until the day turns over — up to twenty-four hours with no
+   * progress at all and nothing wrong. Writing that off would be the
+   * original bug again, one layer out, so the grace has to clear it.
+   */
+  it('clears the longest wait the allowance can impose', () => {
+    expect(STALL_GRACE_MS).toBeGreaterThan(24 * 60 * 60_000)
+    expect(isStalled(NOW - 24 * 60 * 60_000, NOW)).toBe(false)
+  })
+
+  it('gives up once nothing has moved for longer than that', () => {
+    expect(isStalled(NOW - STALL_GRACE_MS - 1_000, NOW)).toBe(true)
+  })
+
+  // Same reasoning as `isAbandoned`: a clock that disagrees with the
+  // database must not be able to write off a healthy episode.
+  it('does not give up on progress from the future', () => {
+    expect(isStalled(NOW + 60_000, NOW)).toBe(false)
   })
 })

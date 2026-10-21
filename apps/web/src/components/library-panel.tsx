@@ -5,6 +5,7 @@ import type { UiKey } from '../i18n/ui.js'
 import { timestamp } from '../presenter/episode-view.js'
 import { episodesMatching } from '../presenter/library-filter.js'
 import { groupedByCategory } from '../presenter/library-sections.js'
+import { libraryRowState } from '../presenter/library-row-state.js'
 import { renderMessage, type Locale } from '@overtone/messages'
 import { ConfirmDialog } from './confirm-dialog.js'
 import { Panel } from './panel.js'
@@ -20,6 +21,14 @@ export interface LibraryEntry {
   readonly durationMs: number
   readonly chunksDone: number
   readonly chunkCount: number
+  /**
+   * Where the episode got to.
+   *
+   * `/api/episodes/list` has always sent this; this type dropped it, so the
+   * row had nothing to go on but the chunk counts and drew a failed episode
+   * as a working one. See `libraryRowState`.
+   */
+  readonly status: string
   /**
    * Which programme it is, so the list can read in sections.
    *
@@ -84,6 +93,34 @@ export function LibraryPanel({
 
     setEpisodes((listed) => listed.filter((episode) => episode.episodeId !== episodeId))
     onDeleted(episodeId)
+  }
+
+  /**
+   * Puts a failed episode back in the queue.
+   *
+   * Only the chunks that never came back are re-transcribed — the ones in
+   * hand are kept — so this is cheap enough not to need confirming, unlike
+   * the trash can beside it.
+   *
+   * The row is moved here rather than refetched, for the same reason
+   * deletion is: the answer is already known, and a refetch would blink the
+   * whole library for one row. `transcribing` is what the scheduler will
+   * pick up, so that is what the row should say.
+   */
+  async function retry(episodeId: string): Promise<void> {
+    const response = await fetch('/api/episodes/retry', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ episodeId }),
+    }).catch(() => undefined)
+
+    if (response?.ok !== true) return
+
+    setEpisodes((listed) =>
+      listed.map((episode) =>
+        episode.episodeId === episodeId ? { ...episode, status: 'transcribing' } : episode,
+      ),
+    )
   }
 
   const [typed, setTyped] = useState('')
@@ -155,7 +192,7 @@ export function LibraryPanel({
                 <ul className="mt-2 space-y-1">
               {section.episodes.map((episode) => {
                 const reading = episode.episodeId === selected
-                const unfinished = episode.chunksDone < episode.chunkCount
+                const rowState = libraryRowState(episode.status)
 
                 const asking = episode.episodeId === confirming
 
@@ -193,30 +230,53 @@ export function LibraryPanel({
                         </span>
                       </span>
                       {/*
-                        A spinner while it is still being transcribed, and
-                        nothing at all once it is done. The row already says
-                        which episode is open, by being the one with a
-                        border around it — a word for that was both
-                        redundant and, as "Lendo", ambiguous about who was
-                        doing the reading.
+                        A spinner while it is still being transcribed, the
+                        word for it when it gave up, and nothing at all once
+                        it is done. The row already says which episode is
+                        open, by being the one with a border around it — a
+                        word for that was both redundant and, as "Lendo",
+                        ambiguous about who was doing the reading.
 
-                        The chunk count stays. It is not a label for a state,
-                        it is how far along a job is, and on a two-hour
-                        episode that is the difference between "working" and
-                        "nearly there".
+                        The chunk count stays, and stays in both. It is not a
+                        label for a state, it is how far along a job is, and
+                        on a two-hour episode that is the difference between
+                        "working" and "nearly there" — or, on a failure,
+                        between losing the episode and losing the tail of it.
                       */}
-                      {unfinished ? (
+                      {rowState === 'nothing' ? null : (
                         <span
                           className="flex shrink-0 items-center gap-2 text-xs"
-                          style={{ color: 'var(--accent-quiet)' }}
+                          style={{
+                            color:
+                              rowState === 'failed' ? 'var(--danger)' : 'var(--accent-quiet)',
+                          }}
                         >
                           <span className="tabular">
                             {episode.chunksDone}/{episode.chunkCount}
                           </span>
-                          <Spinner label={labels.transcribing} />
+                          {rowState === 'failed' ? (
+                            <span>{labels.libraryFailed}</span>
+                          ) : (
+                            <Spinner label={labels.transcribing} />
+                          )}
                         </span>
-                      ) : null}
+                      )}
                     </button>
+                    {/*
+                      Beside the trash can rather than in the row's own
+                      button, which a button cannot nest inside. Only on a
+                      row that gave up: there is nothing to retry otherwise.
+                    */}
+                    {rowState === 'failed' ? (
+                      <button
+                        type="button"
+                        onClick={() => void retry(episode.episodeId)}
+                        className="mr-1 shrink-0 self-center rounded-md px-2 py-1 text-xs"
+                        style={{ background: 'var(--accent)', color: 'var(--panel)' }}
+                      >
+                        {labels.libraryRetry}
+                      </button>
+                    ) : null}
                     {/*
                       A trash can, in red, and the question in a dialog.
                       It was two words of text in the row, which read as

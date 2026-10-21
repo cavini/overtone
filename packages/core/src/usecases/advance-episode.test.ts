@@ -12,6 +12,7 @@ import type { ChunkTranscript } from '../domain/audio-chunk.js'
 import type { EpisodeStatus } from '../domain/episode.js'
 import type { Topic } from '../domain/topic.js'
 import type { EpisodeFailure, StoredAnalysis } from '../ports/episode-store.js'
+import type { TranscriptionFailure } from '../ports/transcription-provider.js'
 import { transcriptFromText } from '../testing/fake-transcription-provider.js'
 import { advanceEpisode, type UploadedChunk } from './advance-episode.js'
 
@@ -33,6 +34,7 @@ const harness = (
     transcribed?: readonly number[]
     allowance?: Partial<AllowanceState>
     failTranscription?: boolean
+    failWith?: TranscriptionFailure
     observed?: ObservedAllowance
   } = {},
 ) => {
@@ -53,8 +55,13 @@ const harness = (
   const order: string[] = []
 
   const transcribe = vi.fn((request: { audioUrl: string }) => {
-    if (options.failTranscription === true) {
-      return Promise.resolve({ ok: false as const, failure: { code: 'PROVIDER_UNAVAILABLE' as const } })
+    const failure =
+      options.failWith ??
+      (options.failTranscription === true
+        ? ({ code: 'PROVIDER_UNAVAILABLE' } as const)
+        : undefined)
+    if (failure !== undefined) {
+      return Promise.resolve({ ok: false as const, failure })
     }
     const index = Number(request.audioUrl.split('-').at(-1))
     return Promise.resolve({
@@ -308,7 +315,7 @@ describe('advanceEpisode', () => {
   })
 
   describe('when a chunk fails', () => {
-    it('marks the episode failed with a code', async () => {
+    it('reports the code to whoever is watching', async () => {
       const h = harness({ failTranscription: true })
       const outcome = await advance(h)
 
@@ -316,7 +323,75 @@ describe('advanceEpisode', () => {
         state: 'failed',
         failure: { code: 'PROVIDER_UNAVAILABLE' },
       })
-      expect(h.statuses).toEqual(['transcribing', 'failed'])
+    })
+
+    /*
+     * The distinction the adapter draws is retryable versus not, and this
+     * is where it used to be thrown away: *any* refusal wrote `failed`.
+     *
+     * That status is terminal in practice — `advancePending` selects only
+     * the in-flight ones, so nothing ever looks at a failed episode again.
+     * One blip out of the hundreds of requests a two-hour episode makes was
+     * enough to lose it, with its audio still sitting in the bucket and a
+     * spinner still turning in the library.
+     *
+     * Episode 41 went this way: Groq fetches the audio by URL and answered
+     * once for chunk 1, which the adapter maps to `AUDIO_NOT_FOUND` — a
+     * statement about a fetch that failed, not about audio that is gone.
+     * Eight chunks, 150 MB, all still there.
+     */
+    describe('transiently', () => {
+      const TRANSIENT: readonly TranscriptionFailure[] = [
+        { code: 'PROVIDER_UNAVAILABLE' },
+        { code: 'ALLOWANCE_EXHAUSTED', retryAfterMs: 60_000 },
+        { code: 'AUDIO_NOT_FOUND' },
+      ]
+
+      it.each(TRANSIENT)('leaves the episode in flight after $code', async (failWith) => {
+        const h = harness({ failWith })
+        await advance(h)
+
+        expect(h.statuses).toEqual(['transcribing'])
+        expect(h.statuses).not.toContain('failed')
+      })
+
+      // A code written to the row is what the library shows the reader.
+      // Saying an episode failed when it is going to be retried in a minute
+      // is the same lie as the spinner, pointing the other way.
+      it.each(TRANSIENT)('records no failure code for $code', async (failWith) => {
+        const h = harness({ failWith })
+        await advance(h)
+
+        expect(h.failures).toEqual([])
+      })
+    })
+
+    /*
+     * The two that a retry cannot help. `AUDIO_UNREADABLE` means the file
+     * does not decode, and `PROVIDER_RESPONSE_INVALID` means the API changed
+     * shape under us — both fail the same way however many times they are
+     * asked, so they are worth taking out of the queue.
+     */
+    describe('permanently', () => {
+      const PERMANENT: readonly TranscriptionFailure[] = [
+        { code: 'AUDIO_UNREADABLE' },
+        { code: 'PROVIDER_RESPONSE_INVALID' },
+      ]
+
+      it.each(PERMANENT)('marks the episode failed after $code', async (failWith) => {
+        const h = harness({ failWith })
+        const outcome = await advance(h)
+
+        expect(outcome).toMatchObject({ state: 'failed', failure: failWith })
+        expect(h.statuses).toEqual(['transcribing', 'failed'])
+      })
+
+      it.each(PERMANENT)('writes the code to the row for $code', async (failWith) => {
+        const h = harness({ failWith })
+        await advance(h)
+
+        expect(h.failures).toEqual([failWith])
+      })
     })
 
     it('keeps the chunks that did come back', async () => {
@@ -409,7 +484,7 @@ describe('retrying after a chunk failed', () => {
    * refusals cost an episode's worth of the day's allowance.
    */
   it('spends nothing when the retry fails too', async () => {
-    const { deps, recorded, failures } = harness({
+    const { deps, recorded, statuses } = harness({
       transcribed: [0, 2],
       failTranscription: true,
     })
@@ -417,7 +492,11 @@ describe('retrying after a chunk failed', () => {
     await advanceEpisode({ episodeId: EPISODE, chunks, topics: [] }, deps)
 
     expect(recorded, 'a refusal was charged to the allowance').toEqual([])
-    expect(failures.map((failure) => failure.code)).toEqual(['PROVIDER_UNAVAILABLE'])
+    // And a retry that fails is still a retry: the episode stays in flight,
+    // so there is a run after this one. This asserted the opposite — that
+    // the failure had been written to the row — back when one refusal was
+    // the end of the episode.
+    expect(statuses).toEqual(['transcribing'])
   })
 })
 })
