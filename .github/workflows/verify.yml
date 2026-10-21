@@ -12,6 +12,29 @@ concurrency:
 jobs:
   verify:
     runs-on: ubuntu-latest
+
+    # A throwaway Postgres, deliberately not ours.
+    #
+    # The database-backed suites write — they seed what they assert on and
+    # drop it again — and ours is the free tier holding the archive, against a
+    # 500 MB ceiling. Worse, `advancePending` reaches for the oldest
+    # unfinished episode *anywhere*, so a CI run pointed at the real database
+    # would advance a real episode that somebody is waiting on. A container
+    # that lives for the length of the job cannot do either.
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: overtone
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
     steps:
       - uses: actions/checkout@v4
 
@@ -34,3 +57,24 @@ jobs:
 
       - name: Tests and coverage
         run: pnpm test:unit
+
+      # Last, because it is the slowest and the only step that needs a server
+      # standing up.
+      #
+      # `DATABASE_URL` is the only credential given, and that is the whole
+      # mechanism: every live suite names its own prerequisite and skips
+      # without it, so the ten that need nothing but a database run here,
+      # while the ones wanting a bucket, an identity provider or the show's
+      # feed skip exactly as they do on a laptop with a bare checkout.
+      #
+      # Nothing can reach Groq. `GROQ_API_KEY` is absent, so the suites that
+      # would build a transcription provider skip before they construct one —
+      # the free tier is 8 audio-hours a day shared by every user, and a CI
+      # run that spent it would take the app down.
+      - name: Database-backed suites
+        env:
+          DATABASE_URL: postgres://postgres:postgres@localhost:5432/overtone
+        run: |
+          pnpm --filter @overtone/db db:stub-supabase
+          pnpm --filter @overtone/db migrate
+          pnpm test:integration
