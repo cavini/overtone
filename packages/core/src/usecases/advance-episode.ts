@@ -11,7 +11,10 @@ import type {
   StoredMention,
 } from '../ports/episode-store.js'
 import type { LemmaRepository } from '../ports/lemma-repository.js'
-import type { TranscriptionProvider } from '../ports/transcription-provider.js'
+import type {
+  TranscriptionFailure,
+  TranscriptionProvider,
+} from '../ports/transcription-provider.js'
 import { annotate } from '../analysis/annotate.js'
 import { stitchBoundaries, stitchChunks } from '../analysis/chunking.js'
 import { applyCorrections, type Correction } from '../analysis/corrections.js'
@@ -75,6 +78,24 @@ export type AdvanceEpisodeOutcome =
     }
   | { readonly state: 'ready' }
   | { readonly state: 'failed'; readonly failure: EpisodeFailure }
+
+/**
+ * The refusals a retry cannot help with.
+ *
+ * Deliberately a list of what is *final* rather than of what is worth
+ * retrying: a code nobody has classified yet should cost one more request,
+ * not the episode. The adapter reasons the same way about HTTP statuses it
+ * does not recognise.
+ *
+ * `AUDIO_UNREADABLE` is a file that does not decode, and
+ * `PROVIDER_RESPONSE_INVALID` is the API having changed shape under us. Both
+ * fail identically however many times they are asked, so both are worth
+ * taking out of the queue — which is what `failed` does.
+ */
+const PERMANENT_FAILURES: ReadonlySet<TranscriptionFailure['code']> = new Set([
+  'AUDIO_UNREADABLE',
+  'PROVIDER_RESPONSE_INVALID',
+])
 
 function perMinute(count: number, durationMs: number): number {
   if (durationMs <= 0) return 0
@@ -141,7 +162,32 @@ export async function advanceEpisode(
     })
 
     if (!transcribed.ok) {
-      await store.setStatus(request.episodeId, 'failed', transcribed.failure)
+      /*
+       * Written down only when a retry cannot help.
+       *
+       * `failed` is terminal in practice, whatever it looks like: the
+       * scheduler selects the in-flight statuses (ADR 0027), so nothing ever
+       * picks a failed episode up again. Writing it for a blip threw away
+       * the one distinction the adapter exists to draw — retryable versus
+       * not — and cost the whole episode, out of the hundreds of requests a
+       * two-hour one makes.
+       *
+       * Episode 41 went exactly this way. Groq fetches the audio by signed
+       * URL rather than being handed the bytes, so a fetch it could not
+       * complete comes back as `AUDIO_NOT_FOUND` — a statement about one
+       * request, not about audio that is gone. It answered that once for
+       * chunk 1 and the episode was dead, with its remaining eight chunks
+       * still in the bucket and the library still showing a spinner.
+       *
+       * The episode is left in `transcribing`, set above, so the next
+       * scheduled run tries the same chunk again. That is the same shape as
+       * waiting for the allowance to refill, which is already the ordinary
+       * case — a pause, not a verdict.
+       */
+      if (PERMANENT_FAILURES.has(transcribed.failure.code)) {
+        await store.setStatus(request.episodeId, 'failed', transcribed.failure)
+      }
+
       return { state: 'failed', failure: transcribed.failure }
     }
 
