@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="Overtone">
+  <!--
+    The harmonic series: a fundamental with its overtones falling away above
+    it. Which is the name, and also, read as a bar chart, the one table this
+    app is for — "Mais falado", sorted descending. The same picture either way.
+
+    Bars, not a waveform. At 16 px a sine is mud and a spectrum is a smear.
+
+    Sized for 16 px and nothing else, because that is the only size that has
+    to work: 5-wide bars with 2-wide gaps and 3 of padding, which is 2.5 px
+    and 1 px once it lands in a tab. The first cut used 4-wide bars inside 5
+    of padding and looked fine at 64 — at 16 the chip swallowed it and the
+    bars went to stripes. Checked at size, not in the abstract.
+
+    On its own dark chip rather than transparent, because a favicon lands on
+    browser chrome we do not control — the brass alone is 3:1 on a white tab
+    strip, and 7.4:1 on this navy in either theme.
+  -->
+  <rect width="32" height="32" rx="7" fill="#141d2b"/>
+  <g fill="#d2a05a">
+    <rect x="3"  y="4"  width="5" height="24" rx="1.5"/>
+    <rect x="10" y="11" width="5" height="17" rx="1.5"/>
+    <rect x="17" y="16" width="5" height="12" rx="1.5"/>
+    <rect x="24" y="20" width="5" height="8"  rx="1.5"/>
+  </g>
+</svg>
