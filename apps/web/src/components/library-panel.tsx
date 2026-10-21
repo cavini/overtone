@@ -95,6 +95,34 @@ export function LibraryPanel({
     onDeleted(episodeId)
   }
 
+  /**
+   * Puts a failed episode back in the queue.
+   *
+   * Only the chunks that never came back are re-transcribed — the ones in
+   * hand are kept — so this is cheap enough not to need confirming, unlike
+   * the trash can beside it.
+   *
+   * The row is moved here rather than refetched, for the same reason
+   * deletion is: the answer is already known, and a refetch would blink the
+   * whole library for one row. `transcribing` is what the scheduler will
+   * pick up, so that is what the row should say.
+   */
+  async function retry(episodeId: string): Promise<void> {
+    const response = await fetch('/api/episodes/retry', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ episodeId }),
+    }).catch(() => undefined)
+
+    if (response?.ok !== true) return
+
+    setEpisodes((listed) =>
+      listed.map((episode) =>
+        episode.episodeId === episodeId ? { ...episode, status: 'transcribing' } : episode,
+      ),
+    )
+  }
+
   const [typed, setTyped] = useState('')
 
   useEffect(() => {
@@ -234,6 +262,21 @@ export function LibraryPanel({
                         </span>
                       )}
                     </button>
+                    {/*
+                      Beside the trash can rather than in the row's own
+                      button, which a button cannot nest inside. Only on a
+                      row that gave up: there is nothing to retry otherwise.
+                    */}
+                    {rowState === 'failed' ? (
+                      <button
+                        type="button"
+                        onClick={() => void retry(episode.episodeId)}
+                        className="mr-1 shrink-0 self-center rounded-md px-2 py-1 text-xs"
+                        style={{ background: 'var(--accent)', color: 'var(--panel)' }}
+                      >
+                        {labels.libraryRetry}
+                      </button>
+                    ) : null}
                     {/*
                       A trash can, in red, and the question in a dialog.
                       It was two words of text in the row, which read as

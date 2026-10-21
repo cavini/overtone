@@ -69,6 +69,9 @@ export const UI = {
     // Beside the chunk count on a row that gave up. The row showed a
     // spinner instead, which said the opposite of what was true.
     libraryFailed: 'Falhou',
+    // On a row that gave up. Putting it back in the queue costs only the
+    // chunks that never came back, so it is not the dangerous kind of button.
+    libraryRetry: 'Tentar de novo',
     // Deliberately one message for a wrong password and an address with no
     // account. Two would answer whether somebody is a member here.
     wrongEmailOrPassword: 'E-mail ou senha incorretos.',
@@ -219,6 +222,9 @@ export const UI = {
     // Beside the chunk count on a row that gave up. The row showed a
     // spinner instead, which said the opposite of what was true.
     libraryFailed: 'Failed',
+    // On a row that gave up. Putting it back in the queue costs only the
+    // chunks that never came back, so it is not the dangerous kind of button.
+    libraryRetry: 'Try again',
     wrongEmailOrPassword: 'Wrong email or password.',
     emailTaken: 'An account with that email already exists. Sign in with your password.',
     passwordRejected: 'The service would not accept that password. Try a longer one.',

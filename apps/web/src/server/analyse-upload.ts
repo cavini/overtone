@@ -436,6 +436,39 @@ export async function deleteEpisode(userId: string, episodeId: string): Promise<
   await db.delete(episodes).where(eq(episodes.id, episodeId))
 }
 
+/**
+ * Puts a failed episode back in the queue.
+ *
+ * The product had no way to do this. `advancePending` selects only the
+ * in-flight statuses, `pendingEpisode` follows only `transcribing`, and
+ * re-uploading the file is refused as a duplicate by its audio digest — so a
+ * failed episode needed somebody with database access, which is how episode
+ * 41 stayed dead for two days with its audio still in the bucket.
+ *
+ * Nothing is re-transcribed that already came back: the chunks in hand are
+ * what `transcribedIndexes` reports, and the next run picks up at the first
+ * one missing. Retrying a nine-chunk episode that got one through costs the
+ * remaining eight, not nine.
+ *
+ * Guarded on `failed` in the statement rather than read-then-written, so two
+ * clicks cost one retry and the second truthfully reports it did nothing. A
+ * finished episode is left alone — re-deriving one is a different thing, and
+ * a free one, because it spends no allowance.
+ */
+export async function retryEpisode(userId: string, episodeId: string): Promise<boolean> {
+  // Before anything is written, and on the episode rather than on the id in
+  // the URL: a UUID is not a permission.
+  await mustOwnEpisode(userId, episodeId)
+
+  const retried = await database()
+    .update(episodes)
+    .set({ status: 'transcribing', failureCode: null, failureParams: null })
+    .where(and(eq(episodes.id, episodeId), eq(episodes.status, 'failed')))
+    .returning({ id: episodes.id })
+
+  return retried.length > 0
+}
+
 export interface PendingEpisode {
   readonly episodeId: string
   readonly title: string
