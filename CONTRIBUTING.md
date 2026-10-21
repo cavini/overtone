@@ -107,9 +107,16 @@ land in that account's library.
 pnpm dev               # next dev, with .env.local loaded
 pnpm test              # unit + integration, watch - the inner loop
 pnpm test:unit         # pure, instant
-pnpm test:integration  # needs: supabase start
+pnpm test:integration  # the database-backed suites. Every one names its own
+                       # prerequisite and skips without it, so a bare
+                       # checkout runs the ones that need nothing.
+                       # CI runs this against a throwaway Postgres it stands
+                       # up itself, which is how the nine database-only
+                       # suites are automated. The ones wanting a bucket, an
+                       # identity provider or the show's feed skip there.
+                       # Groq is never given a key, anywhere.
 pnpm test:e2e          # Playwright
-pnpm verify            # exactly what CI runs
+pnpm verify            # the unit gate: types, layer boundaries, unit tests
 pnpm typecheck
 pnpm backfill          # walk the show's feed and upload old episodes,
                        # oldest first, one at a time, over days.
@@ -119,12 +126,20 @@ pnpm backfill          # walk the show's feed and upload old episodes,
 
 `pnpm verify` passing locally must mean CI passes. If they can disagree, CI is wrong - fix CI.
 
+`verify` deliberately stops short of `test:integration`: locally that one
+writes to the **real** database, the one holding the archive, and a gate you
+run twenty times a day must not. CI runs it against a container instead. So a
+database-backed suite can fail on CI with `verify` green - run
+`pnpm test:integration` yourself before pushing if you touched anything one of
+them covers.
+
 ## Definition of done
 
 A story is done when:
 
 - [ ] Every acceptance criterion has a test that fails without the implementation
-- [ ] `pnpm verify` is green
+- [ ] `pnpm verify` is green, and `pnpm test:integration` too if a
+      database-backed suite covers what changed
 - [ ] It works end to end in the running app, not just in tests
 - [ ] No new `any`, no new `@ts-ignore`, no skipped tests
 - [ ] Docs updated if behaviour changed; an ADR added if a decision was made

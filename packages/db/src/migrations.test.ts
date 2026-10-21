@@ -80,3 +80,42 @@ describe('the generated migrations', () => {
     expect(sql).toMatch(/using gin \(to_tsvector\('english', "text"\)\)/)
   })
 })
+
+/*
+ * The journal is what `migrate()` reads. A migration file missing from it is
+ * not applied and not reported — it is skipped in silence.
+ *
+ * Seven of them were. 0016 to 0022 were written by hand and applied by hand,
+ * and only the drizzle-generated ones ever reached the journal, so a database
+ * built from the migrations came out seven migrations short: no
+ * `chunk_starts_ms`, no `episode_corrections`, no `series_term_totals`. The
+ * deployed database had them all, because they had been applied directly —
+ * which is precisely why nothing noticed for a fortnight. Migrations that do
+ * not reproduce the schema are not a backup of it.
+ *
+ * Found by standing a database up from them for the first time, in CI.
+ */
+describe('the migration journal', () => {
+  const journalled = (): readonly string[] =>
+    (
+      JSON.parse(readFileSync(resolve(migrationsDir, 'meta/_journal.json'), 'utf8')) as {
+        entries: Array<{ tag: string }>
+      }
+    ).entries.map((entry) => entry.tag)
+
+  const files = (): readonly string[] =>
+    readdirSync(migrationsDir)
+      .filter((name) => name.endsWith('.sql'))
+      .map((name) => name.replace(/\.sql$/u, ''))
+      .sort()
+
+  it('names every migration that exists', () => {
+    expect([...journalled()].sort()).toEqual([...files()])
+  })
+
+  // Order is how `migrate()` decides what to run next, and a gap means
+  // everything after it is skipped.
+  it('is in order, with no gaps', () => {
+    expect(journalled()).toEqual([...files()])
+  })
+})

@@ -25,7 +25,8 @@
     "schedule-advance": "tsx src/schedule-advance.mts",
     "claim-library": "tsx src/claim-library.mts",
     "db:load-verb-forms": "tsx src/load-verb-forms.mts",
-    "db:recount-words": "tsx src/recount-words.mts"
+    "db:recount-words": "tsx src/recount-words.mts",
+    "db:stub-supabase": "tsx src/stub-supabase.mts"
   },
   "dependencies": {
     "@overtone/core": "workspace:*",

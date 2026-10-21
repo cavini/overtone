@@ -32,10 +32,20 @@ const envFile = resolve(here, '../../../../.env.local')
 if (existsSync(envFile)) process.loadEnvFile(envFile)
 
 const url = process.env['DATABASE_URL']
+/*
+ * This one signs and sweeps real audio as well as reading a database, so it
+ * needs the bucket too — `blobStore()` throws without a key, and that is a
+ * failure rather than a skip.
+ *
+ * Checked here rather than left to fail, because CI now has a database (a
+ * throwaway Postgres, not ours) and no bucket at all. Every other live suite
+ * in the repo already names its own prerequisite this way.
+ */
+const bucket = process.env['SUPABASE_SECRET_KEY']
 
-if (url === undefined || url.length === 0) {
+if (url === undefined || url.length === 0 || bucket === undefined || bucket.length === 0) {
   describe('deletion', () => {
-    it.skip('needs DATABASE_URL', () => {})
+    it.skip('needs DATABASE_URL and SUPABASE_SECRET_KEY', () => {})
   })
 } else {
   /** An owner id no real account can have. */
