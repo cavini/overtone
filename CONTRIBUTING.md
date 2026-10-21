@@ -111,7 +111,7 @@ pnpm test:integration  # the database-backed suites. Every one names its own
                        # prerequisite and skips without it, so a bare
                        # checkout runs the ones that need nothing.
                        # CI runs this against a throwaway Postgres it stands
-                       # up itself, which is how the ten database-only
+                       # up itself, which is how the nine database-only
                        # suites are automated. The ones wanting a bucket, an
                        # identity provider or the show's feed skip there.
                        # Groq is never given a key, anywhere.

@@ -63,7 +63,7 @@ jobs:
       #
       # `DATABASE_URL` is the only credential given, and that is the whole
       # mechanism: every live suite names its own prerequisite and skips
-      # without it, so the ten that need nothing but a database run here,
+      # without it, so the nine that need nothing but a database run here,
       # while the ones wanting a bucket, an identity provider or the show's
       # feed skip exactly as they do on a laptop with a bare checkout.
       #

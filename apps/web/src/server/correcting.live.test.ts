@@ -30,9 +30,19 @@ if (existsSync(envFile)) process.loadEnvFile(envFile)
 
 const url = process.env['DATABASE_URL']
 
-if (url === undefined || url.length === 0) {
+/*
+ * Storage as well as a database, which is not obvious from here: a
+ * correction re-derives the episode through `advanceOnce`, and that sweeps
+ * the chunk audio on its way out. So `blobStore()` is reached two calls
+ * down and throws without a key.
+ *
+ * Named rather than left to fail, now that CI has a database and no bucket.
+ */
+const bucket = process.env['SUPABASE_SECRET_KEY']
+
+if (url === undefined || url.length === 0 || bucket === undefined || bucket.length === 0) {
   describe('correcting a line', () => {
-    it.skip('needs DATABASE_URL', () => {})
+    it.skip('needs DATABASE_URL and SUPABASE_SECRET_KEY', () => {})
   })
 } else {
   const MINE = '00000000-0000-0000-0000-00000000c044'
