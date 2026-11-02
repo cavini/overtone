@@ -33,6 +33,11 @@ export { stem } from './stem.js'
 export { stemEnglish } from './stem-en.js'
 export { splitContractions } from './contractions.js'
 export { languagePack, type LanguagePack } from './language-pack.js'
+export {
+  MIN_STOP_WORD_EVIDENCE,
+  languageFromStopWords,
+  type StopWordEvidence,
+} from './language-evidence.js'
 export { annotate } from './annotate.js'
 export {
   DAILY_ALLOWANCE_MS,
