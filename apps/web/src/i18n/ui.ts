@@ -96,6 +96,9 @@ export const UI = {
     recounting: 'Recontando…',
     recounted: 'Pronto. Recontado sem gastar cota.',
     preparing: 'Preparando o áudio…',
+    // Três janelas do meio do episódio, nunca a abertura: a vinheta é em
+    // inglês e decidiria o idioma de todos os episódios.
+    listeningForLanguage: 'Identificando o idioma do áudio…',
     sendingPart: 'Enviando parte',
     transcribing: 'Transcrevendo…',
     canCloseTheTab: 'Pode fechar esta aba.',
@@ -247,6 +250,9 @@ export const UI = {
     recounting: 'Counting…',
     recounted: 'Done, and it cost no allowance.',
     preparing: 'Preparing the audio…',
+    // Three windows from the middle of the episode, never the opening: the
+    // intro is in English and would decide the language of every episode.
+    listeningForLanguage: 'Working out what language this is…',
     sendingPart: 'Sending part',
     transcribing: 'Transcribing…',
     canCloseTheTab: 'You can close this tab.',
