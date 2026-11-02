@@ -1,6 +1,6 @@
 // US-050 · an episode's audio is freed as it is transcribed, not at the end
 import { describe, expect, it } from 'vitest'
-import { freedAudio } from './freed-audio.js'
+import { chunkKey, freedAudio, probeKey } from './freed-audio.js'
 
 const EPISODE = 'ep-1'
 
@@ -40,5 +40,23 @@ describe('freedAudio', () => {
         13,
       ),
     ).toEqual([])
+  })
+})
+
+// US-013
+describe('probeKey', () => {
+  /*
+   * A probe written over a chunk's key would be transcribed as the opening
+   * ten minutes of the episode and stitched in as though it were — thirty
+   * seconds of audio claiming to be ten minutes of it, with every later
+   * timestamp offset by the difference.
+   */
+  it('cannot collide with a chunk of the same index', () => {
+    expect(probeKey('ep-1', 0)).not.toBe(chunkKey('ep-1', 0))
+  })
+
+  // Under the episode, so deleting the episode takes its probes with it.
+  it('lives under the episode it belongs to', () => {
+    expect(probeKey('ep-1', 2)).toContain('episodes/ep-1/')
   })
 })

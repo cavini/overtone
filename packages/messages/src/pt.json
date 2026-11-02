@@ -10,6 +10,7 @@
   "TRANSCRIPTION_SERVICE_UNAVAILABLE": "O serviço de transcrição não respondeu na parte {chunk_index, number}, depois de {attempts, number} tentativas.",
   "AUDIO_IS_SAFE": "Seu áudio está guardado. Nada foi perdido.",
   "AUDIO_LANGUAGE_UNSUPPORTED": "Este áudio parece estar em outro idioma ({heard}), e o Overtone só analisa português e inglês. O episódio não foi transcrito.",
+  "AUDIO_LANGUAGE_UNDECIDED": "Não foi possível identificar o idioma deste episódio — as partes analisadas não concordaram entre si. Nada foi transcrito.",
   "NO_SPEECH_DETECTED": "Não encontramos fala neste áudio.",
   "LEMMA_GROUPED_BY_STEMMER": "Agrupamos \"{term}\" por semelhança, não pelo dicionário. Vale conferir se faz sentido.",
   "ALLOWANCE_REMAINING": "Ainda cabem cerca de {whole_episodes_remaining, number} episódios hoje, de uma cota de {allowance_hours, number} horas.",

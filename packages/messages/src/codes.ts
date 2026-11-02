@@ -63,6 +63,15 @@ export const MESSAGE_PARAMS = {
    * without telling them what it was taken for.
    */
   AUDIO_LANGUAGE_UNSUPPORTED: { heard: 'string' },
+  /*
+   * The probes did not agree, or none of them answered.
+   *
+   * Its own code rather than folded into the one above, because the two
+   * tell the reader to do different things: one says the recording is in a
+   * language this product does not handle, the other says we could not
+   * tell and nothing was stored.
+   */
+  AUDIO_LANGUAGE_UNDECIDED: {},
   ANALYSIS_NOT_SAVED: {},
   LEMMA_GROUPED_BY_STEMMER: { term: 'string' },
 

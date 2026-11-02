@@ -2,6 +2,8 @@ import {
   advanceEpisode,
   DAILY_ALLOWANCE_MS,
   planChunks,
+  planLanguageProbes,
+  settleLanguage,
   type AudioChunk,
   asAudioLanguage,
   readEpisodeName,
@@ -33,7 +35,7 @@ import {
   DrizzleChunkStore,
   recountSeriesTerms,
 } from '@overtone/db/repositories'
-import { chunkKey, freedAudio } from './freed-audio.js'
+import { chunkKey, freedAudio, probeKey } from './freed-audio.js'
 import { isAbandoned, isStalled } from './abandoned.js'
 import { topicsOfSeries } from './topics.js'
 import { blobStore, database, episodeDirectory, pipelineDependencies } from './wiring.js'
@@ -202,6 +204,23 @@ export interface StartedEpisode {
    * two-hour episode costs about a third of a day's allowance, and the
    * second copy would say exactly what the first one says.
    */
+  /**
+   * The windows the language will be decided from, and where to put them.
+   *
+   * Handed out alongside the chunks and used first. The language has to be
+   * settled before a chunk is sent, because a chunk states the episode's
+   * language when it goes to the transcriber — so these are uploaded,
+   * listened to and deleted while the chunks are still uncut.
+   *
+   * Empty when the audio was already here: nothing is uploaded in that case
+   * and the existing episode already knows what it is.
+   */
+  readonly probes: ReadonlyArray<{
+    readonly index: number
+    readonly startMs: number
+    readonly endMs: number
+    readonly uploadUrl: string
+  }>
   readonly alreadyHave: boolean
   readonly title: string
 }
@@ -233,7 +252,13 @@ export async function startEpisode(
       .limit(1)
 
     if (existing !== undefined) {
-      return { episodeId: existing.id, chunks: [], alreadyHave: true, title: existing.title }
+      return {
+        episodeId: existing.id,
+        chunks: [],
+        probes: [],
+        alreadyHave: true,
+        title: existing.title,
+      }
     }
   }
 
@@ -326,7 +351,125 @@ export async function startEpisode(
     })),
   )
 
-  return { episodeId, chunks, alreadyHave: false, title }
+  const probes = await Promise.all(
+    planLanguageProbes(durationMs).map(async (probe, index) => ({
+      index,
+      ...probe,
+      uploadUrl: await blobs.uploadUrl(probeKey(episodeId, index), AUDIO_URL_TTL_SECONDS),
+    })),
+  )
+
+  return { episodeId, chunks, probes, alreadyHave: false, title }
+}
+
+/**
+ * What listening to the probes decided, or why it decided nothing.
+ *
+ * A code and its data, never a sentence: this is below the presenter, and
+ * the reader's language is not known here (ADR 0017).
+ */
+export type DetectedLanguage =
+  | { readonly ok: true; readonly language: AudioLanguage }
+  /** It heard something Overtone has no analysis for. */
+  | { readonly ok: false; readonly reason: 'unsupported'; readonly heard: string }
+  /** Nothing to go on, or an even split. */
+  | { readonly ok: false; readonly reason: 'undecided' }
+
+/**
+ * Listens to the probes and settles what the episode is in.
+ *
+ * Called once, after the probe audio is uploaded and **before** a single
+ * chunk is cut. That ordering is the load-bearing part, and it is the same
+ * discipline `chunk_starts_ms` follows: a chunk states the episode's
+ * language when it is sent, so a chunk sent before this ran would be
+ * transcribed as whatever the row happened to say — and the row's default
+ * is Portuguese, which is exactly the silent wrong answer this replaces.
+ *
+ * One probe at a time, never fanned out. The allowance is spent in seconds
+ * of audio and refills at two a second (ADR 0020), so concurrency buys
+ * nothing here and would fail all three windows together.
+ *
+ * The probe audio is deleted whichever way this goes. Three thirty-second
+ * WAVs are about 3 MB, and left behind per episode they would be paid for
+ * out of the same 1 GB tier the chunks are racing through.
+ */
+export async function detectLanguageOf(episodeId: string): Promise<DetectedLanguage> {
+  const db = database()
+  const [episode] = await db
+    .select({ durationMs: episodes.durationMs })
+    .from(episodes)
+    .where(eq(episodes.id, episodeId))
+
+  if (episode === undefined) throw new Error(`no episode ${episodeId}`)
+
+  const blobs = blobStore()
+  const { transcription, allowance } = pipelineDependencies()
+
+  /*
+   * Re-planned rather than stored, which is safe for exactly one reason:
+   * `planLanguageProbes` is a pure function of the duration, and the
+   * duration was written when the episode was created. The windows that
+   * come out here are the windows the uploads were signed for.
+   */
+  const planned = planLanguageProbes(episode.durationMs)
+
+  const heard: Array<AudioLanguage | undefined> = []
+  let unsupported: string | undefined
+
+  for (const [index, probe] of planned.entries()) {
+    let audioUrl: string
+    try {
+      audioUrl = await blobs.readUrl(probeKey(episodeId, index), AUDIO_URL_TTL_SECONDS)
+    } catch {
+      // Never uploaded, or already cleaned up. Not a vote, and not fatal on
+      // its own — the remaining windows can still carry a majority.
+      heard.push(undefined)
+      continue
+    }
+
+    // No language stated. This is the one request in the app that asks.
+    const outcome = await transcription.transcribe({ audioUrl })
+
+    // Recorded even on a refusal: the audio was sent either way, and the
+    // provider reports its true remaining balance on both (ADR 0021).
+    await allowance.record(probe.endMs - probe.startMs, outcome.observedAllowance)
+
+    if (outcome.ok) {
+      heard.push(outcome.transcript.language)
+      continue
+    }
+
+    /*
+     * A language with no pack behind it is remembered rather than ignored.
+     *
+     * It is not a vote for either of ours, but it is the most useful thing
+     * the reader can be told — far better than "undecided" when what
+     * happened is that the recording is in Spanish.
+     */
+    if (outcome.failure.code === 'LANGUAGE_NOT_SUPPORTED') {
+      unsupported = outcome.failure.heard
+    }
+    heard.push(undefined)
+  }
+
+  const settled = settleLanguage(heard)
+
+  await blobs.remove(planned.map((_, index) => probeKey(episodeId, index)))
+
+  if (settled === undefined) {
+    return unsupported === undefined
+      ? { ok: false, reason: 'undecided' }
+      : { ok: false, reason: 'unsupported', heard: unsupported }
+  }
+
+  /*
+   * Written before the caller cuts a single chunk, and never revisited
+   * after that. What an episode was transcribed as stays a fact about the
+   * episode (ADR 0022) — only the way it is arrived at has changed.
+   */
+  await db.update(episodes).set({ language: settled }).where(eq(episodes.id, episodeId))
+
+  return { ok: true, language: settled }
 }
 
 export interface LibraryEpisode {
