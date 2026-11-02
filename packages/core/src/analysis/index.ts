@@ -17,6 +17,12 @@ export {
 export { applyCorrections, type Correction } from './corrections.js'
 export { settleChunks } from './settle-chunks.js'
 export {
+  PROBE_COUNT,
+  PROBE_MS,
+  planLanguageProbes,
+  type LanguageProbe,
+} from './language-probe.js'
+export {
   MIN_SILENCE_MS,
   SEARCH_RADIUS_MS,
   peakOf,
