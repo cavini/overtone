@@ -1,9 +1,13 @@
 // US-013
 //
-// The check that costs nothing. A language detected from the audio is still
-// a guess, and this is the one way to test it against the thing it claims to
-// be about — the words that came back — without spending a second of the
-// transcription allowance on a second opinion.
+// The check that costs nothing: it reads words already paid for rather than
+// sending audio anywhere.
+//
+// Deliberately scoped as a tripwire rather than a second opinion. The
+// transcriber chooses the words, so a clean transcription into the wrong
+// language comes back agreeing with itself and this agrees with it too.
+// What it catches is a transcript whose function words contradict the
+// language it was transcribed in.
 import { describe, expect, it } from 'vitest'
 import { languagePack } from './language-pack.js'
 import { MIN_STOP_WORD_EVIDENCE, languageFromStopWords } from './language-evidence.js'

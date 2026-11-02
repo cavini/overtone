@@ -58,9 +58,23 @@ const EXCLUSIVE: ReadonlyMap<string, AudioLanguage> = (() => {
  *
  * Free, in the sense that matters here: it reads text that has already been
  * paid for rather than sending audio anywhere, so it can check every
- * episode without touching the transcription allowance. That makes it the
- * right shape for second-guessing a detection — a detector hears thirty
- * seconds and this reads the whole thing.
+ * episode without spending a second of the transcription allowance.
+ *
+ * **A tripwire, not a verifier, and the difference is worth being exact
+ * about.** The transcriber picks the words, so when it transcribes in the
+ * wrong language and does so cleanly, the words come back agreeing with the
+ * mistake and this agrees with them. What it catches is the louder failure:
+ * a transcript whose function words contradict the language it was
+ * transcribed in, which is what a mismatched transcription produces when it
+ * leaks the language actually being spoken instead of rendering it. On a
+ * full episode it has a second use — twenty thousand words of real speech
+ * leave overwhelming evidence either way, so *declining* on one is itself a
+ * sign something is wrong with the transcript.
+ *
+ * It is therefore never a reason to believe a detection was right. The
+ * independent check on that is the transcriber's own per-segment confidence,
+ * which collapses when it is forced into a language the audio is not in; it
+ * sits unread in the payload we already store (US-012).
  *
  * Deliberately crude about splitting. No enclitic rule, no contraction
  * rule, no language pack beyond the two word lists, because the pack cannot

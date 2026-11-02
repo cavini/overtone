@@ -16,6 +16,7 @@ export {
 } from './chunking.js'
 export { applyCorrections, type Correction } from './corrections.js'
 export { settleChunks } from './settle-chunks.js'
+export { settleLanguage } from './settle-language.js'
 export {
   PROBE_COUNT,
   PROBE_MS,
