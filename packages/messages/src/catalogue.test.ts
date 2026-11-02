@@ -24,12 +24,12 @@ describe('message codes', () => {
    * added at all — the moment to ask whether both languages got a sentence
    * and whether the presenter renders it.
    *
-   * 49: the two share-link codes went with the feature, and
+   * 50: the two share-link codes went with the feature, and
    * `codes-are-emitted.test.ts` now names which of the rest nothing emits —
    * so this number stops standing in for a catalogue that matches the app.
    */
   it('matches the count the catalogues are kept to', () => {
-    expect(MESSAGE_CODES).toHaveLength(49)
+    expect(MESSAGE_CODES).toHaveLength(50)
   })
 
   it('names every code in SCREAMING_SNAKE_CASE', () => {

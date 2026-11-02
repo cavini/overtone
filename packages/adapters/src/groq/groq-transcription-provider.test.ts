@@ -109,6 +109,71 @@ describe('GroqTranscriptionProvider', () => {
     expect(fieldsOf().has('prompt')).toBe(false)
   })
 
+  /*
+   * A probe asks rather than states, and asking means leaving the field out
+   * altogether. An empty string is a value, and a value the endpoint cannot
+   * parse is a 400 instead of a detection.
+   */
+  it('states no language when it is asking what the language is', async () => {
+    await provider(stub).transcribe({ audioUrl: KNOWN })
+    expect(fieldsOf().has('language')).toBe(false)
+  })
+
+  // It answers in full English names. `portuguese` travelling onward would
+  // miss both stop-word lists and both halves of the lemma dictionary.
+  it('translates the name it answers with into the code we analyse by', async () => {
+    const outcome = await provider(stub).transcribe({ audioUrl: KNOWN })
+
+    if (!outcome.ok) throw new Error('expected a transcript')
+    expect(outcome.transcript.language).toBe('pt')
+  })
+
+  /*
+   * The refusal that matters, because the alternative is silent.
+   *
+   * Defaulting an unrecognised language to Portuguese is how a Spanish
+   * recording gets counted against Portuguese stop words and lemmatised by
+   * a dictionary that recognises roughly half of it — a full set of counts,
+   * all plausible, none right. It is named so the reader can be told what
+   * was heard rather than only that something was wrong.
+   */
+  it('refuses a language it has no analysis for, and says which', async () => {
+    const spanish = (async () =>
+      ok({ ...RESPONSE, language: 'spanish' })) as unknown as typeof globalThis.fetch
+
+    const outcome = await provider(spanish).transcribe({ audioUrl: KNOWN })
+
+    if (outcome.ok) throw new Error('expected a refusal')
+    expect(outcome.failure.code).toBe('LANGUAGE_NOT_SUPPORTED')
+    expect(outcome.failure).toMatchObject({ heard: 'spanish' })
+  })
+
+  // Asked to detect and told nothing. The field is optional in the schema
+  // because a stated request has no need of it, but a probe that does not
+  // get one has no answer to the only question it asked.
+  it('treats a silent answer to a detection as an unusable response', async () => {
+    const { language: _dropped, ...quiet } = RESPONSE
+    const silent = (async () => ok(quiet)) as unknown as typeof globalThis.fetch
+
+    const outcome = await provider(silent).transcribe({ audioUrl: KNOWN })
+
+    if (outcome.ok) throw new Error('expected a refusal')
+    expect(outcome.failure.code).toBe('PROVIDER_RESPONSE_INVALID')
+  })
+
+  // A stated request does not care what the response says it was: the
+  // episode's language was settled before any of its chunks was sent, and a
+  // chunk that disagreed would still be stitched into the same transcript.
+  it('keeps the language it was told even if the answer says another', async () => {
+    const disagreeing = (async () =>
+      ok({ ...RESPONSE, language: 'english' })) as unknown as typeof globalThis.fetch
+
+    const outcome = await provider(disagreeing).transcribe({ audioUrl: KNOWN, language: 'pt' })
+
+    if (!outcome.ok) throw new Error('expected a transcript')
+    expect(outcome.transcript.language).toBe('pt')
+  })
+
   // Sampling is a way of guessing, and a count built on a guess is worse
   // than a gap in one.
   it('asks for no creativity at all', async () => {

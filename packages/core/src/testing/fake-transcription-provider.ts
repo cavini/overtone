@@ -87,7 +87,14 @@ export class FakeTranscriptionProvider implements TranscriptionProvider {
 
     return Promise.resolve({
       ok: true,
-      transcript: { ...transcript, language: request.language },
+      /*
+       * Told, it echoes. Told nothing, it answers with what the fixture is
+       * in — which is the fake's whole job here, because a fixture is the
+       * only thing it knows about the audio. A fake that echoed `undefined`
+       * would hand every caller of the detect path a transcript with no
+       * language in it and still look like it worked.
+       */
+      transcript: { ...transcript, language: request.language ?? transcript.language },
     })
   }
 }

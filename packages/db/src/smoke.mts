@@ -87,7 +87,9 @@ const replay = {
         // The fixture is a word list with no segment boundaries in it, so
         // this replays the case where the transcriber reported none.
         segmentStartsMs: [],
-        language: 'pt',
+        // Narrowed like `ok` above: the port asks for a language it has a
+        // pack for, and an unannotated literal widens to `string`.
+        language: 'pt' as const,
         durationMs: chunk.endMs - chunk.startMs,
         raw: { replayedChunk: index },
       },
