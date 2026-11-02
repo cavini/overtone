@@ -80,8 +80,6 @@ export const UI = {
     emailNotConfirmed:
       'A conta foi criada, mas o projeto exige confirmação por e-mail. Desligue "Confirm email" no painel do Supabase.',
     openInTranscript: 'Ver na transcrição',
-    gotIt: 'Entendi',
-    languageAffectsAudio: 'Isto também muda o idioma em que os próximos episódios serão transcritos. Os episódios já prontos não mudam.',
     transcriptHeading: 'Transcrição',
     transcriptShow: 'Mostrar transcrição',
     correctLine: 'Corrigir esta linha',
@@ -234,8 +232,6 @@ export const UI = {
     emailNotConfirmed:
       'The account was created, but the project requires email confirmation. Turn off "Confirm email" in the Supabase dashboard.',
     openInTranscript: 'See it in the transcript',
-    gotIt: 'Got it',
-    languageAffectsAudio: 'This also changes the language future episodes are transcribed in. Episodes already finished stay as they are.',
     transcriptHeading: 'Transcript',
     transcriptShow: 'Show transcript',
     correctLine: 'Correct this line',

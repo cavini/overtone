@@ -237,7 +237,6 @@ export async function startEpisode(
   userId: string,
   durationMs: number,
   filename: string,
-  language: AudioLanguage,
   audioDigest?: string,
 ): Promise<StartedEpisode> {
   const seriesId = await seriesFor(userId)
@@ -332,10 +331,17 @@ export async function startEpisode(
       // Stored now because every later step re-derives the chunk plan from
       // it, and the plan has to come out the same every time.
       durationMs,
-      // Settled now, and never revisited. What an episode was transcribed
-      // as is a fact about the episode, not about who is reading it later
-      // (ADR 0022).
-      language,
+      /*
+       * No language yet. The column's default stands until the probes are
+       * listened to, which happens before any chunk of this episode can
+       * exist — `detectLanguageOf` writes it, and the chunks are not even
+       * cut until it has.
+       *
+       * This used to be the interface language, which is a fact about the
+       * reader rather than the recording. That is the whole of what
+       * changed: the language is still settled once and never revisited
+       * (ADR 0022), it is just heard from the audio now.
+       */
       ...(audioDigest === undefined ? {} : { audioDigest }),
       ...(published === undefined ? {} : { description: published.description }),
     })

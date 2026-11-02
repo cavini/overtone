@@ -1,5 +1,5 @@
 import { refusal, requireUser } from '../../../../server/session.js'
-import { asAudioLanguage, DAILY_ALLOWANCE_MS, MAX_EPISODE_MS, planChunks } from '@overtone/core'
+import { DAILY_ALLOWANCE_MS, MAX_EPISODE_MS, planChunks } from '@overtone/core'
 import {
   DEFAULT_LOCALE,
   LOCALES,
@@ -74,15 +74,6 @@ export async function POST(request: Request): Promise<Response> {
 
   try {
     /*
-     * The interface language chooses what the audio is transcribed as.
-     *
-     * It used to be fixed at Portuguese and the interface was explicitly
-     * forbidden from influencing it (ADR 0014), on the grounds that a count
-     * must not change because someone switched languages. That still holds
-     * for an episode already transcribed — this is recorded on the episode
-     * at upload and never revisited (ADR 0022).
-     */
-    /*
      * The filename goes in, not a title.
      *
      * `startEpisode` reads a presentable name out of it — and the episode
@@ -93,7 +84,6 @@ export async function POST(request: Request): Promise<Response> {
       (await requireUser()).userId,
       durationMs,
       title,
-      asAudioLanguage(locale),
       typeof body.audioDigest === 'string' ? body.audioDigest : undefined,
     )
 

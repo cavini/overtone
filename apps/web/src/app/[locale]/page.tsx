@@ -3,7 +3,6 @@ import { hasLocale } from 'next-intl'
 import { setRequestLocale } from 'next-intl/server'
 import { notFound } from 'next/navigation'
 import { JokesPanel } from '../../components/jokes-panel.js'
-import { LanguageNotice } from '../../components/language-notice.js'
 import { LocaleSwitcher } from '../../components/locale-switcher.js'
 import { Link } from '../../i18n/navigation.js'
 import { Workspace } from '../../components/workspace.js'
@@ -69,7 +68,6 @@ export default async function HomePage({
        * neighbours, so the gap between them was never its decision to make.
        */}
       <div className="stack flex flex-col gap-6">
-        <LanguageNotice labels={labels} />
 
         {/* Upload, search, the library, and the transcript they open. */}
         <Workspace locale={locale} labels={labels} />
