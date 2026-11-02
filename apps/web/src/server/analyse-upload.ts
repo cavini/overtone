@@ -226,6 +226,35 @@ export interface StartedEpisode {
 }
 
 /**
+ * One short-lived permission per chunk, signed when they are about to be used.
+ *
+ * **When** matters as much as what. These last fifteen minutes and a
+ * two-hour episode is a quarter of a gigabyte of WAV, so on a slow upstream
+ * the upload can run most of that window — a 403 halfway through is an
+ * expired URL, not a rejected one. Signing them at the moment the uploads
+ * start rather than several steps earlier is what keeps the whole fifteen
+ * minutes available for the uploads themselves.
+ *
+ * That is why this is a function rather than inline: listening to the
+ * language probes happens in between, and it costs half a minute or so of
+ * decoding, uploading and three transcription round trips. Issued once at
+ * the start, that time would come out of the upload's budget.
+ */
+async function signChunkUploads(
+  episodeId: string,
+  durationMs: number,
+): Promise<StartedEpisode['chunks']> {
+  const blobs = blobStore()
+
+  return Promise.all(
+    chunksFor({ durationMs, chunkStartsMs: null }).map(async (chunk) => ({
+      ...chunk,
+      uploadUrl: await blobs.uploadUrl(chunkKey(episodeId, chunk.index), AUDIO_URL_TTL_SECONDS),
+    })),
+  )
+}
+
+/**
  * Creates the episode and tells the browser where to put each piece.
  *
  * The audio never passes through here. A serverless function accepts about
@@ -350,12 +379,7 @@ export async function startEpisode(
   const episodeId = created?.id ?? ''
   const blobs = blobStore()
 
-  const chunks = await Promise.all(
-    chunksFor({ durationMs, chunkStartsMs: null }).map(async (chunk) => ({
-      ...chunk,
-      uploadUrl: await blobs.uploadUrl(chunkKey(episodeId, chunk.index), AUDIO_URL_TTL_SECONDS),
-    })),
-  )
+  const chunks = await signChunkUploads(episodeId, durationMs)
 
   const probes = await Promise.all(
     planLanguageProbes(durationMs).map(async (probe, index) => ({
@@ -375,7 +399,18 @@ export async function startEpisode(
  * the reader's language is not known here (ADR 0017).
  */
 export type DetectedLanguage =
-  | { readonly ok: true; readonly language: AudioLanguage }
+  | {
+      readonly ok: true
+      readonly language: AudioLanguage
+      /**
+       * The chunk uploads, signed again now that they are next.
+       *
+       * The set handed out when the episode was created has already spent
+       * half a minute of its fifteen on decoding and listening. These are
+       * fresh, so the upload gets the whole window.
+       */
+      readonly chunks: StartedEpisode['chunks']
+    }
   /** It heard something Overtone has no analysis for. */
   | { readonly ok: false; readonly reason: 'unsupported'; readonly heard: string }
   /** Nothing to go on, or an even split. */
@@ -475,7 +510,11 @@ export async function detectLanguageOf(episodeId: string): Promise<DetectedLangu
    */
   await db.update(episodes).set({ language: settled }).where(eq(episodes.id, episodeId))
 
-  return { ok: true, language: settled }
+  return {
+    ok: true,
+    language: settled,
+    chunks: await signChunkUploads(episodeId, episode.durationMs),
+  }
 }
 
 export interface LibraryEpisode {

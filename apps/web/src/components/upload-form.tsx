@@ -133,7 +133,7 @@ export function UploadForm({
         return
       }
 
-      const chunks = started['chunks'] as ChunkTarget[]
+      const planned = started['chunks'] as ChunkTarget[]
       onEpisode(episodeId, true)
 
       /*
@@ -174,6 +174,14 @@ export function UploadForm({
         setError(String(language['error'] ?? 'UNEXPECTED'))
         return
       }
+
+      /*
+       * The chunk uploads are re-signed by that call, and these are the ones
+       * to use. A signed URL lasts fifteen minutes and a quarter-gigabyte
+       * upload can run most of it, so the half-minute spent decoding and
+       * listening must not come out of the upload's share of the window.
+       */
+      const chunks = (language['chunks'] as ChunkTarget[] | undefined) ?? planned
 
       await splitAndUpload(
         /*

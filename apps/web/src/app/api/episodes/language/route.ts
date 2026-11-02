@@ -43,7 +43,19 @@ export async function POST(request: Request): Promise<Response> {
 
     const detected = await detectLanguageOf(episodeId)
 
-    if (detected.ok) return Response.json({ language: detected.language })
+    if (detected.ok) {
+      /*
+       * The chunk uploads come back from here rather than from `/start`.
+       *
+       * A signed upload URL lasts fifteen minutes and a two-hour episode is
+       * a quarter of a gigabyte, so on a slow connection the upload can run
+       * most of that. Decoding and listening to the probes takes half a
+       * minute or so, and issuing the URLs beforehand would charge that to
+       * the upload's budget — a 403 near the last chunk of a long episode,
+       * which reads as a rejected upload rather than an expired permission.
+       */
+      return Response.json({ language: detected.language, chunks: detected.chunks })
+    }
 
     return Response.json(
       {
