@@ -1,6 +1,6 @@
 # Overtone
 
-Analytics for the podcast you record with your friends.
+Podcast analytics.
 
 Upload each episode. Overtone transcribes it and tells you how often the running jokes actually came up, which words you can't stop saying, and how all of it is changing **across the series** — with a timestamped quote behind every single number.
 
@@ -9,9 +9,6 @@ Upload each episode. Overtone transcribes it and tells you how often the running
 ## See it work
 
 <video src="https://github.com/user-attachments/assets/772ab0b5-dbdf-45b7-8b06-f5bf01a32c59" controls muted playsinline></video>
-
-Two minutes, no sound: an episode uploaded, split and transcribed in the
-browser, then the counts, the running jokes and the series totals behind them.
 
 **[Try it live at overtone-five.vercel.app](https://overtone-five.vercel.app)** —
 sign-in is invitation-only, because uploading spends a free-tier transcription
@@ -63,7 +60,6 @@ That design has a useful side effect. Once per-episode aggregates are stored que
 
 **What is not finished**
 
-- **The English pack has never been run end to end on real audio.** It is tested, and tested against constructed text and against Portuguese episodes containing English words — but the Portuguese numbers are the ones checked against hand counts. The English dictionary is also thin where it matters for this subject: it has no entry for `podcast` at all, and no colloquial overrides, because there was no English episode to learn them from.
 - **A genuinely bilingual episode has no right answer.** One pack is chosen for the whole recording, so a conversation that switches language mid-episode gets the other half counted under the wrong stop words. The probes detect the split and the pipeline cannot act on it.
 - **The intro is still counted.** Detection steps around the opening music; the analysis does not, so its English lyrics are in every episode's word counts. Fixing it changes analysis output, which means re-analysing the archive.
 - **There is no speaker dimension**, and it is cut rather than deferred — only the final mixed file is uploaded ([`ADR 0015`](docs/adr/0015-no-speaker-attribution.md)). "Who said it" is not a question this can answer.
