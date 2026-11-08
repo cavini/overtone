@@ -164,7 +164,7 @@ export const UI = {
     signedInAs: 'Você está em',
     whenItCameUp: 'Quando apareceu',
     countsAreOfTheEdit: 'As contagens são do episódio publicado — o que foi cortado na edição não entra.',
-    transcriptionCredit: 'Transcrição pelo Whisper large-v3, rodando na Groq. O áudio é sempre tratado como português do Brasil.',
+    transcriptionCredit: 'Transcrição pelo Whisper large-v3, rodando na Groq. O idioma de cada episódio é identificado a partir do próprio áudio.',
   },
   en: {
     appName: 'Overtone',
@@ -312,7 +312,7 @@ export const UI = {
     signedInAs: 'Signed in as',
     whenItCameUp: 'When it came up',
     countsAreOfTheEdit: 'Counts are of the published episode — anything cut in the edit is not here.',
-    transcriptionCredit: 'Transcribed by Whisper large-v3 running on Groq. The audio is always treated as Brazilian Portuguese.',
+    transcriptionCredit: 'Transcribed by Whisper large-v3 running on Groq. Each episode\u2019s language is identified from its own audio.',
   },
 } as const satisfies Record<Locale, Record<string, string>>
 
