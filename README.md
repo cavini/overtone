@@ -8,15 +8,14 @@ Upload each episode. Overtone transcribes it and tells you how often the running
 
 ## See it work
 
-[![Overtone in use: an episode is uploaded and split in the browser, transcribed, and then the word counts, the running-joke counts and the series totals appear with a timestamp behind every number](assets/demo-poster.png)](https://github.com/cavini/overtone/blob/main/assets/demo.mp4)
+<video src="https://github.com/user-attachments/assets/772ab0b5-dbdf-45b7-8b06-f5bf01a32c59" controls muted playsinline></video>
 
-**[▶ Play the two-minute demo](https://github.com/cavini/overtone/blob/main/assets/demo.mp4)** — silent screen capture: an
-episode uploaded, split and transcribed in the browser, then the counts, the
-running jokes and the series totals behind them.
+Two minutes, no sound: an episode uploaded, split and transcribed in the
+browser, then the counts, the running jokes and the series totals behind them.
 
-It is also **[live](https://overtone-five.vercel.app)** — though sign-in is
-invitation-only, because uploading spends a shared free-tier transcription
-allowance, so the video is the part you can watch without an account.
+**[Try it live at overtone-five.vercel.app](https://overtone-five.vercel.app)** —
+sign-in is invitation-only, because uploading spends a free-tier transcription
+allowance shared by everyone with an account.
 
 ---
 
