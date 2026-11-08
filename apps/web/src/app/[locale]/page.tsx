@@ -8,6 +8,7 @@ import { Link } from '../../i18n/navigation.js'
 import { Workspace } from '../../components/workspace.js'
 import { routing } from '../../i18n/routing.js'
 import { OvertoneMark } from '../../components/overtone-mark.js'
+import { currentUser } from '../../server/session.js'
 import { UI } from '../../i18n/ui.js'
 
 export default async function HomePage({
@@ -20,6 +21,22 @@ export default async function HomePage({
   setRequestLocale(locale)
 
   const labels = UI[locale]
+
+  /*
+   * Which account this is.
+   *
+   * Two libraries are reached through the same app and the same browser —
+   * one holding the group's real episodes, one for demos — and nothing on
+   * the page said which was open. Every scope hangs off the signed-in id,
+   * so uploading into the wrong one is a silent mistake that spends the
+   * shared allowance and lands episodes in somebody else's series totals.
+   *
+   * `currentUser` rather than `requireUser`: the middleware already sent
+   * strangers to the door, and a page is a poor place to throw. Undefined
+   * means a cookie that got past a presence check without being a session,
+   * and the honest thing to show for that is nothing.
+   */
+  const signedIn = await currentUser()
 
   return (
     <main className="mx-auto max-w-3xl px-5 py-10 sm:py-16">
@@ -45,17 +62,37 @@ export default async function HomePage({
             {labels.tagline}
           </p>
         </div>
-        <div className="flex items-center gap-4">
-          <LocaleSwitcher label={labels.language} />
-          {/*
-           * A form, not a link. A sign-out somebody else's page can trigger
-           * with an image tag is a nuisance anybody can inflict.
-           */}
-          <form method="post" action="/api/auth/sign-out">
-            <button type="submit" className="text-sm underline" style={{ color: 'var(--quiet)' }}>
-              {labels.signOut}
-            </button>
-          </form>
+        <div className="flex flex-col items-start gap-2 sm:items-end">
+          {signedIn !== undefined && (
+            /*
+             * Truncated by the layout, not by arithmetic, and carrying the
+             * whole address in `title`. The header is laid out at 360px
+             * first, where a long address would either push the controls
+             * off the row or wrap into two — and shortening it here is how
+             * two accounts end up looking alike in the one place that
+             * exists to tell them apart.
+             */
+            <p
+              title={signedIn.email}
+              className="max-w-[16rem] truncate text-xs"
+              style={{ color: 'var(--quiet)' }}
+            >
+              {labels.signedInAs}{' '}
+              <span style={{ color: 'var(--prose-2)' }}>{signedIn.email}</span>
+            </p>
+          )}
+          <div className="flex items-center gap-4">
+            <LocaleSwitcher label={labels.language} />
+            {/*
+             * A form, not a link. A sign-out somebody else's page can trigger
+             * with an image tag is a nuisance anybody can inflict.
+             */}
+            <form method="post" action="/api/auth/sign-out">
+              <button type="submit" className="text-sm underline" style={{ color: 'var(--quiet)' }}>
+                {labels.signOut}
+              </button>
+            </form>
+          </div>
         </div>
       </header>
 
