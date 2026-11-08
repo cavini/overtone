@@ -9,6 +9,22 @@ import { refusal, requireUser } from '../../../../server/session.js'
 
 export const runtime = 'nodejs'
 
+/**
+ * Hobby's ceiling, for the same reason `advance` claims it.
+ *
+ * This route transcribes three probes one after another, and the default is
+ * ten seconds. Each probe is a signed upload, a signed read and a round trip
+ * to the transcriber, so the three together sit close enough to that default
+ * to cross it on a slow answer — and crossing it means the upload fails at
+ * the one step the browser cannot skip, after the probe audio is already in
+ * storage.
+ *
+ * Sequential on purpose (the allowance is spent in seconds of audio and
+ * refills at two a wall-second), so the duration is the sum rather than the
+ * slowest.
+ */
+export const maxDuration = 300
+
 const localeOf = (value: unknown): Locale =>
   LOCALES.includes(value as Locale) ? (value as Locale) : DEFAULT_LOCALE
 
