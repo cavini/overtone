@@ -6,6 +6,18 @@ Upload each episode. Overtone transcribes it and tells you how often the running
 
 > *Overtone* — in acoustics, the harmonics stacked above a fundamental: the part of a sound you don't consciously hear. In speech, the themes running underneath what was actually said. Both are the product.
 
+## See it work
+
+[![Overtone in use: an episode is uploaded and split in the browser, transcribed, and then the word counts, the running-joke counts and the series totals appear with a timestamp behind every number](assets/demo-poster.png)](https://github.com/cavini/overtone/blob/main/assets/demo.mp4)
+
+**[▶ Play the two-minute demo](https://github.com/cavini/overtone/blob/main/assets/demo.mp4)** — silent screen capture: an
+episode uploaded, split and transcribed in the browser, then the counts, the
+running jokes and the series totals behind them.
+
+It is also **[live](https://overtone-five.vercel.app)** — though sign-in is
+invitation-only, because uploading spends a shared free-tier transcription
+allowance, so the video is the part you can watch without an account.
+
 ---
 
 ## It costs nothing to run
@@ -14,13 +26,15 @@ Three services, all free tiers, **no credit card anywhere**:
 
 | | Service | Free tier |
 |---|---|---|
-| Transcription | **Groq** · `whisper-large-v3-turbo` | 8 hrs audio/day · word-level timestamps · 25 MB/file |
+| Transcription | **Groq** · `whisper-large-v3` | 8 hrs audio/day · word-level timestamps · 7,200 audio-sec/hour |
 | Hosting | **Vercel Hobby** | Free forever · a real URL · 5-min functions |
 | Database, files, logins | **Supabase** | 500 MB Postgres · 1 GB files · magic-link auth |
 
 Nothing runs on your machine. Your friends sign in with an email link and use it from anywhere.
 
-The reason this works: Groq transcribes at roughly **160× realtime**, so an episode comes back in about ten seconds — inside a normal web request. That means no background worker, no job queue, no Docker, and nothing to keep alive. See [`ADR 0010`](docs/adr/0010-free-hosted-stack-no-worker.md).
+The reason this works: a ten-minute chunk comes back from Groq in a couple of seconds — fast enough to transcribe **inside a normal web request**, so there is no background worker, no job queue, no Docker and nothing to keep alive. See [`ADR 0010`](docs/adr/0010-free-hosted-stack-no-worker.md).
+
+What paces a full episode is not the model but the allowance, and it is spent in **seconds of audio** rather than requests: 7,200 an hour, refilling at two per wall-second. So a two-hour episode arrives over five to ten minutes instead of all at once, and the app says where it is while it waits. The ceiling that actually binds is the 500 MB database — about 2 MB an episode — not the audio. See [`ADR 0020`](docs/adr/0020-chunking-is-mandatory-for-the-rate-limit.md).
 
 ## The idea
 
@@ -32,7 +46,7 @@ That design has a useful side effect. Once per-episode aggregates are stored que
 
 ## Status
 
-**It runs.** Live on Vercel behind a shared password, against Supabase and Groq, on free tiers with no payment method anywhere.
+**It runs**, at [overtone-five.vercel.app](https://overtone-five.vercel.app) — on Vercel, against Supabase and Groq, on free tiers with no payment method anywhere. Sign-in is invitation-only: uploading spends an allowance shared by everyone with an account, so the door is the budget.
 
 **What works today**
 
@@ -42,16 +56,22 @@ That design has a useful side effect. Once per-episode aggregates are stored que
 - Running jokes: name a bit, list the spellings the transcriber actually produces, and get counts with a timestamp behind each one. Recounting past episodes is free, because the transcripts are kept.
 - Full-text search over every transcript, returning the handful of *moments* a conversation happened in rather than a column of near-identical timestamps.
 - A back catalogue can be walked in from the show's own RSS feed with one command, one episode at a time across days — paced to the transcription allowance rather than the connection, and safe to stop and re-run. See [`tools/backfill/`](tools/backfill/README.md).
-- Bilingual throughout, Portuguese and English.
+- **The language of each episode is heard, not declared.** Three half-minute windows are sampled from the middle of the recording, transcribed with no language stated, and the majority decides — then every chunk is transcribed as that, and the answer is stored on the episode so no existing count can move. It samples the *middle* on purpose: the show opens on music with English lyrics, so anything listening to the opening would answer "English" for every episode the group has ever recorded. 90 audio-seconds of a 7,200-second hour. See [`ADR 0036`](docs/adr/0036-the-language-is-heard-not-declared.md).
+- **Audio in a language there is no analysis for is refused by name**, rather than counted as Portuguese. A Spanish recording analysed against Portuguese stop words produces a full set of plausible numbers and no hint that anything went wrong, which is worse than a refusal.
+- **An English analysis pack**, not an English flag: its own stop words, fillers, contraction splitting, plural-only stemmer and half of the lemma dictionary, keyed by language. Offering a third language without writing its pack is a compile error rather than a silently Portuguese result. See [`ADR 0023`](docs/adr/0023-an-english-language-pack.md).
+- Search reads both language configurations for every reader, which turned out to **improve Portuguese recall** rather than merely add English: Portuguese stemming leaves short plurals alone, so a search for `ano` was missing 133 segments that say `anos`.
+- Bilingual interface throughout, Portuguese and English — and switching it cannot move a single number, which has a test.
 
 **What is not finished**
 
-- **The analysis is still Portuguese-only.** The language of an episode is now chosen at upload ([`ADR 0022`](docs/adr/0022-the-language-is-chosen-per-episode.md)), but the stop words, fillers, stemmer and lemma dictionary are all pt-BR. An episode transcribed as English would be counted with Portuguese stop words, so its numbers are not yet trustworthy.
+- **The English pack has never been run end to end on real audio.** It is tested, and tested against constructed text and against Portuguese episodes containing English words — but the Portuguese numbers are the ones checked against hand counts. The English dictionary is also thin where it matters for this subject: it has no entry for `podcast` at all, and no colloquial overrides, because there was no English episode to learn them from.
+- **A genuinely bilingual episode has no right answer.** One pack is chosen for the whole recording, so a conversation that switches language mid-episode gets the other half counted under the wrong stop words. The probes detect the split and the pipeline cannot act on it.
+- **The intro is still counted.** Detection steps around the opening music; the analysis does not, so its English lyrics are in every episode's word counts. Fixing it changes analysis output, which means re-analysing the archive.
 - **There is no speaker dimension**, and it is cut rather than deferred — only the final mixed file is uploaded ([`ADR 0015`](docs/adr/0015-no-speaker-attribution.md)). "Who said it" is not a question this can answer.
 - **Search matches words, not meaning.** Finding a story about a dog requires someone to have said a word you can guess.
 - The assistant that answers questions in plain English is still the last thing to build ([`ADR 0007`](docs/adr/0007-assistant-is-tool-use-not-rag.md)).
 
-21 ADRs record why the code looks the way it does, including the decisions that were reversed. The docs below remain the plan of record for what has not been built.
+36 ADRs record why the code looks the way it does, including the decisions that were reversed. The docs below remain the plan of record for what has not been built.
 
 ## Documentation
 
