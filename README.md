@@ -8,11 +8,9 @@ Upload each episode. Overtone transcribes it and tells you how often the running
 
 ## See it work
 
-<video src="https://github.com/user-attachments/assets/772ab0b5-dbdf-45b7-8b06-f5bf01a32c59" controls muted playsinline></video>
+https://github.com/user-attachments/assets/772ab0b5-dbdf-45b7-8b06-f5bf01a32c59
 
-**[Try it live at overtone-five.vercel.app](https://overtone-five.vercel.app)** —
-sign-in is invitation-only, because uploading spends a free-tier transcription
-allowance shared by everyone with an account.
+<sub><a href="https://overtone-five.vercel.app">Try it live</a> — sign-in is invitation-only, because uploading spends a transcription allowance shared by everyone with an account.</sub>
 
 ---
 
