@@ -7,20 +7,18 @@ import { usePathname, useRouter } from '../i18n/navigation.js'
 
 const NAMES: Record<Locale, string> = { pt: 'Português', en: 'English' }
 
-/** Set just before navigating, read once on the page they arrive at. */
-export const LANGUAGE_CHANGED = 'overtone.language-changed'
-
 /**
- * Switches the language — of the interface *and* of what gets transcribed
- * next.
+ * Switches the language of the interface, and of nothing else.
  *
- * It used to be the interface only, with the audio pinned to Brazilian
- * Portuguese (ADR 0014). It now also chooses what future episodes are
- * transcribed and analysed as (ADR 0022), which is a bigger consequence
- * than a language picker usually carries — so the next page says so.
+ * It briefly did more. ADR 0022 made the language a property of the episode
+ * and used this control to choose it, so switching here also chose what the
+ * next upload would be transcribed and analysed as — a consequence large
+ * enough that the following page had to announce it. The episode's language
+ * is now heard from the episode's own audio, which is what the reader
+ * expected a reading preference to mean all along.
  *
- * Episodes already transcribed are untouched: each one records what it was
- * transcribed as, so no existing count can move because somebody switched.
+ * No count can move because somebody switched, and none ever could: each
+ * episode records what it was transcribed as.
  */
 export function LocaleSwitcher({ label }: { readonly label: string }) {
   const router = useRouter()
@@ -38,15 +36,6 @@ export function LocaleSwitcher({ label }: { readonly label: string }) {
         aria-label={label}
         onChange={(event) => {
           const next = event.target.value as Locale
-
-          // Flagged before navigating, because the notice belongs on the
-          // page they land on — this component is about to be replaced.
-          try {
-            window.sessionStorage.setItem(LANGUAGE_CHANGED, next)
-          } catch {
-            // A browser refusing storage is not a reason to block the
-            // switch; they just miss the notice.
-          }
 
           startTransition(() => {
             router.replace(pathname, { locale: next })

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { AUDIO_LANGUAGES } from '../domain/audio-language.js'
 import type { TranscriptionProvider } from '../ports/transcription-provider.js'
 
 export interface ProviderUnderTest {
@@ -84,6 +85,26 @@ export function describeTranscriptionProvider(
 
       if (!outcome.ok) throw new Error('expected a transcript')
       expect(outcome.transcript.language).toBe('pt')
+    })
+
+    /*
+     * Asked nothing, it has to say what it heard — and say it in a language
+     * this codebase can actually act on.
+     *
+     * The detour worth guarding is the provider's own spelling. Groq answers
+     * `"portuguese"`, not `pt`, and that string passed through untouched
+     * would match neither half of the lemma dictionary nor either stop-word
+     * list: it would travel as far as `languagePack`, which would hand back
+     * Portuguese for anything it did not recognise. So the narrowing belongs
+     * in the adapter, where the provider's vocabulary is known, and the
+     * contract is what makes a provider that skips it fail here instead.
+     */
+    it('reports a language it can be asked about when it was told none', async () => {
+      const { provider, knownAudioUrl } = await create()
+      const outcome = await provider.transcribe({ audioUrl: knownAudioUrl })
+
+      if (!outcome.ok) throw new Error('expected a transcript')
+      expect(AUDIO_LANGUAGES).toContain(outcome.transcript.language)
     })
 
     it('returns word-level timings, in order and non-overlapping', async () => {

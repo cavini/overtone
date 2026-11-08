@@ -19,7 +19,7 @@ Then the upload is rejected with code `UNSUPPORTED_FORMAT`
 And the parameters are { extension: ".docx", accepted: [".mp3", ".m4a", ".wav", ".aac", ".ogg", ".flac", ".webm"] }
 ```
 
-Where the wording *is* the requirement — a limit, a refusal, a disclosure — the scenario also names both renderings, as US-007 and US-043 do. Every code and its parameters are listed in **Message codes** at the end of this doc; that table is the TypeScript union the engineer implements against. The interface language is a **presentation** setting and changes no count (US-046).
+Where the wording *is* the requirement — a limit, a refusal, a disclosure — the scenario also names both renderings, as US-007 and US-043 do. Every code and its parameters are listed in **Message codes** at the end of this doc; `packages/messages/src/codes.ts` is the union the engineer implements against, and the table has drifted behind it. The interface language is a **presentation** setting and changes no count (US-046).
 
 ### Fixed constants referenced by acceptance criteria
 
@@ -931,7 +931,7 @@ Scenario: Deletion updates Series-wide counts
 | US-010 | Read the transcript with timestamps, searchable in-page | Should | M | Useful for show notes. US-011's quotes already cover the trust case |
 | US-041 | Compare two episodes side by side | Should | S | Trivial once US-035 exists; US-022 answers most of the same question |
 | US-009 | Skip a duplicate upload by content hash | Should | S | Protects a shared allowance from being spent twice on the same audio |
-| US-013 | Warn when an episode does not look like Brazilian Portuguese | Should | S | **Inverted: pt-BR is the supported language and English audio is the odd case.** It cannot be a pre-upload refusal, because the language is declared rather than detected (D14) and detecting it costs the allowance. So it is an after-the-fact banner off the quality score plus a language-ID check on one chunk — a pt-BR pipeline run over English audio produces confident nonsense, and saying so beats a silently-wrong word count |
+| US-013 | Decide an episode's language from its own audio | Should | S | **Done, and inverted twice.** It was first a warning, because "the language is declared rather than detected (D14) and detecting it costs the allowance" — both halves now gone: the declaration is removed (ADR 0036) and three half-minute probes cost 90 of a 7,200-second hour. **The constraint that shapes it: the show opens on music with English lyrics**, so the opening answers English for every episode and the probes are taken from fractions of the duration instead. Three, because the answer picks the stop-word list, stemmer and dictionary half every count comes from, so one unlucky window would decide the episode. No majority, or a language with no pack, refuses the upload rather than falling back. The after-the-fact banner off the **quality score** is still unbuilt and is still the right second check — see US-012 |
 | US-029 | Keyboard reachability and WCAG AA contrast baseline | Should | S | Phone readability is already AC on US-039, where it matters most |
 | US-033 | Delete my account and everything in it | Should | S | Right and cheap; nobody has joined yet |
 | US-031 | Export the transcript as TXT or SRT | Could | S | Show notes. Share links cover "show someone" first |
@@ -1010,6 +1010,8 @@ Scenario: Deletion updates Series-wide counts
 | `TRANSCRIPTION_SERVICE_UNAVAILABLE` | `chunk_index`, `attempts` | US-008 |
 | `AUDIO_IS_SAFE` | — | US-008, US-043 |
 | `NO_SPEECH_DETECTED` | — | US-005 |
+| `AUDIO_LANGUAGE_UNSUPPORTED` | `heard` | US-013 |
+| `AUDIO_LANGUAGE_UNDECIDED` | — | US-013 |
 | `LEMMA_GROUPED_BY_STEMMER` | `term` | US-005 |
 | **Allowance and storage** | | |
 | `ALLOWANCE_REMAINING` | `remaining_ms`, `allowance_hours`, `whole_episodes_remaining` | US-043 |
@@ -1046,4 +1048,4 @@ Scenario: Deletion updates Series-wide counts
 | **Status labels** — the enum value is the contract, the label is text | | |
 | `STATUS_UPLOADED` · `STATUS_TRANSCRIBING` · `STATUS_ANALYZING` · `STATUS_READY` · `STATUS_FAILED` · `STATUS_DELETING` | — | US-002, US-038 |
 
-**45 codes**, of which 6 are status labels. Rules the lint enforces (US-045): a code is referenced by at least one scenario before it is added; both catalogues are complete; no component, use case, domain object or infrastructure adapter contains a user-facing sentence; and every number inside a rendering arrives as a parameter through the locale formatter, never baked into the sentence.
+**47 codes**, of which 6 are status labels. `packages/messages/src/codes.ts` is the authority and currently holds six this table never listed — `ANALYSIS_NOT_SAVED`, `SEARCH_SHOWING_A_SAMPLE`, `SEARCH_FOUND_EVERY_ONE`, `PASSWORD_TOO_SHORT`, `PASSWORD_NEEDS_CONTENT` and `TOPIC_NEEDS_A_NAME` — so read it, not this, when the two disagree. Rules the lint enforces (US-045): a code is referenced by at least one scenario before it is added; both catalogues are complete; no component, use case, domain object or infrastructure adapter contains a user-facing sentence; and every number inside a rendering arrives as a parameter through the locale formatter, never baked into the sentence.

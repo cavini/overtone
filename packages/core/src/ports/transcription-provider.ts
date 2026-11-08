@@ -26,7 +26,15 @@ export interface Transcript {
    * so the lines fall back to breaking on punctuation alone.
    */
   readonly segmentStartsMs: readonly number[]
-  readonly language: string
+  /**
+   * What it was transcribed as — told, or heard when it was told nothing.
+   *
+   * Narrowed to a language this codebase has a pack for, rather than the
+   * provider's own spelling. Groq answers `"portuguese"`, and that string
+   * travelling onward would miss both stop-word lists and both halves of
+   * the dictionary while still looking like an answer.
+   */
+  readonly language: AudioLanguage
   readonly durationMs: number
   /**
    * The provider's response, verbatim and untouched.
@@ -61,6 +69,17 @@ export type TranscriptionFailure =
    * answer.
    */
   | { readonly code: 'PROVIDER_RESPONSE_INVALID' }
+  /**
+   * It heard a language Overtone has no analysis for.
+   *
+   * Only reachable when nothing was stated, so only ever a probe. Saying so
+   * is the whole point: the alternative is defaulting, and defaulting means
+   * Spanish audio analysed against Portuguese stop words and a dictionary
+   * that will cheerfully lemmatise about half of it. Carries what it heard
+   * so the reader is told what was wrong rather than merely that something
+   * was.
+   */
+  | { readonly code: 'LANGUAGE_NOT_SUPPORTED'; readonly heard: string }
 
 /**
  * What the provider said about its own remaining allowance, if it said
@@ -87,15 +106,21 @@ export interface TranscriptionRequest {
   /** Where the provider can fetch the audio. */
   readonly audioUrl: string
   /**
-   * Always stated, never auto-detected.
+   * What to transcribe it as — or nothing, to be told what it is.
    *
-   * Detection misfires on accented and code-switched speech, and an episode
-   * silently transcribed as the wrong language produces fluent nonsense that
-   * still counts. Chosen per episode and recorded with it (ADR 0022), so
-   * what it was transcribed as is a fact about the episode rather than a
-   * property of whoever is reading.
+   * Stated for every chunk of a real episode, because the episode's
+   * language is settled once, before any of them is sent, and a chunk left
+   * to decide for itself could disagree with the chunk before it and be
+   * stitched into the same transcript regardless.
+   *
+   * Omitted only to ask. That is a probe: a half-minute of audio sampled
+   * away from the ends of the episode, whose entire purpose is to come back
+   * with a language (`planLanguageProbes`). The risk detection carries has
+   * not gone away — it is handled by sampling three windows rather than one
+   * and by checking the answer against the transcript's own function words
+   * afterwards, neither of which a caller of this port can see.
    */
-  readonly language: AudioLanguage
+  readonly language?: AudioLanguage | undefined
   /**
    * What the chunk before this one ended up saying, if there was one.
    *

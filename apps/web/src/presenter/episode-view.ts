@@ -178,6 +178,12 @@ function noticeForFailure(
         allowance_hours: HOURLY_ALLOWANCE_HOURS,
         minutes_until_reset: Math.ceil(failure.retryAfterMs / MS_PER_MINUTE),
       })
+    /*
+     * Only a probe can produce this: every chunk of a real episode states
+     * its language, and a stated request is never told it was wrong.
+     */
+    case 'LANGUAGE_NOT_SUPPORTED':
+      return renderMessage(locale, 'AUDIO_LANGUAGE_UNSUPPORTED', { heard: failure.heard })
     case 'ANALYSIS_NOT_STORED':
       return renderMessage(locale, 'ANALYSIS_NOT_SAVED', {})
   }

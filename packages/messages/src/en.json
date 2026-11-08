@@ -9,6 +9,8 @@
   "CHUNK_TIMEOUT": "Part {chunk_index, number} ran past {timeout_seconds, number} seconds and was stopped.",
   "TRANSCRIPTION_SERVICE_UNAVAILABLE": "The transcription service didn't answer on part {chunk_index, number}, after {attempts, number} attempts.",
   "AUDIO_IS_SAFE": "Your audio is safe. Nothing was lost.",
+  "AUDIO_LANGUAGE_UNSUPPORTED": "This audio sounds like it is in another language ({heard}), and Overtone only analyses Portuguese and English. The episode was not transcribed.",
+  "AUDIO_LANGUAGE_UNDECIDED": "Could not tell what language this episode is in — the parts it listened to did not agree with each other. Nothing was transcribed.",
   "NO_SPEECH_DETECTED": "We found no speech in this audio.",
   "LEMMA_GROUPED_BY_STEMMER": "We grouped \"{term}\" by resemblance rather than from the dictionary. Worth a look.",
   "ALLOWANCE_REMAINING": "Room for about {whole_episodes_remaining, number} more episodes today, out of a {allowance_hours, number} hour allowance.",

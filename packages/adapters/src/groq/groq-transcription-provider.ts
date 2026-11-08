@@ -1,3 +1,4 @@
+import { AUDIO_LANGUAGES, type AudioLanguage } from '@overtone/core'
 import type {
   TimedWord,
   TranscriptionFailure,
@@ -43,6 +44,36 @@ export interface GroqTranscriptionOptions {
 const secondsToMs = (seconds: number): number => Math.round(seconds * 1000)
 
 /**
+ * What the provider calls each language we can analyse.
+ *
+ * It answers in full English names rather than codes — the recorded
+ * response body says `"portuguese"` — so this is a translation, not a
+ * validation. Both spellings are accepted because the name is the one we
+ * have actually observed and the code is what the parameter we send uses,
+ * and an endpoint that started answering in its own input vocabulary should
+ * not read as an unsupported language.
+ *
+ * Anything absent from here is refused rather than defaulted. Mapping an
+ * unknown language onto Portuguese is how Spanish audio gets counted
+ * against Portuguese stop words and reported as if it were right.
+ */
+const PROVIDER_LANGUAGE_NAMES: Readonly<Record<string, AudioLanguage>> = {
+  portuguese: 'pt',
+  english: 'en',
+}
+
+function asOurLanguage(heard: string | undefined): AudioLanguage | undefined {
+  if (heard === undefined) return undefined
+
+  const named = heard.trim().toLowerCase()
+
+  return (
+    PROVIDER_LANGUAGE_NAMES[named] ??
+    AUDIO_LANGUAGES.find((language): boolean => language === named)
+  )
+}
+
+/**
  * HTTP status to a reason the caller can act on.
  *
  * The distinction that matters is retryable versus not: an exhausted
@@ -80,9 +111,11 @@ function failureFor(response: Response): TranscriptionFailure {
  * episode never passes through our own server — the service fetches it
  * directly.
  *
- * The language is always stated. Letting the model detect it would risk an
- * episode being transcribed as Spanish, which produces fluent nonsense that
- * still counts, and a count nobody can tell is wrong is worse than no count.
+ * The language is stated for every chunk of a real episode, and omitted only
+ * by a probe whose purpose is to be told what the audio is. Detection still
+ * carries the risk it always did — Spanish heard as Portuguese produces
+ * fluent nonsense that still counts — which is why nothing here defaults:
+ * a language this codebase has no pack for is refused by name.
  *
  * Held to the same contract suite as the fake, so neither can quietly promise
  * something the other does not.
@@ -104,7 +137,14 @@ export class GroqTranscriptionProvider implements TranscriptionProvider {
     const fields = new FormData()
     fields.set('url', request.audioUrl)
     fields.set('model', this.model)
-    fields.set('language', request.language)
+    /*
+     * Omitted rather than empty when there is nothing to state. The endpoint
+     * detects when the field is absent; an empty string is a value, and a
+     * value it cannot parse is a 400 rather than a detection.
+     */
+    if (request.language !== undefined) {
+      fields.set('language', request.language)
+    }
     fields.set('response_format', 'verbose_json')
     // Greedy decoding. Sampling is a way of guessing, and a count built on a
     // guess is worse than a gap in one.
@@ -168,6 +208,31 @@ export class GroqTranscriptionProvider implements TranscriptionProvider {
 
     const lastWord = words.at(-1)
 
+    /*
+     * Told, we echo. Told nothing, we take the answer — and narrow it here,
+     * because this is the only layer that knows the provider's vocabulary.
+     *
+     * It answers in full English names: the recorded response says
+     * `"portuguese"`. That string handed onward would miss both stop-word
+     * lists and both halves of the lemma dictionary, and `languagePack`
+     * would quietly serve Portuguese for it, so an unrecognised language is
+     * a refusal rather than a value.
+     */
+    const heard = request.language ?? asOurLanguage(parsed.data.language)
+
+    if (heard === undefined) {
+      return parsed.data.language === undefined
+        ? // Asked to detect, and it did not say. The field is optional in
+          // the schema because a stated request does not need it; a probe
+          // without it got no answer to the only question it asked.
+          { ok: false, failure: { code: 'PROVIDER_RESPONSE_INVALID' }, observedAllowance }
+        : {
+            ok: false,
+            failure: { code: 'LANGUAGE_NOT_SUPPORTED', heard: parsed.data.language },
+            observedAllowance,
+          }
+    }
+
     return {
       ok: true,
       observedAllowance,
@@ -177,7 +242,7 @@ export class GroqTranscriptionProvider implements TranscriptionProvider {
         text: parsed.data.text,
         words,
         segmentStartsMs,
-        language: request.language,
+        language: heard,
         durationMs:
           parsed.data.duration !== undefined
             ? secondsToMs(parsed.data.duration)

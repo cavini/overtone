@@ -12,6 +12,22 @@ export const chunkKey = (episodeId: string, index: number): string =>
   `episodes/${episodeId}/chunk-${index}.wav`
 
 /**
+ * Where a language probe lives while it is being listened to.
+ *
+ * Under the episode, so deleting the episode takes its probes with it, and
+ * named apart from the chunks so the two can never collide: a probe written
+ * over `chunk-0.wav` would be transcribed as the opening ten minutes of the
+ * episode and stitched in as though it were.
+ *
+ * These are temporary in a way chunk audio is not. A probe has served its
+ * purpose the moment the language is settled — thirty seconds of WAV is
+ * about a megabyte, and three of them left behind per episode would be
+ * paid for out of the same 1 GB tier the chunks are racing through.
+ */
+export const probeKey = (episodeId: string, index: number): string =>
+  `episodes/${episodeId}/probe-${index}.wav`
+
+/**
  * Which of an episode's chunk audio an advance has turned into dead weight.
  *
  * Freeing per chunk rather than per episode is what keeps several uploads

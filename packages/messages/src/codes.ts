@@ -54,6 +54,24 @@ export const MESSAGE_PARAMS = {
   TRANSCRIPTION_SERVICE_UNAVAILABLE: { chunk_index: 'number', attempts: 'number' },
   AUDIO_IS_SAFE: {},
   NO_SPEECH_DETECTED: {},
+  /*
+   * Heard a language Overtone has no analysis for.
+   *
+   * Only reachable from a probe, which is the one request that asks rather
+   * than states. `heard` is the provider's own word for it and is shown as
+   * it came back: the alternative is telling the reader the audio is wrong
+   * without telling them what it was taken for.
+   */
+  AUDIO_LANGUAGE_UNSUPPORTED: { heard: 'string' },
+  /*
+   * The probes did not agree, or none of them answered.
+   *
+   * Its own code rather than folded into the one above, because the two
+   * tell the reader to do different things: one says the recording is in a
+   * language this product does not handle, the other says we could not
+   * tell and nothing was stored.
+   */
+  AUDIO_LANGUAGE_UNDECIDED: {},
   ANALYSIS_NOT_SAVED: {},
   LEMMA_GROUPED_BY_STEMMER: { term: 'string' },
 

@@ -7,6 +7,7 @@ import { audioTypeOf, FILE_INPUT_ACCEPT } from '../audio/audio-type.js'
 import { decodeInBrowser } from '../audio/decode-in-browser.js'
 import { measureDuration } from '../audio/measure-duration.js'
 import { splitAndUpload, type ChunkTarget } from '../audio/split-and-upload.js'
+import { uploadProbes, type ProbeTarget } from '../audio/upload-probes.js'
 import type { UiKey } from '../i18n/ui.js'
 import type { AnalysisView, OutcomeView } from '../presenter/episode-view.js'
 import { CountsTable, JokeList, StatStrip } from './counts-table.js'
@@ -132,20 +133,65 @@ export function UploadForm({
         return
       }
 
-      const chunks = started['chunks'] as ChunkTarget[]
+      const planned = started['chunks'] as ChunkTarget[]
       onEpisode(episodeId, true)
+
+      /*
+       * Decoded once, here, rather than inside the split.
+       *
+       * The language is settled from windows of this same array before any
+       * chunk is cut, so the samples are needed before `splitAndUpload`
+       * runs and there is no reason to produce them twice — a two-hour
+       * episode is 1.46 GB decoded, and a second pass would be a second
+       * copy of it.
+       */
+      const samples = await decodeInBrowser(file)
+
+      /*
+       * What the episode is spoken in, taken from the episode.
+       *
+       * It used to be whatever the interface was set to, which is a fact
+       * about the reader (ADR 0022). Three half-minute windows from the
+       * middle of the recording are uploaded and listened to instead —
+       * never the opening, because the show starts on music with English
+       * lyrics and the start of the file answers English every time.
+       *
+       * Before the chunks, and not caught. Every chunk states the
+       * episode's language when it is sent, so cutting them before this
+       * settled would transcribe the episode as whatever the row still
+       * said.
+       */
+      setProgress({ headline: labels.listeningForLanguage, done: 0, total: 0 })
+      await uploadProbes(samples, started['probes'] as ProbeTarget[])
+
+      const detected = await fetch('/api/episodes/language', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ episodeId, locale }),
+      })
+      const language = await readJson(detected)
+      if (!detected.ok || language['error'] !== undefined) {
+        setError(String(language['error'] ?? 'UNEXPECTED'))
+        return
+      }
+
+      /*
+       * The chunk uploads are re-signed by that call, and these are the ones
+       * to use. A signed URL lasts fifteen minutes and a quarter-gigabyte
+       * upload can run most of it, so the half-minute spent decoding and
+       * listening must not come out of the upload's share of the window.
+       */
+      const chunks = (language['chunks'] as ChunkTarget[] | undefined) ?? planned
 
       await splitAndUpload(
         /*
-         * The tab's own decoder, handed in rather than reached for.
-         *
-         * `decodeAudioData` is the only part of splitting that needs a
-         * browser; everything the boundaries depend on is arithmetic. The
-         * seam is what lets the headless backfill tool run the same
-         * settling and reporting code with `ffmpeg` behind it, instead of
-         * a second copy of the one thing in this repo that fails silently.
+         * Already decoded, above. The thunk stays because the headless
+         * backfill tool hands in `ffmpeg` instead — the seam is what lets
+         * both callers run the same settling and reporting code, rather
+         * than keeping a second copy of the one thing in this repo that
+         * fails silently.
          */
-        () => decodeInBrowser(file),
+        () => Promise.resolve(samples),
         chunks,
         ({ done, total }) => {
           setProgress({ headline: `${labels.sendingPart} ${done + 1} / ${total}`, done, total })

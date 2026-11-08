@@ -80,8 +80,6 @@ export const UI = {
     emailNotConfirmed:
       'A conta foi criada, mas o projeto exige confirmação por e-mail. Desligue "Confirm email" no painel do Supabase.',
     openInTranscript: 'Ver na transcrição',
-    gotIt: 'Entendi',
-    languageAffectsAudio: 'Isto também muda o idioma em que os próximos episódios serão transcritos. Os episódios já prontos não mudam.',
     transcriptHeading: 'Transcrição',
     transcriptShow: 'Mostrar transcrição',
     correctLine: 'Corrigir esta linha',
@@ -96,6 +94,9 @@ export const UI = {
     recounting: 'Recontando…',
     recounted: 'Pronto. Recontado sem gastar cota.',
     preparing: 'Preparando o áudio…',
+    // Três janelas do meio do episódio, nunca a abertura: a vinheta é em
+    // inglês e decidiria o idioma de todos os episódios.
+    listeningForLanguage: 'Identificando o idioma do áudio…',
     sendingPart: 'Enviando parte',
     transcribing: 'Transcrevendo…',
     canCloseTheTab: 'Pode fechar esta aba.',
@@ -160,10 +161,10 @@ export const UI = {
     tooManyLinks: 'Muitos pedidos em pouco tempo. Espere um minuto e tente de novo.',
     signInUnavailable: 'Não deu para enviar agora. Tente de novo em instantes.',
     signOut: 'Sair',
-    signedInAs: 'Você está em',
+    signedInAs: 'Conectado como',
     whenItCameUp: 'Quando apareceu',
     countsAreOfTheEdit: 'As contagens são do episódio publicado — o que foi cortado na edição não entra.',
-    transcriptionCredit: 'Transcrição pelo Whisper large-v3, rodando na Groq. O áudio é sempre tratado como português do Brasil.',
+    transcriptionCredit: 'Transcrição pelo Whisper large-v3, rodando na Groq. O idioma de cada episódio é identificado a partir do próprio áudio.',
   },
   en: {
     appName: 'Overtone',
@@ -231,8 +232,6 @@ export const UI = {
     emailNotConfirmed:
       'The account was created, but the project requires email confirmation. Turn off "Confirm email" in the Supabase dashboard.',
     openInTranscript: 'See it in the transcript',
-    gotIt: 'Got it',
-    languageAffectsAudio: 'This also changes the language future episodes are transcribed in. Episodes already finished stay as they are.',
     transcriptHeading: 'Transcript',
     transcriptShow: 'Show transcript',
     correctLine: 'Correct this line',
@@ -247,6 +246,9 @@ export const UI = {
     recounting: 'Counting…',
     recounted: 'Done, and it cost no allowance.',
     preparing: 'Preparing the audio…',
+    // Three windows from the middle of the episode, never the opening: the
+    // intro is in English and would decide the language of every episode.
+    listeningForLanguage: 'Working out what language this is…',
     sendingPart: 'Sending part',
     transcribing: 'Transcribing…',
     canCloseTheTab: 'You can close this tab.',
@@ -310,7 +312,7 @@ export const UI = {
     signedInAs: 'Signed in as',
     whenItCameUp: 'When it came up',
     countsAreOfTheEdit: 'Counts are of the published episode — anything cut in the edit is not here.',
-    transcriptionCredit: 'Transcribed by Whisper large-v3 running on Groq. The audio is always treated as Brazilian Portuguese.',
+    transcriptionCredit: 'Transcribed by Whisper large-v3 running on Groq. Each episode\u2019s language is identified from its own audio.',
   },
 } as const satisfies Record<Locale, Record<string, string>>
 
