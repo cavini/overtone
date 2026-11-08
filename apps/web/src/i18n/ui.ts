@@ -161,7 +161,7 @@ export const UI = {
     tooManyLinks: 'Muitos pedidos em pouco tempo. Espere um minuto e tente de novo.',
     signInUnavailable: 'Não deu para enviar agora. Tente de novo em instantes.',
     signOut: 'Sair',
-    signedInAs: 'Você está em',
+    signedInAs: 'Conectado como',
     whenItCameUp: 'Quando apareceu',
     countsAreOfTheEdit: 'As contagens são do episódio publicado — o que foi cortado na edição não entra.',
     transcriptionCredit: 'Transcrição pelo Whisper large-v3, rodando na Groq. O idioma de cada episódio é identificado a partir do próprio áudio.',
