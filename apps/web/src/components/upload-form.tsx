@@ -8,6 +8,8 @@ import { decodeInBrowser } from '../audio/decode-in-browser.js'
 import { measureDuration } from '../audio/measure-duration.js'
 import { splitAndUpload, type ChunkTarget } from '../audio/split-and-upload.js'
 import { uploadProbes, type ProbeTarget } from '../audio/upload-probes.js'
+import { driveEpisode, type DriveState } from '../upload/drive-episode.js'
+import { readJson, sleep } from '../upload/read-json.js'
 import type { UiKey } from '../i18n/ui.js'
 import type { AnalysisView, OutcomeView } from '../presenter/episode-view.js'
 import { CountsTable, JokeList, StatStrip } from './counts-table.js'
@@ -19,31 +21,6 @@ type Labels = Record<UiKey, string>
 interface Result {
   readonly status: OutcomeView
   readonly analysis?: AnalysisView
-}
-
-/** Never sleep longer than this in one go, so the page keeps saying something. */
-const MAX_SLEEP_MS = 30_000
-
-const sleep = (ms: number): Promise<void> =>
-  new Promise((resume) => {
-    setTimeout(resume, Math.min(ms, MAX_SLEEP_MS))
-  })
-
-/**
- * Reads a response that is supposed to be JSON.
- *
- * A platform error — a body too large, a function that timed out — comes
- * back as HTML or plain text, and `response.json()` throws on it. Left
- * unhandled that surfaced as "the file may be corrupt", which sent everyone
- * looking at the audio instead of at the request.
- */
-async function readJson(response: Response): Promise<Record<string, unknown>> {
-  const text = await response.text()
-  try {
-    return JSON.parse(text) as Record<string, unknown>
-  } catch {
-    throw new Error(`${response.status} ${text.slice(0, 120)}`)
-  }
 }
 
 export function UploadForm({
@@ -217,7 +194,7 @@ export function UploadForm({
       )
 
       setProgress({ headline: labels.transcribing, done: 0, total: chunks.length })
-      await driveToCompletion(episodeId, chunks.length)
+      await drive(episodeId, chunks.length)
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : labels.couldNotRead)
     } finally {
@@ -227,77 +204,38 @@ export function UploadForm({
   }
 
   /**
-   * Carries an episode to the end, one chunk a step.
-   *
-   * A function rather than a loop inside the upload, because finishing an
-   * episode and resuming one are the same work — and resuming is needed at
-   * all because the browser is what drives this and browsers get closed.
+   * The pacing loop lives in `driveEpisode`. All this does is turn the
+   * phase it reports into a sentence, which is the half that belongs in a
+   * component: no layer below the presenter knows which language the reader
+   * wants (ADR 0017), and the loop used to put the label in itself.
    */
-  async function driveToCompletion(episodeId: string, chunkCount: number): Promise<void> {
-    try {
-      for (;;) {
-        const response = await fetch('/api/episodes/advance', {
-          method: 'POST',
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ episodeId, locale }),
-        })
+  const drive = (episodeId: string, chunkCount: number): Promise<void> =>
+    driveEpisode(
+      { episodeId, chunkCount, locale },
+      {
+        onState: (state: DriveState) => {
+          if (state.phase === 'finished') {
+            setProgress(undefined)
+            return
+          }
 
-        const payload = await readJson(response)
-        if (!response.ok || payload['error'] !== undefined) {
-          setError(String(payload['error'] ?? 'UNEXPECTED'))
-          return
-        }
-
-        /*
-         * The schedule is mid-step on this very episode.
-         *
-         * Both drive the same loop now (ADR 0027) and they take turns under
-         * one lease, so this is not an error and not progress — it is "ask
-         * again shortly". There is no status to read, and reading one would
-         * be reading `undefined`.
-         */
-        if (payload['busy'] === true) {
-          await sleep(Number(payload['retryAfterMs'] ?? 3_000))
-          continue
-        }
-
-        const status = payload['status'] as OutcomeView
-        const analysis = payload['analysis'] as AnalysisView | undefined
-        setResult(analysis === undefined ? { status } : { status, analysis })
-
-        if (status.done) {
-          setProgress(undefined)
-          return
-        }
-
-        const waitMs = Number(payload['retryAfterMs'] ?? 0)
-        const done = Number(payload['chunksDone'] ?? 0)
-        const total = Number(payload['chunkCount'] ?? chunkCount)
-
-        // The count is the part that moves. The countdown restarts every
-        // time a chunk lands, so on its own it looks like a loop.
-        setProgress({
-          headline: waitMs > 0 ? labels.waitingForAllowance : labels.transcribing,
-          done,
-          total,
-          ...(waitMs > 0 ? { nextAttemptAt: Date.now() + waitMs } : {}),
-          ...(status.notice === undefined ? {} : { notice: status.notice }),
-        })
-
-        await sleep(waitMs)
-      }
-    } finally {
-      /*
-       * Whatever stopped the drive, nothing more is arriving on its own.
-       *
-       * The transcript keeps asking for more for as long as it is told the
-       * episode is live, and it was never told otherwise: a finished upload
-       * left a request every five seconds running for as long as the tab
-       * stayed open. Saying so here also gets the library its final status.
-       */
-      onEpisode(episodeId, false)
-    }
-  }
+          setProgress({
+            // The count is the part that moves. The countdown restarts every
+            // time a chunk lands, so on its own it looks like a loop.
+            headline:
+              state.phase === 'waiting' ? labels.waitingForAllowance : labels.transcribing,
+            done: state.done,
+            total: state.total,
+            ...(state.phase === 'waiting' ? { nextAttemptAt: state.nextAttemptAt } : {}),
+            ...(state.notice === undefined ? {} : { notice: state.notice }),
+          })
+        },
+        onResult: setResult,
+        onError: setError,
+        onSettled: (id) => onEpisode(id, false),
+      },
+      { fetch: globalThis.fetch.bind(globalThis), sleep, now: Date.now },
+    )
 
   /*
    * An episode left mid-transcription is picked up when the page opens.
@@ -347,7 +285,7 @@ export function UploadForm({
         total: episode.chunkCount,
       })
       try {
-        await driveToCompletion(episode.episodeId, episode.chunkCount)
+        await drive(episode.episodeId, episode.chunkCount)
       } catch (caught) {
         setError(caught instanceof Error ? caught.message : labels.couldNotRead)
       } finally {
