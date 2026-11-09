@@ -38,5 +38,37 @@ export default withNextIntl({
    * `remotePatterns` set rather than left open.
    */
   images: { unoptimized: true },
+  /*
+   * The three response headers that were missing entirely.
+   *
+   * Vercel supplies HSTS; these it does not. Deliberately the three with no
+   * breakage risk — a Content-Security-Policy belongs here too and is not
+   * here yet, because this app uploads straight to Supabase storage from the
+   * browser and a wrong `connect-src` breaks that silently. That one needs an
+   * upload exercised against it before it ships.
+   */
+  headers: async () => [
+    {
+      source: '/:path*',
+      headers: [
+        /*
+         * Nothing frames this. There is a sign-in form and a delete button in
+         * here, which is the pair clickjacking exists for.
+         */
+        { key: 'X-Frame-Options', value: 'DENY' },
+        // No MIME sniffing. Episode audio is served from storage rather than
+        // here, but a transcript rendered as something executable would be
+        // the same class of mistake.
+        { key: 'X-Content-Type-Options', value: 'nosniff' },
+        /*
+         * Send the origin and never the path. A sign-in link carries its
+         * token in the query string, and with no policy at all the default
+         * is to put the full URL in the `Referer` of anything that page
+         * loads.
+         */
+        { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
+      ],
+    },
+  ],
   typedRoutes: true,
 })
