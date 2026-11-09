@@ -22,13 +22,12 @@ export function CountsTable({
 
   return (
     <section className="mt-10">
-      <h2 className="mb-3 text-xl" style={{ fontFamily: 'var(--font-display)' }}>
+      <h2 className="mb-3 text-xl font-display">
         {labels.mostSaid}
       </h2>
 
       <div
-        className="scroller rounded-lg border"
-        style={{ borderColor: 'var(--edge)', background: 'var(--panel)' }}
+        className="scroller rounded-lg border border-edge bg-panel"
       >
         <table className="w-full border-collapse text-left text-sm">
           <thead>
@@ -45,8 +44,7 @@ export function CountsTable({
                   {row.term}
                   {row.heuristic ? (
                     <span
-                      className="ml-2 align-middle text-xs"
-                      style={{ color: 'var(--accent-quiet)' }}
+                      className="ml-2 align-middle text-xs text-accent-quiet"
                       title={row.heuristicNotice}
                     >
                       ~ {labels.guessed}
@@ -54,7 +52,7 @@ export function CountsTable({
                   ) : null}
                 </th>
                 <td className="tabular px-4 py-2.5 text-right">{row.count}</td>
-                <td className="px-4 py-2.5" style={{ color: 'var(--quiet)' }}>
+                <td className="px-4 py-2.5 text-quiet">
                   {row.forms}
                 </td>
               </tr>
@@ -84,15 +82,14 @@ export function StatStrip({
   ]
 
   return (
-    <dl className="mt-8 grid grid-cols-2 gap-px overflow-hidden rounded-lg border sm:grid-cols-3"
-      style={{ borderColor: 'var(--edge)', background: 'var(--edge)' }}
+    <dl className="mt-8 grid grid-cols-2 gap-px overflow-hidden rounded-lg border sm:grid-cols-3 border-edge bg-edge"
     >
       {figures.map(([label, value]) => (
-        <div key={label} className="px-4 py-3" style={{ background: 'var(--panel)' }}>
-          <dt className="text-xs uppercase tracking-wide" style={{ color: 'var(--quiet)' }}>
+        <div key={label} className="px-4 py-3 bg-panel">
+          <dt className="text-xs uppercase tracking-wide text-quiet">
             {label}
           </dt>
-          <dd className="tabular mt-1 text-2xl" style={{ color: 'var(--accent)' }}>
+          <dd className="tabular mt-1 text-2xl text-accent">
             {value}
           </dd>
         </div>
@@ -113,19 +110,18 @@ export function JokeList({
 
   return (
     <section className="mt-10">
-      <h2 className="mb-3 text-xl" style={{ fontFamily: 'var(--font-display)' }}>
+      <h2 className="mb-3 text-xl font-display">
         {labels.runningJokes}
       </h2>
       <ul className="space-y-2">
         {analysis.topics.map((topic) => (
           <li
             key={topic.name}
-            className="rounded-lg border px-4 py-3"
-            style={{ borderColor: 'var(--edge)', background: 'var(--panel)' }}
+            className="rounded-lg border px-4 py-3 border-edge bg-panel"
           >
             <div className="flex items-baseline justify-between gap-4">
               <span className="font-medium">{topic.name}</span>
-              <span className="tabular text-lg" style={{ color: 'var(--accent)' }}>
+              <span className="tabular text-lg text-accent">
                 {topic.count}
               </span>
             </div>
@@ -157,7 +153,7 @@ export function JokeList({
               </ol>
             )}
 
-            <ul className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm" style={{ color: 'var(--quiet)' }}>
+            <ul className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm text-quiet">
               {topic.moments.map((moment) => (
                 <li key={moment.startMs}>
                   <span className="tabular">{moment.at}</span>{' '}

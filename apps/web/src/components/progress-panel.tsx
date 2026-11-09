@@ -69,8 +69,7 @@ export function ProgressPanel({
 
   return (
     <section
-      className="rounded-xl border p-5"
-      style={{ borderColor: 'var(--edge)', background: 'var(--panel)' }}
+      className="rounded-xl border p-5 border-edge bg-panel"
       aria-live="polite"
     >
       <div className="flex items-center gap-3">
@@ -81,8 +80,7 @@ export function ProgressPanel({
       {progress.total > 0 ? (
         <>
           <div
-            className="mt-4 h-2 overflow-hidden rounded-full"
-            style={{ background: 'var(--edge)' }}
+            className="mt-4 h-2 overflow-hidden rounded-full bg-edge"
             role="progressbar"
             aria-valuenow={progress.done}
             aria-valuemin={0}
@@ -93,14 +91,14 @@ export function ProgressPanel({
               style={{ width: `${percent}%`, background: 'var(--accent)' }}
             />
           </div>
-          <p className="tabular mt-2 text-xs" style={{ color: 'var(--quiet)' }}>
+          <p className="tabular mt-2 text-xs text-quiet">
             {progress.done} / {progress.total} {labels.partsDone}
           </p>
         </>
       ) : null}
 
       {waiting ? (
-        <div className="mt-4 border-t pt-3" style={{ borderColor: 'var(--edge)' }}>
+        <div className="mt-4 border-t pt-3 border-edge">
           <p className="text-sm">
             {labels.nextPartIn} <span className="tabular font-medium">{asWait(remaining, labels)}</span>
           </p>
@@ -115,7 +113,7 @@ export function ProgressPanel({
             * uploading — the upload itself needs the file, so it needs the
             * tab.
             */}
-          <p className="mt-1 text-xs" style={{ color: 'var(--quiet)' }}>
+          <p className="mt-1 text-xs text-quiet">
             {labels.continuesAlone} {labels.canCloseTheTab}
           </p>
         </div>
@@ -129,8 +127,7 @@ function Spinner() {
   return (
     <span
       aria-hidden
-      className="inline-block h-4 w-4 shrink-0 animate-spin rounded-full border-2"
-      style={{ borderColor: 'var(--edge)', borderTopColor: 'var(--accent)' }}
+      className="inline-block h-4 w-4 shrink-0 animate-spin rounded-full border-2 border-edge border-t-accent"
     />
   )
 }

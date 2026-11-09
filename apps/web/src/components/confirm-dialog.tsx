@@ -61,8 +61,7 @@ export function ConfirmDialog({
        * `margin: 0` on everything — so without this it sits in the top-left
        * corner, which is where it sat.
        */
-      className="m-auto max-w-sm rounded-xl border p-5 backdrop:bg-black/40"
-      style={{ borderColor: 'var(--edge)', background: 'var(--panel)', color: 'var(--prose)' }}
+      className="m-auto max-w-sm rounded-xl border p-5 backdrop:bg-black/40 border-edge bg-panel text-prose"
     >
       <p className="text-sm">{question}</p>
 
@@ -70,8 +69,7 @@ export function ConfirmDialog({
         <button
           type="button"
           onClick={onCancel}
-          className="rounded-md px-3 py-2 text-sm"
-          style={{ color: 'var(--quiet)' }}
+          className="rounded-md px-3 py-2 text-sm text-quiet"
         >
           {cancel}
         </button>

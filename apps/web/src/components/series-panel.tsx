@@ -72,7 +72,7 @@ export function SeriesPanel({
   return (
     <Panel heading={labels.seriesHeading}>
       {overview.state === 'empty' ? (
-        <p className="mt-2 text-sm" style={{ color: 'var(--quiet)' }}>
+        <p className="mt-2 text-sm text-quiet">
           {labels.seriesEmpty}
         </p>
       ) : (
@@ -92,13 +92,13 @@ export function SeriesPanel({
           </dl>
 
           {overview.state === 'first-episode' ? (
-            <p className="mt-4 text-sm" style={{ color: 'var(--quiet)' }}>
+            <p className="mt-4 text-sm text-quiet">
               {labels.seriesFirstEpisode}
             </p>
           ) : null}
 
           {overview.topics.length === 0 ? (
-            <p className="mt-4 text-sm" style={{ color: 'var(--quiet)' }}>
+            <p className="mt-4 text-sm text-quiet">
               {labels.seriesNoTopics}
             </p>
           ) : (
@@ -128,13 +128,13 @@ function Figure({
 }) {
   return (
     <div>
-      <dt className="text-xs uppercase tracking-wide" style={{ color: 'var(--quiet)' }}>
+      <dt className="text-xs uppercase tracking-wide text-quiet">
         {label}
       </dt>
-      <dd className="text-2xl tabular-nums" style={{ fontFamily: 'var(--font-display)' }}>
+      <dd className="text-2xl tabular-nums font-display">
         {value}
         {note === undefined ? null : (
-          <span className="ml-2 text-xs" style={{ color: 'var(--quiet)' }}>
+          <span className="ml-2 text-xs text-quiet">
             {note}
           </span>
         )}
@@ -159,7 +159,7 @@ function TopicRow({
     <li>
       <div className="flex items-baseline justify-between gap-3">
         <span className="text-sm font-medium">{topic.topicName}</span>
-        <span className="text-sm tabular-nums" style={{ color: 'var(--quiet)' }}>
+        <span className="text-sm tabular-nums text-quiet">
           {number(topic.total, locale)}
           <span
             className="ml-2"
@@ -246,21 +246,20 @@ function TopWords({
   return (
     <details
       onToggle={(event) => void open(event)}
-      className="mt-6 rounded-lg border"
-      style={{ borderColor: 'var(--edge)' }}
+      className="mt-6 rounded-lg border border-edge"
     >
       <summary className="px-4 py-3 text-sm font-medium">{labels.seriesTopWords}</summary>
 
-      <p className="px-4 text-xs" style={{ color: 'var(--quiet)' }}>
+      <p className="px-4 text-xs text-quiet">
         {labels.seriesTopWordsHint}
       </p>
 
       {terms === undefined ? (
-        <p className="px-4 pb-4 pt-3 text-sm" style={{ color: 'var(--quiet)' }}>
+        <p className="px-4 pb-4 pt-3 text-sm text-quiet">
           {labels.seriesCountingWords}
         </p>
       ) : terms.length === 0 ? (
-        <p className="px-4 pb-4 pt-3 text-sm" style={{ color: 'var(--quiet)' }}>
+        <p className="px-4 pb-4 pt-3 text-sm text-quiet">
           {labels.seriesNoTopics}
         </p>
       ) : (
@@ -293,7 +292,7 @@ function TopWords({
                      * as a total that does not.
                      */}
                     {entry.heuristic ? (
-                      <span className="ml-2 text-xs" style={{ color: 'var(--quiet)' }}>
+                      <span className="ml-2 text-xs text-quiet">
                         {labels.seriesWordGuessed}
                       </span>
                     ) : null}
@@ -306,7 +305,7 @@ function TopWords({
                    * twenty-three episodes is how we talk, the same total in
                    * one episode is one conversation.
                    */}
-                  <td className="tabular py-1 text-right" style={{ color: 'var(--quiet)' }}>
+                  <td className="tabular py-1 text-right text-quiet">
                     {number(entry.episodes, locale)}
                   </td>
                 </tr>

@@ -28,7 +28,7 @@ export function LocaleSwitcher({ label }: { readonly label: string }) {
   const current = String(params['locale'] ?? '') as Locale
 
   return (
-    <label className="flex items-center gap-2 text-sm" style={{ color: 'var(--quiet)' }}>
+    <label className="flex items-center gap-2 text-sm text-quiet">
       <span className="sr-only sm:not-sr-only">{label}</span>
       <select
         value={current}
@@ -41,12 +41,7 @@ export function LocaleSwitcher({ label }: { readonly label: string }) {
             router.replace(pathname, { locale: next })
           })
         }}
-        className="rounded-md border px-2 py-1 text-sm disabled:opacity-60"
-        style={{
-          background: 'var(--panel)',
-          borderColor: 'var(--edge)',
-          color: 'var(--prose)',
-        }}
+        className="rounded-md border px-2 py-1 text-sm disabled:opacity-60 bg-panel border-edge text-prose"
       >
         {LOCALES.map((locale) => (
           <option key={locale} value={locale}>

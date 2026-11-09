@@ -305,7 +305,7 @@ export function UploadForm({
             if (file) void send(file)
           }}
         >
-          <p id={hintId} className="mt-1 text-sm" style={{ color: 'var(--quiet)' }}>
+          <p id={hintId} className="mt-1 text-sm text-quiet">
             {labels.uploadHint}
           </p>
 
@@ -333,27 +333,25 @@ export function UploadForm({
               required
               disabled={busy}
               onChange={(event) => setFilename(event.target.files?.[0]?.name ?? '')}
-              className="text-sm file:mr-3 file:cursor-pointer file:rounded-md file:border file:px-3 file:py-1.5 file:text-sm"
-              style={{ color: 'var(--quiet)' }}
+              className="text-sm file:mr-3 file:cursor-pointer file:rounded-md file:border file:px-3 file:py-1.5 file:text-sm text-quiet"
             />
             <button
               type="submit"
               disabled={busy}
-              className="rounded-md px-4 py-2 text-sm font-medium transition-opacity disabled:opacity-60"
-              style={{ background: 'var(--accent)', color: 'var(--ground)' }}
+              className="rounded-md px-4 py-2 text-sm font-medium transition-opacity disabled:opacity-60 bg-accent text-ground"
             >
               {busy ? labels.uploading : labels.uploadButton}
             </button>
           </div>
 
-          <p className="mt-2 text-xs" style={{ color: 'var(--quiet)' }}>
+          <p className="mt-2 text-xs text-quiet">
             {filename === '' ? labels.noFile : filename}
           </p>
         </form>
 
         {/* What the button is for, while there is nothing to show yet. */}
         {result === undefined ? (
-          <p className="mt-4 text-sm" style={{ color: 'var(--quiet)' }}>
+          <p className="mt-4 text-sm text-quiet">
             {labels.nothingYet}
           </p>
         ) : null}
@@ -364,8 +362,7 @@ export function UploadForm({
       {alreadyHere !== undefined ? (
         <p
           role="status"
-          className="rounded-lg border px-4 py-3 text-sm"
-          style={{ borderColor: 'var(--accent-quiet)', color: 'var(--prose)' }}
+          className="rounded-lg border px-4 py-3 text-sm border-accent-quiet text-prose"
         >
           {labels.episodeAlreadyHere}
           {alreadyHere === '' ? null : (
@@ -377,8 +374,7 @@ export function UploadForm({
       {error !== '' ? (
         <p
           role="alert"
-          className="rounded-lg border px-4 py-3 text-sm"
-          style={{ borderColor: 'var(--alarm)', color: 'var(--alarm)' }}
+          className="rounded-lg border px-4 py-3 text-sm border-alarm text-alarm"
         >
           {error}
         </p>
@@ -387,7 +383,7 @@ export function UploadForm({
       {result ? (
         <section aria-live="polite">
           <div className="flex items-baseline gap-3">
-            <h2 className="text-xl" style={{ fontFamily: 'var(--font-display)' }}>
+            <h2 className="text-xl font-display">
               {labels.resultsHeading}
             </h2>
             <span
@@ -402,7 +398,7 @@ export function UploadForm({
           </div>
 
           {result.status.notice !== undefined ? (
-            <p className="mt-2 text-sm" style={{ color: 'var(--quiet)' }}>
+            <p className="mt-2 text-sm text-quiet">
               {result.status.notice}
             </p>
           ) : null}

@@ -1,29 +1,45 @@
 @import 'tailwindcss';
 
 /*
- * The palette and the type come from the plan-of-record document, which is
- * where this project's look was actually decided: a cool blue-biased paper,
- * brass for anything that carries weight, and a serif with real optical
- * presence for the headings.
- *
- * Every component already draws from these tokens, so the whole app
- * re-skins from this block — there is no component that hardcodes a colour.
+ * The type comes from the plan-of-record document, which is where this
+ * project's look was actually decided: a serif with real optical presence
+ * for the headings, and a humanist sans for everything else.
  */
 @theme {
   --font-display: var(--font-instrument-serif), Georgia, 'Times New Roman', serif;
   --font-body: var(--font-plex-sans), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-plex-mono), ui-monospace, 'SF Mono', monospace;
+}
 
-  --color-ink: #0e1116;
-  --color-surface: #161b22;
-  --color-raised: #1f262e;
-  --color-line: #2b333d;
-  --color-body: #e6edf3;
-  --color-muted: #8b949e;
-  --color-signal: #f0a830;
-  --color-signal-dim: #a8741c;
-  --color-cool: #6cb6ff;
-  --color-warn: #e5774e;
+/*
+ * The palette, as utilities.
+ *
+ * This block replaced ten `--color-*` entries that were used **zero times**
+ * anywhere in the app — a dark-first palette from an earlier iteration, left
+ * behind under a comment claiming "every component already draws from these
+ * tokens". They did not. Every component drew from the `:root` tokens below,
+ * by hand, in 131 separate `style={{}}` objects: `var(--quiet)` typed out 56
+ * times, `var(--edge)` 32, `var(--accent)` 21.
+ *
+ * `inline` so a utility carries the token straight through:
+ * `.text-quiet` becomes `color: var(--quiet)` rather than pointing at a
+ * second variable. That makes each class byte-identical to the inline style
+ * it replaced, and the light and dark definitions below keep working with no
+ * extra wiring.
+ */
+@theme inline {
+  --color-ground: var(--ground);
+  --color-panel: var(--panel);
+  --color-edge: var(--edge);
+  --color-prose: var(--prose);
+  --color-prose-2: var(--prose-2);
+  --color-quiet: var(--quiet);
+  --color-accent: var(--accent);
+  --color-accent-quiet: var(--accent-quiet);
+  --color-link: var(--link);
+  --color-alarm: var(--alarm);
+  --color-danger: var(--danger);
+  --color-mark: var(--mark);
 }
 
 :root {
