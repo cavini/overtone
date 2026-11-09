@@ -12,6 +12,7 @@ import type { UiKey } from '../i18n/ui.js'
 import { number, timestamp } from '../presenter/episode-view.js'
 import { topicBars } from '../presenter/series-bars.js'
 import { Panel } from './panel.js'
+import { callApi } from '../api/call-api.js'
 
 type Labels = Record<UiKey, string>
 
@@ -54,11 +55,10 @@ export function SeriesPanel({
     let stopped = false
 
     const pull = async (): Promise<void> => {
-      const response = await fetch('/api/series').catch(() => undefined)
-      if (stopped || response === undefined || !response.ok) return
+      const answered = await callApi<SeriesOverview>('/api/series')
+      if (stopped || !answered.ok) return
 
-      const payload = (await response.json()) as SeriesOverview
-      if (!stopped) setOverview(payload)
+      if (!stopped) setOverview(answered.data)
     }
 
     void pull()
@@ -236,11 +236,8 @@ function TopWords({
 
     setAsking(true)
     try {
-      const response = await fetch('/api/series/words').catch(() => undefined)
-      const payload = ((await response?.json().catch(() => ({}))) ?? {}) as {
-        terms?: readonly SeriesTermTotal[]
-      }
-      setTerms(payload.terms ?? [])
+      const answered = await callApi<{ terms?: readonly SeriesTermTotal[] }>('/api/series/words')
+      setTerms(answered.ok ? (answered.data.terms ?? []) : [])
     } finally {
       setAsking(false)
     }

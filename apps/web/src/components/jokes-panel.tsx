@@ -4,6 +4,7 @@ import type { Locale } from '@overtone/messages'
 import { useEffect, useState } from 'react'
 import type { UiKey } from '../i18n/ui.js'
 import { Panel } from './panel.js'
+import { callApi } from '../api/call-api.js'
 
 type Labels = Record<UiKey, string>
 
@@ -32,11 +33,10 @@ export function JokesPanel({ locale, labels }: { readonly locale: Locale; readon
   const [recounted, setRecounted] = useState(false)
 
   const load = async (): Promise<void> => {
-    const response = await fetch('/api/topics').catch(() => undefined)
-    if (!response?.ok) return
+    const answered = await callApi<{ topics: Joke[] }>('/api/topics')
+    if (!answered.ok) return
 
-    const { topics } = (await response.json()) as { topics: Joke[] }
-    setJokes(topics)
+    setJokes(answered.data.topics)
   }
 
   useEffect(() => {
@@ -47,20 +47,17 @@ export function JokesPanel({ locale, labels }: { readonly locale: Locale; readon
     setBusy(true)
     setError('')
     try {
-      const response = await fetch('/api/topics', {
+      const answered = await callApi('/api/topics', {
         method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({
+        body: {
           name,
           // Commas, because that is how a person lists things.
           patterns: spellings.split(',').map((part) => part.trim()).filter(Boolean),
           locale,
-        }),
+        },
       })
-      const payload = (await response.json()) as { error?: string }
-
-      if (!response.ok) {
-        setError(payload.error ?? '')
+      if (!answered.ok) {
+        setError(answered.error)
         return
       }
       setName('')
@@ -72,7 +69,7 @@ export function JokesPanel({ locale, labels }: { readonly locale: Locale; readon
   }
 
   async function remove(id: string): Promise<void> {
-    await fetch(`/api/topics?id=${encodeURIComponent(id)}`, { method: 'DELETE' })
+    await callApi(`/api/topics?id=${encodeURIComponent(id)}`, { method: 'DELETE' })
     await load()
   }
 
@@ -161,7 +158,7 @@ export function JokesPanel({ locale, labels }: { readonly locale: Locale; readon
             onClick={() => {
               setRecounting(true)
               setRecounted(false)
-              void fetch('/api/topics/recount', { method: 'POST' })
+              void callApi('/api/topics/recount', { method: 'POST' })
                 .then(() => setRecounted(true))
                 .finally(() => setRecounting(false))
             }}
