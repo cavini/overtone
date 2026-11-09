@@ -215,6 +215,41 @@ dictionary's irregular coverage is the part no stemmer can ever reach and it
 is genuinely there: `was`→`be`, `went`→`go`, `children`→`child`,
 `mice`→`mouse`, `better`→`good`, `worse`→`bad`.
 
+## What the English pack did on real audio
+
+Recorded here because this ADR prescribed the experiment and then went months
+without it. Two English episodes, ten minutes each, 2026-11-08. Both were
+detected as English from their own audio (ADR 0036) and both reached `ready`.
+
+Measured with `pnpm diagnose:terms`, so it can be repeated rather than taken on
+trust:
+
+| | Everyday Conversations #001 | The Loose Threads Show #001 |
+|---|---|---|
+| terms counted | 328 | 335 |
+| Portuguese function words among them | **0** | **0** |
+| top five | say 43, go 25, attorney 14, come 13, good 12 | say 36, go 23, know 16, want 14, guy 12 |
+
+**It works, and in the specific way that matters.** `say` at 43 means
+`says`/`said`/`saying` grouped; `go`, `come` and `take` caught `went`, `came`
+and `took`. That is the irregular morphology no stemmer can reach, which is the
+dictionary's whole reason for being here. And the content terms are the subject
+matter — `attorney`, `interrogation`, `prison`, `engagement` — rather than
+noise.
+
+Two things the run surfaced that the lists should absorb:
+
+- **`like` ranks 7th and 8th.** In spoken English it is overwhelmingly a
+  discourse marker rather than content, which makes it the first entry the
+  missing colloquial-override list below actually wants. This ADR said that
+  list was empty "because there is no English episode to learn from". There is
+  now, and this is what it taught.
+- **A bare number (`45`) was counted as a term.** Arguably correct and
+  arguably noise; worth a decision rather than leaving it to chance.
+
+Neither is a defect in the pack. Both are the pass this ADR said would be
+needed "after the first real English episode".
+
 **Thin, and known.**
 
 - The English dictionary is **41,480 pairs over 25,863 lemmas**, against
@@ -241,9 +276,8 @@ is genuinely there: `was`→`be`, `went`→`go`, `children`→`child`,
   while `hype` is `hype` in both, so a search for one never finds the other.
   The product answer is the watchlist alias mechanism (ADRs 0006, 0014), not
   a third configuration.
-- **Only Portuguese has ever been run end to end on real audio.** The English
-  pack is tested, and it is tested against constructed text and against
-  Portuguese episodes that happen to contain English words. No English
-  episode exists yet. The cheapest next experiment is the same one ADR 0014
-  prescribed for Portuguese: transcribe ten minutes of English audio and
-  hand-check the top terms.
+- ~~**Only Portuguese has ever been run end to end on real audio.**~~
+  **Resolved 2026-11-09.** Two ten-minute English episodes went through the
+  whole pipeline and the experiment this ADR prescribed — transcribe ten
+  minutes of English audio and hand-check the top terms — was run on both.
+  See *What the English pack did on real audio* below.
