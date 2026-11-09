@@ -48,16 +48,14 @@ export function CorrectLine({
         }}
         rows={2}
         aria-label={labels.correctLine}
-        className="w-full resize-y rounded-md border px-2 py-1 text-sm leading-relaxed"
-        style={{ background: 'var(--ground)', borderColor: 'var(--accent)', color: 'var(--prose)' }}
+        className="w-full resize-y rounded-md border px-2 py-1 text-sm leading-relaxed bg-ground border-accent text-prose"
       />
       <span className="mt-1 flex items-center gap-3 text-xs">
         <button
           type="button"
           disabled={busy}
           onClick={() => onSave(draft)}
-          className="rounded-md px-2 py-1 font-medium disabled:opacity-60"
-          style={{ background: 'var(--accent)', color: 'var(--ground)' }}
+          className="rounded-md px-2 py-1 font-medium disabled:opacity-60 bg-accent text-ground"
         >
           {busy ? labels.correctSaving : labels.correctSave}
         </button>

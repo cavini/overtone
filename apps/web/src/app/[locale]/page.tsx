@@ -56,8 +56,7 @@ export default async function HomePage({
             {labels.appName}
           </h1>
           <p
-            className="mt-2 text-base italic"
-            style={{ fontFamily: 'var(--font-display)', color: 'var(--prose-2)' }}
+            className="mt-2 text-base italic font-display text-prose-2"
           >
             {labels.tagline}
           </p>
@@ -74,8 +73,7 @@ export default async function HomePage({
              */
             <p
               title={signedIn.email}
-              className="max-w-[16rem] truncate text-xs"
-              style={{ color: 'var(--quiet)' }}
+              className="max-w-[16rem] truncate text-xs text-quiet"
             >
               {labels.signedInAs}{' '}
               <span style={{ color: 'var(--prose-2)' }}>{signedIn.email}</span>
@@ -88,7 +86,7 @@ export default async function HomePage({
              * with an image tag is a nuisance anybody can inflict.
              */}
             <form method="post" action="/api/auth/sign-out">
-              <button type="submit" className="text-sm underline" style={{ color: 'var(--quiet)' }}>
+              <button type="submit" className="text-sm underline text-quiet">
                 {labels.signOut}
               </button>
             </form>
@@ -118,13 +116,13 @@ export default async function HomePage({
       </div>
 
       {/* Said once, plainly: these counts describe the edit, not the room. */}
-      <footer className="mt-14 border-t pt-5 text-xs" style={{ borderColor: 'var(--edge)', color: 'var(--quiet)' }}>
+      <footer className="mt-14 border-t pt-5 text-xs border-edge text-quiet">
         <p>{renderMessage(locale, 'COUNTS_DESCRIBE_PUBLISHED_EDIT', {})}</p>
         <p className="mt-1">{renderMessage(locale, 'ANALYSIS_ALWAYS_PTBR', {})}</p>
         {/* ODbL asks for the dictionary's notice to be reachable by anyone
             using the app, not just anyone reading the repository. */}
         <p className="mt-3">
-          <Link href="/creditos" className="underline" style={{ color: 'var(--link)' }}>
+          <Link href="/creditos" className="underline text-link">
             {labels.credits}
           </Link>
         </p>

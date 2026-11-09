@@ -75,12 +75,12 @@ export function JokesPanel({ locale, labels }: { readonly locale: Locale; readon
 
   return (
     <Panel heading={labels.jokesHeading} startOpen={false}>
-      <p className="mt-1 text-sm" style={{ color: 'var(--quiet)' }}>
+      <p className="mt-1 text-sm text-quiet">
         {labels.jokesHint}
       </p>
 
       {jokes.length === 0 ? (
-        <p className="mt-4 text-sm" style={{ color: 'var(--quiet)' }}>
+        <p className="mt-4 text-sm text-quiet">
           {labels.noJokes}
         </p>
       ) : (
@@ -88,20 +88,18 @@ export function JokesPanel({ locale, labels }: { readonly locale: Locale; readon
           {jokes.map((joke) => (
             <li
               key={joke.id}
-              className="flex flex-wrap items-baseline justify-between gap-2 rounded-md border px-3 py-2"
-              style={{ borderColor: 'var(--edge)' }}
+              className="flex flex-wrap items-baseline justify-between gap-2 rounded-md border px-3 py-2 border-edge"
             >
               <div className="min-w-0">
                 <span className="font-medium">{joke.name}</span>
-                <span className="ml-2 text-xs" style={{ color: 'var(--quiet)' }}>
+                <span className="ml-2 text-xs text-quiet">
                   {joke.patterns.join(' · ')}
                 </span>
               </div>
               <button
                 type="button"
                 onClick={() => void remove(joke.id)}
-                className="text-xs underline"
-                style={{ color: 'var(--quiet)' }}
+                className="text-xs underline text-quiet"
               >
                 {labels.removeJoke}
               </button>
@@ -117,41 +115,38 @@ export function JokesPanel({ locale, labels }: { readonly locale: Locale; readon
           void add()
         }}
       >
-        <label className="text-xs" style={{ color: 'var(--quiet)' }}>
+        <label className="text-xs text-quiet">
           {labels.jokeName}
           <input
             value={name}
             onChange={(event) => setName(event.target.value)}
             placeholder={labels.jokeNamePlaceholder}
             required
-            className="mt-1 w-full rounded-md border px-2 py-1.5 text-sm"
-            style={{ background: 'var(--ground)', borderColor: 'var(--edge)', color: 'var(--prose)' }}
+            className="mt-1 w-full rounded-md border px-2 py-1.5 text-sm bg-ground border-edge text-prose"
           />
         </label>
-        <label className="text-xs" style={{ color: 'var(--quiet)' }}>
+        <label className="text-xs text-quiet">
           {labels.jokeSpellings}
           <input
             value={spellings}
             onChange={(event) => setSpellings(event.target.value)}
             placeholder={labels.jokeSpellingsPlaceholder}
             required
-            className="mt-1 w-full rounded-md border px-2 py-1.5 text-sm"
-            style={{ background: 'var(--ground)', borderColor: 'var(--edge)', color: 'var(--prose)' }}
+            className="mt-1 w-full rounded-md border px-2 py-1.5 text-sm bg-ground border-edge text-prose"
           />
           <span className="mt-1 block">{labels.jokeSpellingsHint}</span>
         </label>
         <button
           type="submit"
           disabled={busy}
-          className="self-start rounded-md px-4 py-2 text-sm font-medium disabled:opacity-60 sm:mt-5"
-          style={{ background: 'var(--accent)', color: 'var(--ground)' }}
+          className="self-start rounded-md px-4 py-2 text-sm font-medium disabled:opacity-60 sm:mt-5 bg-accent text-ground"
         >
           {labels.addJoke}
         </button>
       </form>
 
       {jokes.length > 0 ? (
-        <div className="mt-4 flex flex-wrap items-center gap-3 border-t pt-4" style={{ borderColor: 'var(--edge)' }}>
+        <div className="mt-4 flex flex-wrap items-center gap-3 border-t pt-4 border-edge">
           <button
             type="button"
             disabled={recounting}
@@ -162,13 +157,12 @@ export function JokesPanel({ locale, labels }: { readonly locale: Locale; readon
                 .then(() => setRecounted(true))
                 .finally(() => setRecounting(false))
             }}
-            className="rounded-md border px-3 py-1.5 text-xs font-medium disabled:opacity-60"
-            style={{ borderColor: 'var(--edge)', color: 'var(--prose)' }}
+            className="rounded-md border px-3 py-1.5 text-xs font-medium disabled:opacity-60 border-edge text-prose"
           >
             {recounting ? labels.recounting : labels.recount}
           </button>
           {recounted ? (
-            <span className="text-xs" style={{ color: 'var(--accent)' }}>
+            <span className="text-xs text-accent">
               {labels.recounted}
             </span>
           ) : null}
@@ -176,7 +170,7 @@ export function JokesPanel({ locale, labels }: { readonly locale: Locale; readon
       ) : null}
 
       {error !== '' ? (
-        <p role="alert" className="mt-3 text-sm" style={{ color: 'var(--alarm)' }}>
+        <p role="alert" className="mt-3 text-sm text-alarm">
           {error}
         </p>
       ) : null}

@@ -50,7 +50,7 @@ export function Panel({
        * whole width of it the thing you press. On a phone that matters more
        * than it looks: a chevron on its own is a 16px target.
        */}
-      <h2 className="text-xl" style={{ fontFamily: 'var(--font-display)' }}>
+      <h2 className="text-xl font-display">
         <button
           type="button"
           aria-expanded={open}

@@ -37,12 +37,11 @@ export default async function EnterPage({
   return (
     <main className="mx-auto flex min-h-screen max-w-md flex-col justify-center px-5">
       <OvertoneMark className="block h-8 w-auto" />
-      <h1 className="mt-3 text-5xl leading-none" style={{ fontFamily: 'var(--font-display)' }}>
+      <h1 className="mt-3 text-5xl leading-none font-display">
         {labels.appName}
       </h1>
       <p
-        className="mt-2 text-base italic"
-        style={{ fontFamily: 'var(--font-display)', color: 'var(--prose-2)' }}
+        className="mt-2 text-base italic font-display text-prose-2"
       >
         {labels.tagline}
       </p>

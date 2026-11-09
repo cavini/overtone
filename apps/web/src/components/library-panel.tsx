@@ -158,7 +158,7 @@ export function LibraryPanel({
   return (
     <Panel heading={labels.libraryHeading}>
       {episodes.length === 0 ? (
-        <p className="mt-2 text-sm" style={{ color: 'var(--quiet)' }}>
+        <p className="mt-2 text-sm text-quiet">
           {labels.libraryEmpty}
         </p>
       ) : (
@@ -169,12 +169,11 @@ export function LibraryPanel({
             onChange={(event) => setTyped(event.target.value)}
             placeholder={labels.libraryFilter}
             aria-label={labels.libraryFilter}
-            className="mt-4 w-full rounded-md border px-3 py-2 text-sm"
-            style={{ background: 'var(--ground)', borderColor: 'var(--edge)', color: 'var(--prose)' }}
+            className="mt-4 w-full rounded-md border px-3 py-2 text-sm bg-ground border-edge text-prose"
           />
 
           {shown.length === 0 ? (
-            <p className="mt-4 text-sm" style={{ color: 'var(--quiet)' }}>
+            <p className="mt-4 text-sm text-quiet">
               {labels.libraryNoMatch}
             </p>
           ) : (
@@ -182,8 +181,7 @@ export function LibraryPanel({
               <section key={section.category ?? ''}>
                 {named ? (
                   <h3
-                    className="mt-4 text-xs font-semibold uppercase tracking-wide"
-                    style={{ color: 'var(--quiet)' }}
+                    className="mt-4 text-xs font-semibold uppercase tracking-wide text-quiet"
                   >
                     {section.category ?? labels.libraryUncategorised}
                   </h3>
@@ -224,7 +222,7 @@ export function LibraryPanel({
                     >
                       <span className="min-w-0">
                         <span className="font-medium">{episode.title}</span>
-                        <span className="tabular ml-2 text-xs" style={{ color: 'var(--quiet)' }}>
+                        <span className="tabular ml-2 text-xs text-quiet">
                           {timestamp(episode.durationMs)}
                         </span>
                       </span>
@@ -270,8 +268,7 @@ export function LibraryPanel({
                       <button
                         type="button"
                         onClick={() => void retry(episode.episodeId)}
-                        className="mr-1 shrink-0 self-center rounded-md px-2 py-1 text-xs"
-                        style={{ background: 'var(--accent)', color: 'var(--panel)' }}
+                        className="mr-1 shrink-0 self-center rounded-md px-2 py-1 text-xs bg-accent text-panel"
                       >
                         {labels.libraryRetry}
                       </button>

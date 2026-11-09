@@ -26,24 +26,23 @@ export default async function CreditsPage({
 
   return (
     <main className="mx-auto max-w-2xl px-5 py-10 sm:py-16">
-      <Link href="/" className="text-sm underline" style={{ color: 'var(--link)' }}>
+      <Link href="/" className="text-sm underline text-link">
         ← {labels.appName}
       </Link>
 
-      <h1 className="mt-6 text-3xl" style={{ fontFamily: 'var(--font-display)' }}>
+      <h1 className="mt-6 text-3xl font-display">
         {labels.creditsHeading}
       </h1>
 
       <section className="mt-6 space-y-3 text-sm leading-relaxed">
-        <h2 className="text-lg" style={{ fontFamily: 'var(--font-display)' }}>
+        <h2 className="text-lg font-display">
           {labels.dictionaryHeading}
         </h2>
         <p>
           {pt ? 'Dados de lematização do português de ' : 'Portuguese lemmatisation data from '}
           <a
             href="https://github.com/michmech/lemmatization-lists"
-            className="underline"
-            style={{ color: 'var(--link)' }}
+            className="underline text-link"
             rel="noreferrer"
           >
             Lemmatization Lists
@@ -51,8 +50,7 @@ export default async function CreditsPage({
           {pt ? ', de Michal Měchura, sob a ' : ' by Michal Měchura, under the '}
           <a
             href="https://opendatacommons.org/licenses/odbl/"
-            className="underline"
-            style={{ color: 'var(--link)' }}
+            className="underline text-link"
             rel="noreferrer"
           >
             Open Database License (ODbL)
@@ -66,7 +64,7 @@ export default async function CreditsPage({
       </section>
 
       <section className="mt-8 space-y-3 text-sm leading-relaxed">
-        <h2 className="text-lg" style={{ fontFamily: 'var(--font-display)' }}>
+        <h2 className="text-lg font-display">
           {labels.transcriptionHeading}
         </h2>
         <p style={{ color: 'var(--quiet)' }}>{labels.transcriptionCredit}</p>

@@ -127,8 +127,7 @@ export function SignInForm({
   if (sent) {
     return (
       <p
-        className="mt-8 rounded-xl border p-5 text-sm"
-        style={{ borderColor: 'var(--edge)', background: 'var(--panel)', color: 'var(--prose)' }}
+        className="mt-8 rounded-xl border p-5 text-sm border-edge bg-panel text-prose"
       >
         {labels.linkSent}
       </p>
@@ -141,14 +140,13 @@ export function SignInForm({
   return (
     <form
       onSubmit={(event) => void submit(event)}
-      className="mt-8 rounded-xl border p-5"
-      style={{ borderColor: 'var(--edge)', background: 'var(--panel)' }}
+      className="mt-8 rounded-xl border p-5 border-edge bg-panel"
     >
       <label htmlFor={emailId} className="block text-sm font-medium">
         {labels.emailLabel}
       </label>
       {asking ? (
-        <p className="mt-1 text-xs" style={{ color: 'var(--quiet)' }}>
+        <p className="mt-1 text-xs text-quiet">
           {labels.emailHint}
         </p>
       ) : null}
@@ -162,8 +160,7 @@ export function SignInForm({
         value={email}
         onChange={(event) => setEmail(event.target.value)}
         placeholder={labels.emailPlaceholder}
-        className="mt-3 w-full rounded-md border px-3 py-2"
-        style={{ borderColor: 'var(--edge)', background: 'var(--ground)', color: 'var(--prose)' }}
+        className="mt-3 w-full rounded-md border px-3 py-2 border-edge bg-ground text-prose"
       />
 
       {asking ? null : (
@@ -186,12 +183,7 @@ export function SignInForm({
             value={password}
             onChange={(event) => setPassword(event.target.value)}
             placeholder={making ? labels.passwordPlaceholder : undefined}
-            className="mt-3 w-full rounded-md border px-3 py-2"
-            style={{
-              borderColor: 'var(--edge)',
-              background: 'var(--ground)',
-              color: 'var(--prose)',
-            }}
+            className="mt-3 w-full rounded-md border px-3 py-2 border-edge bg-ground text-prose"
           />
         </>
       )}
@@ -199,8 +191,7 @@ export function SignInForm({
       <button
         type="submit"
         disabled={busy}
-        className="mt-4 w-full rounded-md px-4 py-2 font-medium"
-        style={{ background: 'var(--accent)', color: 'var(--ground)' }}
+        className="mt-4 w-full rounded-md px-4 py-2 font-medium bg-accent text-ground"
       >
         {asking
           ? busy
@@ -234,7 +225,7 @@ export function SignInForm({
       </div>
 
       {trouble === undefined && said === undefined ? null : (
-        <p role="alert" className="mt-3 text-sm" style={{ color: 'var(--alarm)' }}>
+        <p role="alert" className="mt-3 text-sm text-alarm">
           {said ?? (trouble === undefined ? '' : labels[trouble])}
         </p>
       )}

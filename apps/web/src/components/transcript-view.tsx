@@ -326,11 +326,10 @@ export function TranscriptView({
 
   return (
     <section
-      className="mt-6 rounded-xl border p-5"
-      style={{ borderColor: 'var(--edge)', background: 'var(--panel)' }}
+      className="mt-6 rounded-xl border p-5 border-edge bg-panel"
     >
       <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <h2 className="text-xl" style={{ fontFamily: 'var(--font-display)' }}>
+        <h2 className="text-xl font-display">
           {labels.transcriptHeading}
         </h2>
         <button
@@ -344,15 +343,14 @@ export function TranscriptView({
             if (!open) setRevealed(totalChars(lines))
             setOpen(!open)
           }}
-          className="rounded-md border px-3 py-1.5 text-sm font-medium"
-          style={{ borderColor: 'var(--edge)', color: 'var(--prose)' }}
+          className="rounded-md border px-3 py-1.5 text-sm font-medium border-edge text-prose"
         >
           {open ? labels.transcriptHide : labels.transcriptShow}
         </button>
       </div>
 
       {live ? (
-        <p className="mt-1 text-sm" style={{ color: 'var(--quiet)' }}>
+        <p className="mt-1 text-sm text-quiet">
           {labels.transcriptLive}
         </p>
       ) : null}
@@ -373,7 +371,7 @@ export function TranscriptView({
               <Spinner label={labels.transcriptLoading} />
             </div>
           ) : state === 'empty' ? (
-            <p className="mt-4 text-sm" style={{ color: 'var(--quiet)' }}>
+            <p className="mt-4 text-sm text-quiet">
               {labels.transcriptEmpty}
             </p>
           ) : (
@@ -404,8 +402,7 @@ export function TranscriptView({
                 >
                   <span
                     aria-hidden
-                    className="shrink-0 pt-px font-mono text-xs tabular-nums"
-                    style={{ color: 'var(--quiet)' }}
+                    className="shrink-0 pt-px font-mono text-xs tabular-nums text-quiet"
                   >
                     {timestamp(line.startMs)}
                   </span>
@@ -465,8 +462,7 @@ function Caret() {
   return (
     <span
       aria-hidden
-      className="ml-0.5 inline-block h-[1em] w-[2px] animate-pulse align-text-bottom"
-      style={{ background: 'var(--accent)' }}
+      className="ml-0.5 inline-block h-[1em] w-[2px] animate-pulse align-text-bottom bg-accent"
     />
   )
 }

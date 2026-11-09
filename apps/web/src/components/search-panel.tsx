@@ -83,7 +83,7 @@ export function SearchPanel({
 
   return (
     <Panel heading={labels.searchHeading} startOpen={false}>
-      <p className="mt-1 text-sm" style={{ color: 'var(--quiet)' }}>
+      <p className="mt-1 text-sm text-quiet">
         {labels.searchHint}
       </p>
 
@@ -99,32 +99,30 @@ export function SearchPanel({
           onChange={(event) => setQuery(event.target.value)}
           placeholder={labels.searchPlaceholder}
           aria-label={labels.searchHeading}
-          className="min-w-0 flex-1 rounded-md border px-3 py-2 text-sm"
-          style={{ background: 'var(--ground)', borderColor: 'var(--edge)', color: 'var(--prose)' }}
+          className="min-w-0 flex-1 rounded-md border px-3 py-2 text-sm bg-ground border-edge text-prose"
         />
         <button
           type="submit"
           disabled={busy}
-          className="rounded-md px-4 py-2 text-sm font-medium disabled:opacity-60"
-          style={{ background: 'var(--accent)', color: 'var(--ground)' }}
+          className="rounded-md px-4 py-2 text-sm font-medium disabled:opacity-60 bg-accent text-ground"
         >
           {busy ? labels.searching : labels.searchButton}
         </button>
       </form>
 
-      <p className="mt-2 text-xs" style={{ color: 'var(--quiet)' }}>
+      <p className="mt-2 text-xs text-quiet">
         {labels.searchFree}
       </p>
 
       {moments !== undefined ? (
         moments.length === 0 ? (
-          <p className="mt-4 text-sm" style={{ color: 'var(--quiet)' }}>
+          <p className="mt-4 text-sm text-quiet">
             {labels.searchNothing}
           </p>
         ) : (
           <>
             {summary === undefined ? null : (
-              <p className="mt-4 text-xs" style={{ color: 'var(--quiet)' }}>
+              <p className="mt-4 text-xs text-quiet">
                 {renderMessage(
                   locale,
                   summary.sampled ? 'SEARCH_SHOWING_A_SAMPLE' : 'SEARCH_FOUND_EVERY_ONE',
@@ -139,21 +137,20 @@ export function SearchPanel({
                   type="button"
                   onClick={() => onOpen(moment.episodeId, moment.startMs)}
                   title={labels.openInTranscript}
-                  className="w-full rounded-md border px-3 py-2 text-left transition-colors"
-                  style={{ borderColor: 'var(--edge)' }}
+                  className="w-full rounded-md border px-3 py-2 text-left transition-colors border-edge"
                 >
                 <div className="flex flex-wrap items-baseline justify-between gap-2">
                   <span className="text-sm font-medium">
                     {moment.episodeTitle}{' '}
-                    <span className="tabular" style={{ color: 'var(--accent)' }}>
+                    <span className="tabular text-accent">
                       {timestamp(moment.startMs)}
                     </span>
                   </span>
-                  <span className="tabular text-xs" style={{ color: 'var(--quiet)' }}>
+                  <span className="tabular text-xs text-quiet">
                     {moment.hitCount} {labels.mentionsHere}
                   </span>
                 </div>
-                <p className="mt-1 text-sm leading-relaxed" style={{ color: 'var(--quiet)' }}>
+                <p className="mt-1 text-sm leading-relaxed text-quiet">
                   {/*
                     Bolded by the database, which is the only layer that
                     knows which words made this match: the search stems, so
