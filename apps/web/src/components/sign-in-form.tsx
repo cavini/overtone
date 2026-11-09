@@ -5,6 +5,7 @@ import { MIN_PASSWORD_CHARS } from '@overtone/core'
 import { renderMessage, type Locale } from '@overtone/messages'
 import { useId, useState } from 'react'
 import type { UiKey } from '../i18n/ui.js'
+import { callApi } from '../api/call-api.js'
 
 type Labels = Record<UiKey, string>
 
@@ -78,27 +79,22 @@ export function SignInForm({
 
     try {
       if (doing === 'recovering') {
-        const response = await fetch('/api/auth/link', {
+        const answered = await callApi('/api/auth/link', {
           method: 'POST',
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ email, locale }),
-        }).catch(() => undefined)
+          body: { email, locale },
+        })
 
-        const payload = ((await response?.json().catch(() => ({}))) ?? {}) as { error?: string }
-        if (response?.ok === true) setSent(true)
-        else setTrouble(explain(payload.error))
+        if (answered.ok) setSent(true)
+        else setTrouble(explain(answered.error))
         return
       }
 
-      const response = await fetch('/api/auth/password', {
+      const answered = await callApi('/api/auth/password', {
         method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ email, password, making: doing === 'registering' }),
-      }).catch(() => undefined)
+        body: { email, password, making: doing === 'registering' },
+      })
 
-      const payload = ((await response?.json().catch(() => ({}))) ?? {}) as { error?: string }
-
-      if (response?.ok === true) {
+      if (answered.ok) {
         /*
          * A whole page load, not a client-side route change. Who is signed
          * in is read from a cookie on the server, so the page that renders
@@ -113,16 +109,16 @@ export function SignInForm({
        * The password rules answer with a number in them, so they are
        * message codes rather than chrome labels and are rendered here.
        */
-      if (payload.error === 'PASSWORD_TOO_SHORT') {
+      if (answered.error === 'PASSWORD_TOO_SHORT') {
         setSaid(renderMessage(locale, 'PASSWORD_TOO_SHORT', { min_chars: MIN_PASSWORD_CHARS }))
         return
       }
-      if (payload.error === 'PASSWORD_NEEDS_CONTENT') {
+      if (answered.error === 'PASSWORD_NEEDS_CONTENT') {
         setSaid(renderMessage(locale, 'PASSWORD_NEEDS_CONTENT', {}))
         return
       }
 
-      setTrouble(explain(payload.error))
+      setTrouble(explain(answered.error))
     } finally {
       setBusy(false)
     }

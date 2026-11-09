@@ -11,6 +11,7 @@ import { ConfirmDialog } from './confirm-dialog.js'
 import { Panel } from './panel.js'
 import { Spinner } from './spinner.js'
 import { TrashCan } from './trash-can.js'
+import { callApi } from '../api/call-api.js'
 
 type Labels = Record<UiKey, string>
 
@@ -85,11 +86,11 @@ export function LibraryPanel({
   async function remove(episodeId: string): Promise<void> {
     setConfirming(undefined)
 
-    const response = await fetch(`/api/episodes/list?id=${encodeURIComponent(episodeId)}`, {
+    const answered = await callApi(`/api/episodes/list?id=${encodeURIComponent(episodeId)}`, {
       method: 'DELETE',
-    }).catch(() => undefined)
+    })
 
-    if (response?.ok !== true) return
+    if (!answered.ok) return
 
     setEpisodes((listed) => listed.filter((episode) => episode.episodeId !== episodeId))
     onDeleted(episodeId)
@@ -108,13 +109,12 @@ export function LibraryPanel({
    * pick up, so that is what the row should say.
    */
   async function retry(episodeId: string): Promise<void> {
-    const response = await fetch('/api/episodes/retry', {
+    const answered = await callApi('/api/episodes/retry', {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ episodeId }),
-    }).catch(() => undefined)
+      body: { episodeId },
+    })
 
-    if (response?.ok !== true) return
+    if (!answered.ok) return
 
     setEpisodes((listed) =>
       listed.map((episode) =>
@@ -129,11 +129,10 @@ export function LibraryPanel({
     let stopped = false
 
     void (async () => {
-      const response = await fetch('/api/episodes/list').catch(() => undefined)
-      if (stopped || !response?.ok) return
+      const answered = await callApi<{ episodes: LibraryEntry[] }>('/api/episodes/list')
+      if (stopped || !answered.ok) return
 
-      const { episodes: found } = (await response.json()) as { episodes: LibraryEntry[] }
-      if (!stopped) setEpisodes(found)
+      if (!stopped) setEpisodes(answered.data.episodes)
     })()
 
     // A second answer arriving before the first would otherwise be free to

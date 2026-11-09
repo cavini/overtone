@@ -6,6 +6,7 @@ import type { UiKey } from '../i18n/ui.js'
 import { timestamp } from '../presenter/episode-view.js'
 import { markedQuote } from '../presenter/marked-quote.js'
 import { Panel } from './panel.js'
+import { callApi } from '../api/call-api.js'
 
 type Labels = Record<UiKey, string>
 
@@ -58,17 +59,23 @@ export function SearchPanel({
 
     setBusy(true)
     try {
-      const response = await fetch(`/api/search?q=${encodeURIComponent(query)}`)
-      const payload = (await response.json()) as {
+      const answered = await callApi<{
         moments?: Moment[]
         matchCount?: number
         sampled?: boolean
+      }>(`/api/search?q=${encodeURIComponent(query)}`)
+
+      if (!answered.ok) {
+        setMoments([])
+        setSummary(undefined)
+        return
       }
-      setMoments(payload.moments ?? [])
-      setSummary({ count: payload.matchCount ?? 0, sampled: payload.sampled === true })
-    } catch {
-      setMoments([])
-      setSummary(undefined)
+
+      setMoments(answered.data.moments ?? [])
+      setSummary({
+        count: answered.data.matchCount ?? 0,
+        sampled: answered.data.sampled === true,
+      })
     } finally {
       setBusy(false)
     }

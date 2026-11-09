@@ -14,6 +14,7 @@ import {
 } from '../presenter/transcript-reveal.js'
 import { transcriptState, type TranscriptRead } from '../presenter/transcript-state.js'
 import type { TranscriptLine, TranscriptSoFar } from '../presenter/transcript-text.js'
+import { callApi } from '../api/call-api.js'
 
 type Labels = Record<UiKey, string>
 
@@ -168,13 +169,12 @@ export function TranscriptView({
   async function correct(fromMs: number, toMs: number, text: string): Promise<void> {
     setSaving(true)
     try {
-      const answered = await fetch('/api/episodes/correct', {
+      const answered = await callApi('/api/episodes/correct', {
         method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ episodeId, fromMs, toMs, text }),
-      }).catch(() => undefined)
+        body: { episodeId, fromMs, toMs, text },
+      })
 
-      if (answered?.ok !== true) return
+      if (!answered.ok) return
 
       // Back to the first chunk: the whole episode was re-analysed, so the
       // lines on screen describe an analysis that no longer exists.
@@ -214,17 +214,14 @@ export function TranscriptView({
       fetching.current = true
 
       try {
-        const response = await fetch(
+        const answered = await callApi<Partial<TranscriptSoFar>>(
           `/api/episodes/transcript?episodeId=${encodeURIComponent(episodeId)}&from=${cursor.current}`,
-        ).catch(() => undefined)
+        )
 
-        if (stopped || response === undefined || !response.ok) return
+        if (stopped || !answered.ok) return
 
-        const payload = (await response.json()) as Partial<TranscriptSoFar>
-        if (stopped) return
-
-        const arrived = payload.lines ?? []
-        cursor.current = payload.nextFrom ?? cursor.current
+        const arrived = answered.data.lines ?? []
+        cursor.current = answered.data.nextFrom ?? cursor.current
         if (arrived.length > 0) setLines((held) => [...held, ...arrived])
       } finally {
         fetching.current = false

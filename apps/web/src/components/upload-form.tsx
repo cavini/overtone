@@ -8,8 +8,9 @@ import { decodeInBrowser } from '../audio/decode-in-browser.js'
 import { measureDuration } from '../audio/measure-duration.js'
 import { splitAndUpload, type ChunkTarget } from '../audio/split-and-upload.js'
 import { uploadProbes, type ProbeTarget } from '../audio/upload-probes.js'
+import { callApi } from '../api/call-api.js'
 import { driveEpisode, type DriveState } from '../upload/drive-episode.js'
-import { readJson, sleep } from '../upload/read-json.js'
+import { sleep } from '../upload/read-json.js'
 import type { UiKey } from '../i18n/ui.js'
 import type { AnalysisView, OutcomeView } from '../presenter/episode-view.js'
 import { CountsTable, JokeList, StatStrip } from './counts-table.js'
@@ -73,24 +74,22 @@ export function UploadForm({
       // Only numbers and names cross the wire here. The audio goes straight
       // to storage from the browser, because the server cannot accept a file
       // this size — which is also why the fingerprint is taken here.
-      const startResponse = await fetch('/api/episodes/start', {
+      const begun = await callApi<Record<string, unknown>>('/api/episodes/start', {
         method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({
+        body: {
           durationMs,
           locale,
           // Whole, extension included: the server reads a presentable title
           // and the episode number out of it.
           title: file.name,
           audioDigest: await audioDigest(file),
-        }),
+        },
       })
-
-      const started = await readJson(startResponse)
-      if (!startResponse.ok || started['error'] !== undefined) {
-        setError(String(started['error'] ?? 'UNEXPECTED'))
+      if (!begun.ok) {
+        setError(begun.error)
         return
       }
+      const started = begun.data
 
       const episodeId = String(started['episodeId'])
 
@@ -141,16 +140,15 @@ export function UploadForm({
       setProgress({ headline: labels.listeningForLanguage, done: 0, total: 0 })
       await uploadProbes(samples, started['probes'] as ProbeTarget[])
 
-      const detected = await fetch('/api/episodes/language', {
+      const heard = await callApi<Record<string, unknown>>('/api/episodes/language', {
         method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ episodeId, locale }),
+        body: { episodeId, locale },
       })
-      const language = await readJson(detected)
-      if (!detected.ok || language['error'] !== undefined) {
-        setError(String(language['error'] ?? 'UNEXPECTED'))
+      if (!heard.ok) {
+        setError(heard.error)
         return
       }
+      const language = heard.data
 
       /*
        * The chunk uploads are re-signed by that call, and these are the ones
@@ -184,10 +182,9 @@ export function UploadForm({
          * upload is the cheap outcome.
          */
         async (startsMs) => {
-          const recorded = await fetch('/api/episodes/boundaries', {
+          const recorded = await callApi('/api/episodes/boundaries', {
             method: 'POST',
-            headers: { 'content-type': 'application/json' },
-            body: JSON.stringify({ episodeId, startsMs }),
+            body: { episodeId, startsMs },
           })
           if (!recorded.ok) throw new Error(labels.couldNotRead)
         },
@@ -251,17 +248,17 @@ export function UploadForm({
     resumed.current = true
 
     void (async () => {
-      const response = await fetch('/api/episodes/pending').catch(() => undefined)
-      if (!response?.ok) return
-
-      const { episode } = (await response.json()) as {
+      const answered = await callApi<{
         episode: {
           episodeId: string
           chunksDone: number
           chunkCount: number
           live: boolean
         } | null
-      }
+      }>('/api/episodes/pending')
+      if (!answered.ok) return
+
+      const { episode } = answered.data
       if (episode === null) return
 
       // Shown either way. A finished episode is here to be read, and
