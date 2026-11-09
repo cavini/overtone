@@ -23,7 +23,8 @@
     "diagnose:episode": "sh -c 'set -a; [ -f .env.local ] && . ./.env.local; set +a; pnpm --filter @overtone/web exec tsx scripts/diagnose-episode.mts \"$@\"' --",
     "diagnose:words": "sh -c 'set -a; [ -f .env.local ] && . ./.env.local; set +a; pnpm --filter @overtone/web exec tsx scripts/which-pt-words.mts \"$@\"' --",
     "diagnose:terms": "sh -c 'set -a; [ -f .env.local ] && . ./.env.local; set +a; pnpm --filter @overtone/web exec tsx scripts/term-damage.mts \"$@\"' --",
-    "check:detection": "sh -c 'set -a; [ -f .env.local ] && . ./.env.local; set +a; tsx scripts/check-detection.mts' --"
+    "check:detection": "sh -c 'set -a; [ -f .env.local ] && . ./.env.local; set +a; tsx scripts/check-detection.mts' --",
+    "diagnose:pending": "sh -c 'set -a; [ -f .env.local ] && . ./.env.local; set +a; pnpm --filter @overtone/web exec tsx scripts/whats-pending.mts' --"
   },
   "devDependencies": {
     "@rolldown/binding-darwin-arm64": "^1.2.13",
